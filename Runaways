@@ -1,0 +1,286 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local localPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local OFFSET_FAR = CFrame.new(0, 5, 20)
+
+local remote = ReplicatedStorage:WaitForChild("FlowClient"):WaitForChild("ClientRunner"):WaitForChild("Event")
+
+getgenv().AutoScriptRunning = false
+getgenv().KillAuraRunning = false
+local snowActive = true
+
+local function safeWait(duration)
+	local elapsed = 0
+	while elapsed < duration do
+		if not getgenv().AutoScriptRunning then return false end
+		task.wait(0.5)
+		elapsed = elapsed + 0.5
+	end
+	return true
+end
+
+RunService.Stepped:Connect(function()
+	if getgenv().AutoScriptRunning and localPlayer.Character then
+		for _, part in ipairs(localPlayer.Character:GetDescendants()) do
+			if part:IsA("BasePart") and part.CanCollide then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+local function getHRP()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	local root = char:WaitForChild("HumanoidRootPart", 10)
+	return root, char
+end
+
+local function safeTeleport(targetCFrame)
+	local root, char = getHRP()
+	if root and char then
+		root.Anchored = true
+		char:PivotTo(targetCFrame)
+		safeWait(1.5)
+		root.Anchored = false
+	end
+end
+
+local function triggerFirePrompt(prompt)
+	if not prompt or not prompt:IsA("ProximityPrompt") then return end
+	prompt.RequiresLineOfSight = false
+	prompt.MaxActivationDistance = 99999
+	prompt.HoldDuration = 0
+	if typeof(fireproximityprompt) == "function" then
+		fireproximityprompt(prompt)
+	end
+end
+
+local function killAllNPCs()
+	local npcsFolder = workspace:FindFirstChild("NPCs")
+	if not npcsFolder then return end
+	for _, npc in ipairs(npcsFolder:GetChildren()) do
+		local humanoid = npc:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			remote:FireServer("NPCs", "Damage", humanoid, math.huge)
+		end
+	end
+end
+
+-- Teleport farm các shop liên tục trong vòng 20 giây
+local function farmFor20Seconds()
+	local startTime = tick()
+	while (tick() - startTime) < 20 do
+		if not getgenv().AutoScriptRunning then break end
+		
+		local map = workspace:FindFirstChild("Map")
+		local buildings = map and map:FindFirstChild("Buildings")
+		if buildings then
+			for _, shop in ipairs(buildings:GetChildren()) do
+				if not getgenv().AutoScriptRunning then break end
+				if shop.Name == "PawnShop" then
+					local targetCFrame = shop:IsA("Model") and shop:GetPivot() or shop.CFrame
+					local currentRoot = getHRP()
+					if currentRoot then
+						currentRoot.CFrame = targetCFrame + Vector3.new(0, 2, 0)
+					end
+					task.wait(0.2)
+					killAllNPCs()
+					task.wait(1.0)
+				end
+			end
+		end
+		task.wait(0.5)
+	end
+end
+
+-- Teleport đến điểm cuối, đứng yên mở cổng và chờ đủ 110 giây không bị tele đi chỗ khác
+local function runPart4()
+	if not getgenv().AutoScriptRunning then return end
+	safeTeleport(CFrame.new(1780, 1940, 83615) * CFrame.new(0, 5, 0))
+	if not safeWait(0.5) then return end
+
+	local map = workspace:WaitForChild("Map", 10)
+	local customsFinal = map and map:WaitForChild("Buildings", 10):WaitForChild("CustomsFinal", 10)
+
+	if customsFinal then
+		local targetCFrame = customsFinal:IsA("Model") and customsFinal:GetPivot() or customsFinal.CFrame
+		safeTeleport(targetCFrame * OFFSET_FAR)
+	end
+
+	if not safeWait(0.5) then return end
+
+	local targetPrompt = customsFinal and customsFinal:FindFirstChildWhichIsA("ProximityPrompt", true)
+	if targetPrompt then
+		local promptOwner = targetPrompt.Parent
+		if promptOwner:IsA("Attachment") then promptOwner = promptOwner.Parent end
+		local doorCFrame = promptOwner:IsA("Model") and promptOwner:GetPivot() or promptOwner.CFrame
+		safeTeleport(doorCFrame * CFrame.new(0, 0, 3))
+
+		-- Tương tác với cổng liên tục
+		task.spawn(function()
+			while getgenv().AutoScriptRunning do
+				triggerFirePrompt(targetPrompt)
+				task.wait(0.1)
+			end
+		end)
+	end
+
+	if not safeWait(0.5) then return end
+
+	-- Gửi tín hiệu Replay
+	task.spawn(function()
+		while getgenv().AutoScriptRunning do
+			remote:FireServer("GameManager", "Replay")
+			task.wait(0.1)
+		end
+	end)
+
+	-- Đứng yên chờ đủ 110 giây mở cổng / hoàn thành màn chơi trước khi vòng lặp cho phép farm lại
+	safeWait(110) 
+end
+
+-- ==================== GIAO DIỆN (UI) ====================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ScriptGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = CoreGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 180, 0, 160)
+mainFrame.Position = UDim2.new(0, 50, 0, 50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Color = Color3.fromRGB(255, 255, 255)
+mainStroke.Thickness = 2
+
+-- Kéo thả UI (Draggable)
+local dragging, dragStart, startPos
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging, dragStart, startPos = true, input.Position, mainFrame.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- Tiêu đề THUB
+local lblTitle = Instance.new("TextLabel", mainFrame)
+lblTitle.Size, lblTitle.Position = UDim2.new(0, 160, 0, 20), UDim2.new(0, 10, 0, 8)
+lblTitle.BackgroundTransparency, lblTitle.TextColor3, lblTitle.TextSize, lblTitle.Font, lblTitle.Text, lblTitle.ZIndex = 1, Color3.fromRGB(255, 255, 255), 14, Enum.Font.SourceSansBold, "THUB", 2
+
+-- Nút Auto Farm
+local toggleButton = Instance.new("TextButton", mainFrame)
+toggleButton.Size, toggleButton.Position = UDim2.new(0, 160, 0, 35), UDim2.new(0, 10, 0, 32)
+toggleButton.BackgroundColor3, toggleButton.TextColor3, toggleButton.TextSize, toggleButton.Font, toggleButton.Text, toggleButton.ZIndex = Color3.fromRGB(200, 50, 50), Color3.new(1,1,1), 14, Enum.Font.SourceSansBold, "Auto Farm: OFF", 2
+Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 8)
+
+-- Nhãn Kill Aura
+local killAuraLabel = Instance.new("TextLabel", mainFrame)
+killAuraLabel.Size, killAuraLabel.Position = UDim2.new(0, 160, 0, 25), UDim2.new(0, 10, 0, 75)
+killAuraLabel.BackgroundTransparency, killAuraLabel.TextColor3, killAuraLabel.TextSize, killAuraLabel.Font, killAuraLabel.Text, killAuraLabel.ZIndex = 1, Color3.new(1,1,1), 14, Enum.Font.SourceSansBold, "Kill Aura: OFF", 2
+
+-- Nút Ẩn/Hiện GUI
+local hideButton = Instance.new("TextButton", mainFrame)
+hideButton.Size, hideButton.Position = UDim2.new(0, 160, 0, 30), UDim2.new(0, 10, 0, 110)
+hideButton.BackgroundColor3, hideButton.TextColor3, hideButton.TextSize, hideButton.Font, hideButton.Text, hideButton.ZIndex = Color3.fromRGB(70, 70, 70), Color3.new(1,1,1), 13, Enum.Font.SourceSansBold, "Hide GUI [ - ]", 2
+Instance.new("UICorner", hideButton).CornerRadius = UDim.new(0, 8)
+
+-- Hiệu ứng tuyết rơi
+for i = 1, 15 do
+	task.spawn(function()
+		local flake = Instance.new("Frame", mainFrame)
+		flake.Size, flake.Position = UDim2.new(0, math.random(3, 6), 0, math.random(3, 6)), UDim2.new(math.random(), 0, -0.1, 0)
+		flake.BackgroundColor3, flake.BackgroundTransparency, flake.ZIndex = Color3.fromRGB(255, 255, 255), math.random(20, 50) / 100, 1
+		Instance.new("UICorner", flake).CornerRadius = UDim.new(1, 0)
+		local speed, drift = math.random(15, 35) / 1000, math.random(-10, 10) / 500
+		while true do
+			if snowActive then
+				flake.Position = UDim2.new(flake.Position.X.Scale + drift, 0, flake.Position.Y.Scale + speed, 0)
+				if flake.Position.Y.Scale > 1.1 then
+					flake.Position = UDim2.new(math.random(), 0, -0.1, 0)
+				end
+			end
+			task.wait(0.03)
+		end
+	end)
+end
+
+local isGuiHidden = false
+hideButton.MouseButton1Click:Connect(function()
+	isGuiHidden = not isGuiHidden
+	snowActive = not isGuiHidden
+	hideButton.Text = isGuiHidden and "Show GUI [ + ]" or "Hide GUI [ - ]"
+	lblTitle.Visible, toggleButton.Visible, killAuraLabel.Visible = not isGuiHidden, not isGuiHidden, not isGuiHidden
+	mainFrame.Size = isGuiHidden and UDim2.new(0, 180, 0, 50) or UDim2.new(0, 180, 0, 160)
+	hideButton.Position = isGuiHidden and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 10, 0, 110)
+end)
+
+toggleButton.MouseButton1Click:Connect(function()
+	if getgenv().AutoScriptRunning then return end
+	getgenv().AutoScriptRunning = true
+	getgenv().KillAuraRunning = true
+	toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+
+	-- Vòng lặp: Farm 20s -> Teleport ra cổng chờ đủ 110s -> Lặp lại
+	task.spawn(function()
+		while getgenv().AutoScriptRunning do
+			farmFor20Seconds()
+			if not getgenv().AutoScriptRunning then break end
+			
+			runPart4()
+			if not getgenv().AutoScriptRunning then break end
+		end
+	end)
+
+	-- Kill Aura phụ trợ tiêu diệt quái xung quanh khi đang đứng ở cổng
+	task.spawn(function()
+		while getgenv().KillAuraRunning do
+			pcall(killAllNPCs)
+			task.wait(0.2)
+		end
+	end)
+
+	task.spawn(function()
+		while getgenv().AutoScriptRunning do
+			for i = 0, 1, 0.005 do
+				if not getgenv().AutoScriptRunning then break end
+				toggleButton.Text = "Auto Farm: ON"
+				toggleButton.TextColor3 = Color3.fromHSV(i, 1, 1)
+				task.wait(0.02)
+			end
+		end
+	end)
+
+	task.spawn(function()
+		while getgenv().KillAuraRunning do
+			for i = 0, 1, 0.005 do
+				if not getgenv().KillAuraRunning then break end
+				killAuraLabel.Text = "Kill Aura: ON"
+				killAuraLabel.TextColor3 = Color3.fromHSV(i, 1, 1)
+				task.wait(0.02)
+			end
+		end
+	end)
+end)
+
