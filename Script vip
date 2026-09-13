@@ -1,5 +1,6 @@
 --==================================================
 -- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
+-- (Đã tích hợp Infinite Jump)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -18,7 +19,9 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 local SaveFileName = "THub_GameSupport_" .. Player.UserId .. ".json"
 
 local Settings = {
-	Speed = false, WalkSpeed = 50, Jump = false, JumpPower = 100, NoClip = false,
+	Speed = false, WalkSpeed = 50, Jump = false, JumpPower = 100, 
+	InfJump = false, -- Thêm biến cài đặt cho Infinite Jump
+	NoClip = false,
 	Follow = false, FollowDistance = 3, FollowHeight = 0, Teleport = false, TeleportDistance = 3, TeleportHeight = 0, Target = nil,
 	ESP = false, ShowNames = false, ESPCheckTeam = false, 
 	Hitbox = false, HitboxCheckTeam = true, HitboxCheckDie = false, 
@@ -479,9 +482,28 @@ local Movement = Page("Movement")
 Title(Movement, "CHỨC NĂNG CƠ BẢN")
 ExpandableOption(Movement, "Tăng tốc độ", Settings.Speed, { onToggle = function(v) Settings.Speed = v end, { text = "Tốc độ chạy", default = Settings.WalkSpeed, callback = function(v) Settings.WalkSpeed = math.clamp(v, 16, 200) end } })
 ExpandableOption(Movement, "Nhảy cao", Settings.Jump, { onToggle = function(v) Settings.Jump = v end, { text = "Độ cao nhảy", default = Settings.JumpPower, callback = function(v) Settings.JumpPower = math.clamp(v, 50, 300) end } })
+
+-- Tích hợp Infinite Jump vào đây
+ExpandableOption(Movement, "Nhảy vô cực (Inf Jump)", Settings.InfJump, nil, function(v)
+	Settings.InfJump = v
+end)
+
 ExpandableOption(Movement, "Xuyên tường", Settings.NoClip, nil, function(v)
 	Settings.NoClip = v
 	if not v then for part, value in pairs(OriginalCollision) do if part and part.Parent then part.CanCollide = value end end table.clear(OriginalCollision) end
+end)
+
+-- Xử lý logic Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+	if Settings.InfJump then
+		pcall(function()
+			local char = Player.Character
+			local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+			end
+		end)
+	end
 end)
 
 Title(Movement, "HIỂN THỊ ESP & TÊN")
