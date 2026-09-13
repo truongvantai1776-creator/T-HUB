@@ -1,0 +1,405 @@
+--====================================================================--
+-- ANIME ABILITY ARENA - CYLINDER MINI GOD FARM HUB (3-IN-1)
+-- Made By VT | Configurable Distance & Free Camera with Target Look
+--====================================================================--
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Config chức năng chính
+local Config = {
+    AutoFarmYen = false,        -- Ultra God Ground Farm
+    UltraFastM1 = false,        -- Fast M1 Attack Clicker
+    AutoSkills = false,         -- Auto Use E, R, Z Skills
+    DistanceUnderFeet = -10,    -- Độ cao dưới chân kẻ địch (-10)
+    FollowDistance = 0          -- Khoảng cách lùi ra xa người chơi
+}
+
+-- Biến hỗ trợ
+local currentTarget = nil
+local targetLastHealth = -1
+local targetCheckTimer = 0
+local ignoredTargets = {}
+
+-- Helpers
+local function GetCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+local function GetRoot()
+    local char = GetCharacter()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+-- Hàm tìm mục tiêu cực kỳ an toàn (Lọc sảnh chờ và trên trời)
+local function GetStrictSafeTarget(dt)
+    local myRoot = GetRoot()
+    if not myRoot then return nil end
+
+    -- Kiểm tra mục tiêu hiện tại
+    if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") and currentTarget.Character:FindFirstChild("Humanoid") then
+        local hum = currentTarget.Character.Humanoid
+        local targetRoot = currentTarget.Character.HumanoidRootPart
+        
+        if hum.Health > 0 and targetRoot.Position.Y > -50 and targetRoot.Position.Y < 500 and not ignoredTargets[currentTarget] then
+            if hum.Health ~= targetLastHealth then
+                targetLastHealth = hum.Health
+                targetCheckTimer = 0
+            else
+                targetCheckTimer = targetCheckTimer + dt
+                if targetCheckTimer >= 3.0 then -- 3 giây không mất máu -> Đổi mục tiêu ngay
+                    ignoredTargets[currentTarget] = true
+                    currentTarget = nil
+                    targetCheckTimer = 0
+                end
+            end
+            return currentTarget.Character
+        else
+            currentTarget = nil
+            targetCheckTimer = 0
+        end
+    end
+
+    -- Quét tìm người thấp máu nhất
+    local bestTarget = nil
+    local lowestHealth = math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and not ignoredTargets[player] then
+            local char = player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                local hum = char.Humanoid
+                local targetRoot = char.HumanoidRootPart
+                
+                if hum.Health > 0 and targetRoot.Position.Y > -50 and targetRoot.Position.Y < 500 and targetRoot.Position.Magnitude > 10 then
+                    if hum.Health < lowestHealth then
+                        lowestHealth = hum.Health
+                        bestTarget = player
+                    end
+                end
+            end
+        end
+    end
+
+    if not bestTarget then
+        ignoredTargets = {}
+        targetCheckTimer = 0
+    else
+        currentTarget = bestTarget
+        local hum = bestTarget.Character and bestTarget.Character:FindFirstChild("Humanoid")
+        targetLastHealth = hum and hum.Health or -1
+        targetCheckTimer = 0
+    end
+
+    return currentTarget and currentTarget.Character or nil
+end
+
+-- UI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AAA_MiniGodHub_VT"
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = CoreGui end)
+
+-- Nút "T" hình tròn (Y = 25)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleUITextBtn"
+ToggleButton.Size = UDim2.new(0, 52, 0, 52)
+ToggleButton.Position = UDim2.new(0, 30, 0, 25)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+ToggleButton.BackgroundTransparency = 0
+ToggleButton.Text = "T"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 215, 0)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 24
+ToggleButton.Active = true
+ToggleButton.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleButton
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(255, 215, 0)
+ToggleStroke.Thickness = 2.5
+ToggleStroke.Parent = ToggleButton
+
+-- Khung chính UI: Nằm ngay bên phải nút T và ở Y = 25
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 100, 0, 150)
+MainFrame.Position = UDim2.new(0, 30 + 52 + 10, 0, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+MainFrame.BackgroundTransparency = 0
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 20)
+MainCorner.Parent = MainFrame
+
+-- Kéo thả nút T
+local draggingButton, dragInputButton, dragStartButton, startPosButton
+ToggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingButton = true
+        dragStartButton = input.Position
+        startPosButton = ToggleButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingButton = false
+            end
+        end)
+    end
+end)
+
+ToggleButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputButton = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputButton and draggingButton then
+        local delta = input.Position - dragStartButton
+        ToggleButton.Position = UDim2.new(startPosButton.X.Scale, startPosButton.X.Offset + delta.X, startPosButton.Y.Scale, startPosButton.Y.Offset + delta.Y)
+    end
+end)
+
+-- Hiệu ứng đổi màu RGB cho viền nút T
+task.spawn(function()
+    while true do
+        for i = 0, 1, 0.01 do
+            ToggleStroke.Color = Color3.fromHSV(i, 1, 1)
+            task.wait(0.05)
+        end
+    end
+end)
+
+-- Kéo thả MainFrame
+local draggingMain, dragInputMain, dragStartMain, startPosMain
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingMain = true
+        dragStartMain = input.Position
+        startPosMain = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingMain = false
+            end
+        end)
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputMain = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputMain and draggingMain then
+        local delta = input.Position - dragStartMain
+        MainFrame.Position = UDim2.new(startPosMain.X.Scale, startPosMain.X.Offset + delta.X, startPosMain.Y.Scale, startPosMain.Y.Offset + delta.Y)
+    end
+end)
+
+-- Hiệu ứng Tuyết Rơi bên trong UI
+local SnowContainer = Instance.new("Folder")
+SnowContainer.Name = "SnowContainer"
+SnowContainer.Parent = MainFrame
+
+task.spawn(function()
+    while true do
+        task.wait(0.12)
+        if MainFrame.Visible then
+            pcall(function()
+                local snowflake = Instance.new("TextLabel")
+                snowflake.Size = UDim2.new(0, 10, 0, 10)
+                snowflake.Position = UDim2.new(math.random(0, 90) / 100, 0, 0, -20)
+                snowflake.BackgroundTransparency = 1
+                snowflake.Text = "❄"
+                snowflake.TextColor3 = Color3.fromRGB(255, 255, 255)
+                snowflake.TextTransparency = math.random(10, 50) / 100
+                snowflake.TextSize = math.random(7, 12)
+                snowflake.Parent = SnowContainer
+
+                local fallDuration = math.random(2, 4)
+                local tw = TweenService:Create(snowflake, TweenInfo.new(fallDuration, Enum.EasingStyle.Linear), {
+                    Position = UDim2.new(snowflake.Position.X.Scale, math.random(-10, 10), 1, 20),
+                    Rotation = math.random(-180, 180)
+                })
+                tw:Play()
+                tw.Completed:Connect(function()
+                    snowflake:Destroy()
+                end)
+            end)
+        end
+    end
+end)
+
+-- Header
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 26)
+Header.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Header.BackgroundTransparency = 0
+Header.Parent = MainFrame
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 12)
+HeaderCorner.Parent = Header
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -22, 1, 0)
+Title.Position = UDim2.new(0, 5, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "VT"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 9
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 16, 0, 16)
+CloseBtn.Position = UDim2.new(1, -18, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+CloseBtn.BackgroundTransparency = 0
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 8
+CloseBtn.Parent = Header
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseBtn
+
+-- Xử lý ẩn/hiện giao diện
+local function ToggleUI()
+    MainFrame.Visible = not MainFrame.Visible
+end
+
+CloseBtn.MouseButton1Click:Connect(ToggleUI)
+ToggleButton.MouseButton1Click:Connect(ToggleUI)
+
+-- Container cho các Toggle Button chức năng
+local Container = Instance.new("ScrollingFrame")
+Container.Size = UDim2.new(1, -10, 1, -34)
+Container.Position = UDim2.new(0, 5, 0, 30)
+Container.BackgroundTransparency = 1
+Container.CanvasSize = UDim2.new(0, 0, 0, 0)
+Container.ScrollBarThickness = 2
+Container.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 4)
+UIList.Parent = Container
+
+-- Danh sách 3 chức năng
+local Features = {
+    {Name = "1. Farm", Key = "AutoFarmYen"},
+    {Name = "2. Clicker", Key = "UltraFastM1"},
+    {Name = "3. Skills", Key = "AutoSkills"}
+}
+
+for _, feat in ipairs(Features) do
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 30)
+    Btn.BackgroundColor3 = Color3.fromRGB(22, 22, 35)
+    Btn.BackgroundTransparency = 0
+    Btn.Text = feat.Name
+    Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.TextSize = 8
+    Btn.Parent = Container
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Btn
+
+    Btn.MouseButton1Click:Connect(function()
+        Config[feat.Key] = not Config[feat.Key]
+        if Config[feat.Key] then
+            Btn.TextColor3 = Color3.fromRGB(0, 255, 120)
+            TweenService:Create(Btn, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(0, 100, 60)
+            }):Play()
+        else
+            Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            TweenService:Create(Btn, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(22, 22, 35)
+            }):Play()
+        end
+    end)
+end
+
+--====================================================================--
+-- LOGIC XỬ LÝ CHỨC NĂNG CHÍNH (Nhân vật hướng theo kẻ địch, Camera tự do)
+--====================================================================--
+
+RunService.Heartbeat:Connect(function(dt)
+    -- 1. Ultra God Ground Farm
+    if Config.AutoFarmYen then
+        local root = GetRoot()
+        local target = GetStrictSafeTarget(dt)
+
+        if root and target and target:FindFirstChild("HumanoidRootPart") then
+            local targetRoot = target.HumanoidRootPart
+            local targetPos = targetRoot.Position
+            
+            if targetPos.Magnitude > 10 and targetPos.Y > -50 and targetPos.Y < 500 then
+                local offsetPos = targetPos - (targetRoot.CFrame.LookVector * Config.FollowDistance)
+                local newPos = Vector3.new(offsetPos.X, targetPos.Y + Config.DistanceUnderFeet, offsetPos.Z)
+                
+                -- Lưu lại góc quay camera hiện tại của bạn trước khi gán vị trí nhân vật
+                local currentCamCFrame = Camera.CFrame
+
+                -- Nhân vật vẫn nhìn hướng về phía chân/thân kẻ địch (đúng ý bạn)
+                local lookTargetPos = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
+                root.CFrame = CFrame.lookAt(newPos, lookTargetPos)
+                root.Velocity = Vector3.new(0, 0, 0)
+
+                -- Trả lại góc nhìn camera tự do cho bạn ngay lập tức để không bị khóa dính vào đầu
+                Camera.CFrame = currentCamCFrame
+
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end
+        end
+    else
+        currentTarget = nil
+        targetCheckTimer = 0
+        ignoredTargets = {}
+    end
+
+    -- 2. Fast M1 Attack Clicker
+    if Config.UltraFastM1 then
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end
+
+    -- 3. Auto Use E, R, Z Skills
+    if Config.AutoSkills then
+        for _, key in ipairs({Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.Z}) do
+            VirtualInputManager:SendKeyEvent(true, key, false, game)
+            task.wait(0.01)
+            VirtualInputManager:SendKeyEvent(false, key, false, game)
+        end
+    end
+end)
+
+-- Phím tắt ẩn/hiện UI (Right Control)
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
+        ToggleUI()
+    end
+end)
