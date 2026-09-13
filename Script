@@ -1,5 +1,5 @@
 --==================================================
--- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
+-- T HUB - AIM LOCK FOV + MISC SECTION
 --==================================================
 
 local Players = game:GetService("Players")
@@ -15,16 +15,12 @@ local CoreGui = game:GetService("CoreGui")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
-local SaveFileName = "THub_GameSupport_" .. Player.UserId .. ".json"
+local SaveFileName = "THub_Settings_" .. Player.UserId .. ".json"
 
 local Settings = {
 	Speed = false, WalkSpeed = 50, Jump = false, JumpPower = 100, NoClip = false,
 	Follow = false, FollowDistance = 3, FollowHeight = 0, Teleport = false, TeleportDistance = 3, TeleportHeight = 0, Target = nil,
 	ESP = false, ShowNames = false, ESPCheckTeam = false, 
-	Hitbox = false, HitboxCheckTeam = true, HitboxCheckDie = false, 
-	HitboxSize = 20, HitboxTrans = 0.5, HitboxTargetPart = "HumanoidRootPart", 
-	AimLock = false, AimLockCheckTeam = true, AimLockTargetPart = "Head",
-	ShowFOV = true, AimLockFOV = 120,
 	AntiAFK = false, Fullbright = false, LowGFX = false,
 	SnowEffect = true,
 	ThemeR = 0, ThemeG = 170, ThemeB = 255,
@@ -40,13 +36,7 @@ local function SaveColorSettings()
 			DarkR = Settings.DarkR, DarkG = Settings.DarkG, DarkB = Settings.DarkB,
 			SideR = Settings.SideR, SideG = Settings.SideG, SideB = Settings.SideB,
 			MenuBtnR = Settings.MenuBtnR, MenuBtnG = Settings.MenuBtnG, MenuBtnB = Settings.MenuBtnB,
-			SnowEffect = Settings.SnowEffect,
-			HitboxTargetPart = Settings.HitboxTargetPart,
-			AimLockTargetPart = Settings.AimLockTargetPart,
-			HitboxCheckTeam = Settings.HitboxCheckTeam,
-			AimLockCheckTeam = Settings.AimLockCheckTeam,
-			ShowFOV = Settings.ShowFOV,
-			AimLockFOV = Settings.AimLockFOV
+			SnowEffect = Settings.SnowEffect
 		}
 		if writefile then writefile(SaveFileName, HttpService:JSONEncode(colorData)) end
 	end)
@@ -67,7 +57,6 @@ LoadColorSettings()
 
 local CurrentTarget
 local OriginalCollision = {}
-local OriginalHitboxSizes = {}
 
 local Theme = Color3.fromRGB(Settings.ThemeR, Settings.ThemeG, Settings.ThemeB)
 local Dark = Color3.fromRGB(Settings.DarkR, Settings.DarkG, Settings.DarkB)
@@ -86,36 +75,6 @@ local Gui = Instance.new("ScreenGui")
 Gui.Name = "THub"
 Gui.ResetOnSpawn = false
 Gui.Parent = PlayerGui
-
--- VÒNG TRÒN FOV BẰNG UI
-local FOVGui = Instance.new("ScreenGui")
-FOVGui.Name = "THubFOV"
-FOVGui.ResetOnSpawn = false
-FOVGui.IgnoreGuiInset = true
-FOVGui.Parent = PlayerGui
-
-local FOVCircle = Instance.new("Frame")
-FOVCircle.Name = "FOVCircle"
-FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-FOVCircle.Size = UDim2.fromOffset(Settings.AimLockFOV * 2, Settings.AimLockFOV * 2)
-FOVCircle.BackgroundTransparency = 1
-FOVCircle.Visible = Settings.ShowFOV
-FOVCircle.Parent = FOVGui
-
-local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-FOVStroke.Thickness = 2
-FOVStroke.Parent = FOVCircle
-
-local FOVCorner = Instance.new("UICorner")
-FOVCorner.CornerRadius = UDim.new(1, 0)
-FOVCorner.Parent = FOVCircle
-
-RunService.RenderStepped:Connect(function()
-	FOVCircle.Size = UDim2.fromOffset(Settings.AimLockFOV * 2, Settings.AimLockFOV * 2)
-	FOVCircle.Visible = Settings.AimLock and Settings.ShowFOV
-end)
 
 local function ApplySmoothHover(button, defaultColor, hoverColor)
 	button.MouseEnter:Connect(function()
@@ -341,7 +300,7 @@ end)
 
 local function MenuButton(text, y)
 	local Button = Instance.new("TextButton")
-	Button.Size = UDim2.fromOffset(86, 22)
+	Button.Size = UDim2.fromOffset(86, 26)
 	Button.Position = UDim2.fromOffset(7, y)
 	Button.BackgroundColor3 = MenuButtonColor
 	Button.Text = text
@@ -361,13 +320,12 @@ local function MenuButton(text, y)
 	return Button
 end
 
-local MoveTab       = MenuButton("Chức năng", 33)
-local TeleTab       = MenuButton("D.Chuyển", 58)
-local VipTab        = MenuButton("Chức năng VIP", 83)
-local UtilityTab    = MenuButton("Tiện Ích", 108)
-local GameSupTab    = MenuButton("Hỗ Trợ Game", 133)
-local MiscTab       = MenuButton("Khác (Misc)", 158)
-local SetTab        = MenuButton("Cài Đặt", 183)
+-- Tạo các nút menu (Đã loại bỏ Chức năng VIP và Hỗ Trợ Game, đồng thời căn chỉnh lại khoảng cách Y)
+local MoveTab       = MenuButton("Chức năng", 35)
+local TeleTab       = MenuButton("D.Chuyển", 65)
+local UtilityTab    = MenuButton("Tiện Ích", 95)
+local MiscTab       = MenuButton("Khác (Misc)", 125)
+local SetTab        = MenuButton("Cài Đặt", 155)
 
 local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -100, 1, 0)
@@ -631,413 +589,6 @@ RefreshPlayers()
 
 ExpandableOption(TeleportPage, "Dịch chuyển đến", Settings.Teleport, { onToggle = function(v) Settings.Teleport = v end, { text = "Khoảng cách", default = Settings.TeleportDistance, callback = function(v) Settings.TeleportDistance = math.clamp(v, 0, 50) end }, { text = "Độ cao", default = Settings.TeleportHeight, callback = function(v) Settings.TeleportHeight = math.clamp(v, -30, 50) end } })
 
-local VipPage = Page("Vip")
-Title(VipPage, "TÍNH NĂNG AIM LOCK & HITBOX")
-
-local Camera = workspace.CurrentCamera
-
-local function GetAimTarget()
-	local myChar = Player.Character
-	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-	local cam = workspace.CurrentCamera
-	if not myRoot then return nil end
-	
-	local bestTarget, shortestMetric = nil, math.huge
-	local mousePos = cam.ViewportSize / 2
-	
-	for _, target in ipairs(Players:GetPlayers()) do
-		if target ~= Player and target.Character then
-			local humanoid = target.Character:FindFirstChildOfClass("Humanoid")
-			local partToAim = target.Character:FindFirstChild(Settings.AimLockTargetPart) or target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
-			local isTeamMatch = (Player.Team and target.Team == Player.Team)
-			
-			if humanoid and humanoid.Health > 0 and partToAim then
-				if not (Settings.AimLockCheckTeam and isTeamMatch) then
-					if Settings.ShowFOV then
-						local screenPos, onScreen = cam:WorldToViewportPoint(partToAim.Position)
-						if onScreen then
-							local distToMouse = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-							if distToMouse <= Settings.AimLockFOV and distToMouse < shortestMetric then
-								shortestMetric = distToMouse
-								bestTarget = partToAim
-							end
-						end
-					else
-						local distToMe = (myRoot.Position - partToAim.Position).Magnitude
-						if distToMe < shortestMetric then
-							shortestMetric = distToMe
-							bestTarget = partToAim
-						end
-					end
-				end
-			end
-		end
-	end
-	return bestTarget
-end
-
-RunService.RenderStepped:Connect(function()
-	if Settings.AimLock then
-		local targetPart = GetAimTarget()
-		if targetPart then
-			Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-		end
-	end
-end)
-
-local function ResetHitbox(target)
-	if target and target.Character then
-		for part, origSize in pairs(OriginalHitboxSizes) do
-			if part and part.Parent and part.Parent == target.Character then
-				part.Size = origSize
-				part.Transparency = (part.Name == "HumanoidRootPart" and 1 or part.Transparency)
-				part.CanCollide = false
-				OriginalHitboxSizes[part] = nil
-			end
-		end
-	end
-end
-
-local function ResetAllHitboxes() 
-	for _, target in ipairs(Players:GetPlayers()) do 
-		if target ~= Player then ResetHitbox(target) end 
-	end 
-	OriginalHitboxSizes = {}
-end
-
-local AimLockContainer = Instance.new("Frame")
-AimLockContainer.Size = UDim2.new(1, 0, 0, 32)
-AimLockContainer.BackgroundTransparency = 1
-AimLockContainer.ClipsDescendants = true
-AimLockContainer.Parent = VipPage
-
-local AimLockHeader = Instance.new("Frame")
-AimLockHeader.Size = UDim2.new(1, 0, 0, 32)
-AimLockHeader.BackgroundTransparency = 1
-AimLockHeader.Parent = AimLockContainer
-
-local AimLockToggleBtn = Instance.new("TextButton")
-AimLockToggleBtn.Size = UDim2.new(1, -36, 0, 32)
-AimLockToggleBtn.BackgroundColor3 = Settings.AimLock and Theme or ButtonOffColor
-AimLockToggleBtn.Text = "Aim Lock: " .. (Settings.AimLock and "BẬT" or "TẮT")
-AimLockToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-AimLockToggleBtn.TextSize = 13
-AimLockToggleBtn.Font = Enum.Font.GothamBold
-AimLockToggleBtn.BorderSizePixel = 0
-AimLockToggleBtn.Parent = AimLockHeader
-Instance.new("UICorner", AimLockToggleBtn).CornerRadius = UDim.new(0, 8)
-table.insert(DynamicToggles, { Button = AimLockToggleBtn, GetState = function() return Settings.AimLock end })
-
-AimLockToggleBtn.MouseButton1Click:Connect(function()
-	Settings.AimLock = not Settings.AimLock
-	AimLockToggleBtn.Text = "Aim Lock: " .. (Settings.AimLock and "BẬT" or "TẮT")
-	TweenService:Create(AimLockToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.AimLock and Theme or ButtonOffColor}):Play()
-end)
-
-local AimLockExpandBtn = Instance.new("TextButton")
-AimLockExpandBtn.Size = UDim2.fromOffset(30, 32)
-AimLockExpandBtn.Position = UDim2.new(1, -30, 0, 0)
-AimLockExpandBtn.BackgroundColor3 = ButtonOffColor
-AimLockExpandBtn.Text = "+"
-AimLockExpandBtn.TextColor3 = Color3.new(1, 1, 1)
-AimLockExpandBtn.TextSize = 16
-AimLockExpandBtn.Font = Enum.Font.GothamBold
-AimLockExpandBtn.BorderSizePixel = 0
-AimLockExpandBtn.Parent = AimLockHeader
-Instance.new("UICorner", AimLockExpandBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(AimLockExpandBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-local AimLockSubContainer = Instance.new("Frame")
-AimLockSubContainer.Size = UDim2.new(1, 0, 0, 152)
-AimLockSubContainer.Position = UDim2.fromOffset(0, 36)
-AimLockSubContainer.BackgroundTransparency = 1
-AimLockSubContainer.Parent = AimLockContainer
-
-local isAimLockExpanded = false
-AimLockExpandBtn.MouseButton1Click:Connect(function()
-	isAimLockExpanded = not isAimLockExpanded
-	AimLockExpandBtn.Text = isAimLockExpanded and "-" or "+"
-	local targetHeight = isAimLockExpanded and (36 + 152) or 32
-	TweenService:Create(AimLockContainer, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
-end)
-
-local FOVToggleBtn = Instance.new("TextButton")
-FOVToggleBtn.Size = UDim2.new(1, -20, 0, 32)
-FOVToggleBtn.Position = UDim2.fromOffset(20, 0)
-FOVToggleBtn.BackgroundColor3 = Settings.ShowFOV and Theme or ButtonOffColor
-FOVToggleBtn.Text = "Vòng FOV Đỏ (Bật=Vòng | Tắt=360°): " .. (Settings.ShowFOV and "BẬT" or "TẮT")
-FOVToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-FOVToggleBtn.TextSize = 11
-FOVToggleBtn.Font = Enum.Font.GothamBold
-FOVToggleBtn.BorderSizePixel = 0
-FOVToggleBtn.Parent = AimLockSubContainer
-Instance.new("UICorner", FOVToggleBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(FOVToggleBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-FOVToggleBtn.MouseButton1Click:Connect(function()
-	Settings.ShowFOV = not Settings.ShowFOV
-	FOVToggleBtn.Text = "Vòng FOV Đỏ (Bật=Vòng | Tắt=360°): " .. (Settings.ShowFOV and "BẬT" or "TẮT")
-	TweenService:Create(FOVToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.ShowFOV and Theme or ButtonOffColor}):Play()
-	SaveColorSettings()
-end)
-
-local FOVSizeFrame = Instance.new("Frame")
-FOVSizeFrame.Size = UDim2.new(1, -20, 0, 30)
-FOVSizeFrame.Position = UDim2.fromOffset(20, 38)
-FOVSizeFrame.BackgroundTransparency = 1
-FOVSizeFrame.Parent = AimLockSubContainer
-
-local FOVSizeLabel = Instance.new("TextLabel")
-FOVSizeLabel.Size = UDim2.new(1, -80, 1, 0)
-FOVSizeLabel.BackgroundColor3 = Color3.fromRGB(30, 60, 85)
-FOVSizeLabel.Text = "Kích thước FOV: " .. tostring(Settings.AimLockFOV)
-FOVSizeLabel.TextColor3 = Color3.new(1, 1, 1)
-FOVSizeLabel.TextSize = 13
-FOVSizeLabel.Font = Enum.Font.Gotham
-FOVSizeLabel.BorderSizePixel = 0
-FOVSizeLabel.Parent = FOVSizeFrame
-Instance.new("UICorner", FOVSizeLabel).CornerRadius = UDim.new(0, 8)
-
-local FOVMinusBtn = Instance.new("TextButton")
-FOVMinusBtn.Size = UDim2.fromOffset(35, 30)
-FOVMinusBtn.Position = UDim2.new(1, -75, 0, 0)
-FOVMinusBtn.BackgroundColor3 = ButtonOffColor
-FOVMinusBtn.Text = "-"
-FOVMinusBtn.TextColor3 = Color3.new(1, 1, 1)
-FOVMinusBtn.TextSize = 14
-FOVMinusBtn.Font = Enum.Font.GothamBold
-FOVMinusBtn.BorderSizePixel = 0
-FOVMinusBtn.Parent = FOVSizeFrame
-Instance.new("UICorner", FOVMinusBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(FOVMinusBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-local FOVPlusBtn = Instance.new("TextButton")
-FOVPlusBtn.Size = UDim2.fromOffset(35, 30)
-FOVPlusBtn.Position = UDim2.new(1, -35, 0, 0)
-FOVPlusBtn.BackgroundColor3 = ButtonOffColor
-FOVPlusBtn.Text = "+"
-FOVPlusBtn.TextColor3 = Color3.new(1, 1, 1)
-FOVPlusBtn.TextSize = 14
-FOVPlusBtn.Font = Enum.Font.GothamBold
-FOVPlusBtn.BorderSizePixel = 0
-FOVPlusBtn.Parent = FOVSizeFrame
-Instance.new("UICorner", FOVPlusBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(FOVPlusBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-FOVMinusBtn.MouseButton1Click:Connect(function()
-	Settings.AimLockFOV = math.clamp(Settings.AimLockFOV - 10, 20, 500)
-	FOVSizeLabel.Text = "Kích thước FOV: " .. tostring(Settings.AimLockFOV)
-	SaveColorSettings()
-end)
-
-FOVPlusBtn.MouseButton1Click:Connect(function()
-	Settings.AimLockFOV = math.clamp(Settings.AimLockFOV + 10, 20, 500)
-	FOVSizeLabel.Text = "Kích thước FOV: " .. tostring(Settings.AimLockFOV)
-	SaveColorSettings()
-end)
-
-local AimLockPartBtn = Instance.new("TextButton")
-AimLockPartBtn.Size = UDim2.new(1, -20, 0, 32)
-AimLockPartBtn.Position = UDim2.fromOffset(20, 76)
-AimLockPartBtn.BackgroundColor3 = ButtonOffColor
-AimLockPartBtn.Text = "Mục tiêu: " .. (Settings.AimLockTargetPart == "Head" and "Đầu (Head)" or "Thân (RootPart)")
-AimLockPartBtn.TextColor3 = Color3.new(1, 1, 1)
-AimLockPartBtn.TextSize = 13
-AimLockPartBtn.Font = Enum.Font.GothamBold
-AimLockPartBtn.BorderSizePixel = 0
-AimLockPartBtn.Parent = AimLockSubContainer
-Instance.new("UICorner", AimLockPartBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(AimLockPartBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-AimLockPartBtn.MouseButton1Click:Connect(function()
-	if Settings.AimLockTargetPart == "Head" then
-		Settings.AimLockTargetPart = "HumanoidRootPart"
-		AimLockPartBtn.Text = "Mục tiêu: Thân (RootPart)"
-	else
-		Settings.AimLockTargetPart = "Head"
-		AimLockPartBtn.Text = "Mục tiêu: Đầu (Head)"
-	end
-	SaveColorSettings()
-end)
-
-local AimLockTeamBtn = Instance.new("TextButton")
-AimLockTeamBtn.Size = UDim2.new(1, -20, 0, 32)
-AimLockTeamBtn.Position = UDim2.fromOffset(20, 114)
-AimLockTeamBtn.BackgroundColor3 = Settings.AimLockCheckTeam and Theme or ButtonOffColor
-AimLockTeamBtn.Text = "Check Team: " .. (Settings.AimLockCheckTeam and "BẬT" or "TẮT")
-AimLockTeamBtn.TextColor3 = Color3.new(1, 1, 1)
-AimLockTeamBtn.TextSize = 13
-AimLockTeamBtn.Font = Enum.Font.GothamBold
-AimLockTeamBtn.BorderSizePixel = 0
-AimLockTeamBtn.Parent = AimLockSubContainer
-Instance.new("UICorner", AimLockTeamBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(AimLockTeamBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-AimLockTeamBtn.MouseButton1Click:Connect(function()
-	Settings.AimLockCheckTeam = not Settings.AimLockCheckTeam
-	AimLockTeamBtn.Text = "Check Team: " .. (Settings.AimLockCheckTeam and "BẬT" or "TẮT")
-	TweenService:Create(AimLockTeamBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.AimLockCheckTeam and Theme or ButtonOffColor}):Play()
-	SaveColorSettings()
-end)
-
-local HitboxContainer = Instance.new("Frame")
-HitboxContainer.Size = UDim2.new(1, 0, 0, 32)
-HitboxContainer.BackgroundTransparency = 1
-HitboxContainer.ClipsDescendants = true
-HitboxContainer.Parent = VipPage
-
-local HitboxHeader = Instance.new("Frame")
-HitboxHeader.Size = UDim2.new(1, 0, 0, 32)
-HitboxHeader.BackgroundTransparency = 1
-HitboxHeader.Parent = HitboxContainer
-
-local HitboxToggleBtn = Instance.new("TextButton")
-HitboxToggleBtn.Size = UDim2.new(1, -36, 0, 32)
-HitboxToggleBtn.BackgroundColor3 = Settings.Hitbox and Theme or ButtonOffColor
-HitboxToggleBtn.Text = "Bật Hitbox: " .. (Settings.Hitbox and "BẬT" or "TẮT")
-HitboxToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-HitboxToggleBtn.TextSize = 13
-HitboxToggleBtn.Font = Enum.Font.GothamBold
-HitboxToggleBtn.BorderSizePixel = 0
-HitboxToggleBtn.Parent = HitboxHeader
-Instance.new("UICorner", HitboxToggleBtn).CornerRadius = UDim.new(0, 8)
-table.insert(DynamicToggles, { Button = HitboxToggleBtn, GetState = function() return Settings.Hitbox end })
-
-HitboxToggleBtn.MouseButton1Click:Connect(function()
-	Settings.Hitbox = not Settings.Hitbox
-	HitboxToggleBtn.Text = "Bật Hitbox: " .. (Settings.Hitbox and "BẬT" or "TẮT")
-	TweenService:Create(HitboxToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.Hitbox and Theme or ButtonOffColor}):Play()
-	if not Settings.Hitbox then ResetAllHitboxes() end
-end)
-
-local HitboxExpandBtn = Instance.new("TextButton")
-HitboxExpandBtn.Size = UDim2.fromOffset(30, 32)
-HitboxExpandBtn.Position = UDim2.new(1, -30, 0, 0)
-HitboxExpandBtn.BackgroundColor3 = ButtonOffColor
-HitboxExpandBtn.Text = "+"
-HitboxExpandBtn.TextColor3 = Color3.new(1, 1, 1)
-HitboxExpandBtn.TextSize = 16
-HitboxExpandBtn.Font = Enum.Font.GothamBold
-HitboxExpandBtn.BorderSizePixel = 0
-HitboxExpandBtn.Parent = HitboxHeader
-Instance.new("UICorner", HitboxExpandBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(HitboxExpandBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-local HitboxSubContainer = Instance.new("Frame")
-HitboxSubContainer.Size = UDim2.new(1, 0, 0, 114)
-HitboxSubContainer.Position = UDim2.fromOffset(0, 36)
-HitboxSubContainer.BackgroundTransparency = 1
-HitboxSubContainer.Parent = HitboxContainer
-
-local isHitboxExpanded = false
-HitboxExpandBtn.MouseButton1Click:Connect(function()
-	isHitboxExpanded = not isHitboxExpanded
-	HitboxExpandBtn.Text = isHitboxExpanded and "-" or "+"
-	local targetHeight = isHitboxExpanded and (36 + 114) or 32
-	TweenService:Create(HitboxContainer, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
-end)
-
-local SizeBoxFrame = Instance.new("Frame")
-SizeBoxFrame.Size = UDim2.new(1, -20, 0, 30)
-SizeBoxFrame.Position = UDim2.fromOffset(20, 0)
-SizeBoxFrame.BackgroundTransparency = 1
-SizeBoxFrame.Parent = HitboxSubContainer
-
-local SizeLabel = Instance.new("TextLabel")
-SizeLabel.Size = UDim2.new(1, -80, 1, 0)
-SizeLabel.BackgroundColor3 = Color3.fromRGB(30, 60, 85)
-SizeLabel.Text = "Kích thước: " .. tostring(Settings.HitboxSize)
-SizeLabel.TextColor3 = Color3.new(1, 1, 1)
-SizeLabel.TextSize = 13
-SizeLabel.Font = Enum.Font.Gotham
-SizeLabel.BorderSizePixel = 0
-SizeLabel.Parent = SizeBoxFrame
-Instance.new("UICorner", SizeLabel).CornerRadius = UDim.new(0, 8)
-
-local MinusBtn = Instance.new("TextButton")
-MinusBtn.Size = UDim2.fromOffset(35, 30)
-MinusBtn.Position = UDim2.new(1, -75, 0, 0)
-MinusBtn.BackgroundColor3 = ButtonOffColor
-MinusBtn.Text = "-"
-MinusBtn.TextColor3 = Color3.new(1, 1, 1)
-MinusBtn.TextSize = 14
-MinusBtn.Font = Enum.Font.GothamBold
-MinusBtn.BorderSizePixel = 0
-MinusBtn.Parent = SizeBoxFrame
-Instance.new("UICorner", MinusBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(MinusBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-local PlusBtn = Instance.new("TextButton")
-PlusBtn.Size = UDim2.fromOffset(35, 30)
-PlusBtn.Position = UDim2.new(1, -35, 0, 0)
-PlusBtn.BackgroundColor3 = ButtonOffColor
-PlusBtn.Text = "+"
-PlusBtn.TextColor3 = Color3.new(1, 1, 1)
-PlusBtn.TextSize = 14
-PlusBtn.Font = Enum.Font.GothamBold
-PlusBtn.BorderSizePixel = 0
-PlusBtn.Parent = SizeBoxFrame
-Instance.new("UICorner", PlusBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(PlusBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-MinusBtn.MouseButton1Click:Connect(function()
-	Settings.HitboxSize = math.clamp(Settings.HitboxSize - 2, 2, 200)
-	SizeLabel.Text = "Kích thước: " .. tostring(Settings.HitboxSize)
-	SaveColorSettings()
-end)
-
-PlusBtn.MouseButton1Click:Connect(function()
-	Settings.HitboxSize = math.clamp(Settings.HitboxSize + 2, 2, 200)
-	SizeLabel.Text = "Kích thước: " .. tostring(Settings.HitboxSize)
-	SaveColorSettings()
-end)
-
-local HitboxPartBtn = Instance.new("TextButton")
-HitboxPartBtn.Size = UDim2.new(1, -20, 0, 32)
-HitboxPartBtn.Position = UDim2.fromOffset(20, 38)
-HitboxPartBtn.BackgroundColor3 = ButtonOffColor
-HitboxPartBtn.Text = "Mục tiêu: " .. (Settings.HitboxTargetPart == "Head" and "Đầu (Head)" or "Thân (RootPart)")
-HitboxPartBtn.TextColor3 = Color3.new(1, 1, 1)
-HitboxPartBtn.TextSize = 13
-HitboxPartBtn.Font = Enum.Font.GothamBold
-HitboxPartBtn.BorderSizePixel = 0
-HitboxPartBtn.Parent = HitboxSubContainer
-Instance.new("UICorner", HitboxPartBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(HitboxPartBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-HitboxPartBtn.MouseButton1Click:Connect(function()
-	ResetAllHitboxes()
-	if Settings.HitboxTargetPart == "HumanoidRootPart" then
-		Settings.HitboxTargetPart = "Head"
-		HitboxPartBtn.Text = "Mục tiêu: Đầu (Head)"
-	else
-		Settings.HitboxTargetPart = "HumanoidRootPart"
-		HitboxPartBtn.Text = "Mục tiêu: Thân (RootPart)"
-	end
-	SaveColorSettings()
-end)
-
-local HitboxTeamBtn = Instance.new("TextButton")
-HitboxTeamBtn.Size = UDim2.new(1, -20, 0, 32)
-HitboxTeamBtn.Position = UDim2.fromOffset(20, 76)
-HitboxTeamBtn.BackgroundColor3 = Settings.HitboxCheckTeam and Theme or ButtonOffColor
-HitboxTeamBtn.Text = "Check Team: " .. (Settings.HitboxCheckTeam and "BẬT" or "TẮT")
-HitboxTeamBtn.TextColor3 = Color3.new(1, 1, 1)
-HitboxTeamBtn.TextSize = 13
-HitboxTeamBtn.Font = Enum.Font.GothamBold
-HitboxTeamBtn.BorderSizePixel = 0
-HitboxTeamBtn.Parent = HitboxSubContainer
-Instance.new("UICorner", HitboxTeamBtn).CornerRadius = UDim.new(0, 8)
-ApplySmoothHover(HitboxTeamBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
-
-HitboxTeamBtn.MouseButton1Click:Connect(function()
-	Settings.HitboxCheckTeam = not Settings.HitboxCheckTeam
-	HitboxTeamBtn.Text = "Check Team: " .. (Settings.HitboxCheckTeam and "BẬT" or "TẮT")
-	TweenService:Create(HitboxTeamBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.HitboxCheckTeam and Theme or ButtonOffColor}):Play()
-	ResetAllHitboxes()
-	SaveColorSettings()
-end)
-
 local UtilityPage = Page("Utility")
 Title(UtilityPage, "TIỆN ÍCH & HỖ TRỢ CHUNG")
 ExpandableOption(UtilityPage, "Chống AFK (Tránh mất kết nối)", Settings.AntiAFK, nil, function(v) Settings.AntiAFK = v end)
@@ -1104,50 +655,6 @@ AddUtilityActionButton("Vào lại Server (Rejoin)", function() pcall(function()
 
 Player.Idled:Connect(function()
 	if Settings.AntiAFK then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end
-end)
-
--- HỖ TRỢ GAME (RUNAWAYS)
-local GameSupPage = Page("GameSupport")
-Title(GameSupPage, "HỖ TRỢ GAME RIÊNG BIỆT")
-
-local RunawaysContainer = Instance.new("Frame")
-RunawaysContainer.Size = UDim2.new(1, 0, 0, 32)
-RunawaysContainer.BackgroundTransparency = 1
-RunawaysContainer.ClipsDescendants = true
-RunawaysContainer.Parent = GameSupPage
-
-local RunawaysHeader = Instance.new("Frame")
-RunawaysHeader.Size = UDim2.new(1, 0, 0, 32)
-RunawaysHeader.BackgroundTransparency = 1
-RunawaysHeader.Parent = RunawaysContainer
-
-local RunawaysToggleBtn = Instance.new("TextButton")
-RunawaysToggleBtn.Size = UDim2.new(1, 0, 0, 32)
-RunawaysToggleBtn.BackgroundColor3 = ButtonOffColor
-RunawaysToggleBtn.Text = "RUNAWAYS: TẮT"
-RunawaysToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-RunawaysToggleBtn.TextSize = 13
-RunawaysToggleBtn.Font = Enum.Font.GothamBold
-RunawaysToggleBtn.BorderSizePixel = 0
-RunawaysToggleBtn.Parent = RunawaysHeader
-Instance.new("UICorner", RunawaysToggleBtn).CornerRadius = UDim.new(0, 8)
-
-local runawaysActive = false
-
-RunawaysToggleBtn.MouseButton1Click:Connect(function()
-	runawaysActive = not runawaysActive
-
-	if runawaysActive then
-		RunawaysToggleBtn.Text = "RUNAWAYS: BẬT"
-		TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Theme}):Play()
-
-		pcall(function()
-			loadstring(game:HttpGet("https://luauforge-antiraw.netlify.app/raw/t-hub-DNYhrkv3QBdrrTI5QubQUZi"))()
-		end)
-	else
-		RunawaysToggleBtn.Text = "RUNAWAYS: TẮT"
-		TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = ButtonOffColor}):Play()
-	end
 end)
 
 -- ================= MỤC MISC (KHÁC) =================
@@ -1245,26 +752,6 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
-	if not Settings.Hitbox then return end
-	for _, target in ipairs(Players:GetPlayers()) do
-		if target ~= Player then
-			local isAlive = Alive(target)
-			local targetPart = target.Character and target.Character:FindFirstChild(Settings.HitboxTargetPart)
-			if targetPart then
-				if (Settings.HitboxCheckTeam and IsTeammate(target)) or not isAlive then 
-					ResetHitbox(target)
-				elseif isAlive then
-					if not OriginalHitboxSizes[targetPart] then OriginalHitboxSizes[targetPart] = targetPart.Size end
-					targetPart.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-					targetPart.Transparency = Settings.HitboxTrans
-					targetPart.CanCollide = false
-				end
-			end
-		end
-	end
-end)
-
 local function ClosestPlayer()
 	local _, _, root = Character() if not root then return nil end
 	local closest, distance = nil, math.huge
@@ -1333,14 +820,12 @@ end)
 
 MoveTab.MouseButton1Click:Connect(function() ShowPage("Movement") end)
 TeleTab.MouseButton1Click:Connect(function() ShowPage("Teleport") end)
-VipTab.MouseButton1Click:Connect(function() ShowPage("Vip") end)
 UtilityTab.MouseButton1Click:Connect(function() ShowPage("Utility") end)
-GameSupTab.MouseButton1Click:Connect(function() ShowPage("GameSupport") end)
 MiscTab.MouseButton1Click:Connect(function() ShowPage("Misc") end)
 SetTab.MouseButton1Click:Connect(function() ShowPage("Settings") end)
 
 Player.CharacterAdded:Connect(function()
-	OriginalCollision = {}; OriginalHitboxSizes = {}; CurrentTarget = nil
+	OriginalCollision = {}; CurrentTarget = nil
 end)
 
 ShowPage("Movement")
