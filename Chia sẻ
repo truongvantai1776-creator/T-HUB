@@ -1,0 +1,7 @@
+T HUB basic(no key)no have game support
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script"))()
+
+T HUB Vip (key)have game support
+have
+loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/c50dc9224df2531665f395c7de2cc48e4d097a1f3aee8a0d64e535e9fee268ea/download"))()
