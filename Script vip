@@ -1,6 +1,6 @@
 --==================================================
 -- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
--- (Đã tích hợp Infinite Jump)
+-- (Đã tích hợp Infinite Jump & Anime Ability Arena)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -1128,10 +1128,11 @@ Player.Idled:Connect(function()
 	if Settings.AntiAFK then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end
 end)
 
--- HỖ TRỢ GAME (RUNAWAYS)
+-- HỖ TRỢ GAME (RUNAWAYS & ANIME ABILITY ARENA)
 local GameSupPage = Page("GameSupport")
 Title(GameSupPage, "HỖ TRỢ GAME RIÊNG BIỆT")
 
+-- Mục Runaways
 local RunawaysContainer = Instance.new("Frame")
 RunawaysContainer.Size = UDim2.new(1, 0, 0, 32)
 RunawaysContainer.BackgroundTransparency = 1
@@ -1169,6 +1170,47 @@ RunawaysToggleBtn.MouseButton1Click:Connect(function()
 	else
 		RunawaysToggleBtn.Text = "RUNAWAYS: TẮT"
 		TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = ButtonOffColor}):Play()
+	end
+end)
+
+-- Mục Anime Ability Arena mới thêm vào
+local AnimeArenaContainer = Instance.new("Frame")
+AnimeArenaContainer.Size = UDim2.new(1, 0, 0, 32)
+AnimeArenaContainer.BackgroundTransparency = 1
+AnimeArenaContainer.ClipsDescendants = true
+AnimeArenaContainer.Parent = GameSupPage
+
+local AnimeArenaHeader = Instance.new("Frame")
+AnimeArenaHeader.Size = UDim2.new(1, 0, 0, 32)
+AnimeArenaHeader.BackgroundTransparency = 1
+AnimeArenaHeader.Parent = AnimeArenaContainer
+
+local AnimeArenaToggleBtn = Instance.new("TextButton")
+AnimeArenaToggleBtn.Size = UDim2.new(1, 0, 0, 32)
+AnimeArenaToggleBtn.BackgroundColor3 = ButtonOffColor
+AnimeArenaToggleBtn.Text = "ANIME ABILITY ARENA: TẮT"
+AnimeArenaToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+AnimeArenaToggleBtn.TextSize = 13
+AnimeArenaToggleBtn.Font = Enum.Font.GothamBold
+AnimeArenaToggleBtn.BorderSizePixel = 0
+AnimeArenaToggleBtn.Parent = AnimeArenaHeader
+Instance.new("UICorner", AnimeArenaToggleBtn).CornerRadius = UDim.new(0, 8)
+
+local animeArenaActive = false
+
+AnimeArenaToggleBtn.MouseButton1Click:Connect(function()
+	animeArenaActive = not animeArenaActive
+
+	if animeArenaActive then
+		AnimeArenaToggleBtn.Text = "ANIME ABILITY ARENA: BẬT"
+		TweenService:Create(AnimeArenaToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Theme}):Play()
+
+		pcall(function()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana"))()
+		end)
+	else
+		AnimeArenaToggleBtn.Text = "ANIME ABILITY ARENA: TẮT"
+		TweenService:Create(AnimeArenaToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = ButtonOffColor}):Play()
 	end
 end)
 
