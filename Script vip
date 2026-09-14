@@ -1,6 +1,6 @@
 --==================================================
 -- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
--- (Đã tích hợp Infinite Jump & Anime Ability Arena)
+-- (Đã tích hợp Đa ngôn ngữ, Tốc độ & Nhảy không giới hạn)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -19,8 +19,9 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 local SaveFileName = "THub_GameSupport_" .. Player.UserId .. ".json"
 
 local Settings = {
+	Language = "English", -- Mặc định là Tiếng Anh
 	Speed = false, WalkSpeed = 50, Jump = false, JumpPower = 100, 
-	InfJump = false, -- Thêm biến cài đặt cho Infinite Jump
+	InfJump = false, 
 	NoClip = false,
 	Follow = false, FollowDistance = 3, FollowHeight = 0, Teleport = false, TeleportDistance = 3, TeleportHeight = 0, Target = nil,
 	ESP = false, ShowNames = false, ESPCheckTeam = false, 
@@ -36,9 +37,48 @@ local Settings = {
 	MenuBtnR = 35, MenuBtnG = 70, MenuBtnB = 95
 }
 
+-- Hệ thống từ điển ngôn ngữ
+local Loc = {
+	English = {
+		Move = "Movement", Tele = "Teleport", Vip = "VIP Features", Utility = "Utility", GameSup = "Game Support", Misc = "Misc", Settings = "Settings",
+		BasicFunc = "BASIC FEATURES", Speed = "Speed Boost", WalkSpeedText = "WalkSpeed", Jump = "High Jump", JumpPowerText = "JumpPower", InfJump = "Infinite Jump", NoClip = "NoClip",
+		ESPTitle = "ESP & NAMES", ESPToggle = "Player Highlight", ShowNames = "Show Names", CheckTeam = "Check Team",
+		TeleTitle = "TELEPORT & FOLLOW", Follow = "Follow Closest", Dist = "Distance", Height = "Height", NoPlayer = "No player selected", Select = "Select: ", TeleportTo = "Teleport To",
+		AimTitle = "AIM LOCK & HITBOX", AimLock = "Aim Lock", RedFOV = "Red FOV Ring", FOVSize = "FOV Size", TargetPart = "Target Part", Head = "Head", RootPart = "RootPart", Hitbox = "Hitbox", Size = "Size",
+		UtilityTitle = "UTILITY & GENERAL", AntiAFK = "Anti AFK", Fullbright = "Fullbright", LowGFX = "Low GFX", ServerHigh = "Server Hop (High)", ServerLow = "Server Hop (Low)", CopyID = "Copy Place ID", Rejoin = "Rejoin Server",
+		GameSupTitle = "SPECIAL GAME SUPPORT",
+		MiscTitle = "MISC SCRIPTS",
+		SettingsTitle = "INTERFACE EFFECTS", Snow = "Snow Effect", LangTitle = "LANGUAGE / NGÔN NGỮ",
+		ThemeCol = "THEME COLOR", DarkCol = "DARK BACKGROUND COLOR", SideCol = "SIDEBAR COLOR", MenuCol = "MENU BUTTON COLOR"
+	},
+	Vietnamese = {
+		Move = "Chức năng", Tele = "D.Chuyển", Vip = "Chức năng VIP", Utility = "Tiện Ích", GameSup = "Hỗ Trợ Game", Misc = "Khác (Misc)", Settings = "Cài Đặt",
+		BasicFunc = "CHỨC NĂNG CƠ BẢN", Speed = "Tăng tốc độ", WalkSpeedText = "Tốc độ chạy", Jump = "Nhảy cao", JumpPowerText = "Độ cao nhảy", InfJump = "Nhảy vô cực (Inf Jump)", NoClip = "Xuyên tường",
+		ESPTitle = "HIỂN THỊ ESP & TÊN", ESPToggle = "Làm sáng người chơi", ShowNames = "Hiện tên", CheckTeam = "Bỏ qua đồng đội",
+		TeleTitle = "DỊCH CHUYỂN & THEO SAU", Follow = "Theo sau người gần", Dist = "Khoảng cách", Height = "Độ cao", NoPlayer = "Chưa chọn người chơi", Select = "Chọn: ", TeleportTo = "Dịch chuyển đến",
+		AimTitle = "TÍNH NĂNG AIM LOCK & HITBOX", AimLock = "Aim Lock", RedFOV = "Vòng FOV Đỏ", FOVSize = "Kích thước FOV", TargetPart = "Mục tiêu", Head = "Đầu (Head)", RootPart = "Thân (RootPart)", Hitbox = "Bật Hitbox", Size = "Kích thước",
+		UtilityTitle = "TIỆN ÍCH & HỖ TRỢ CHUNG", AntiAFK = "Chống AFK (Tránh mất kết nối)", Fullbright = "Sáng màn hình (Fullbright)", LowGFX = "Tối ưu hóa FPS", ServerHigh = "Đổi Server (Nhiều người)", ServerLow = "Đổi Server (Ít người)", CopyID = "Sao chép Place ID", Rejoin = "Vào lại Server (Rejoin)",
+		GameSupTitle = "HỖ TRỢ GAME RIÊNG BIỆT",
+		MiscTitle = "CÁC SCRIPT BỔ TRỢ (MISC)",
+		SettingsTitle = "HIỆU ỨNG GIAO DIỆN", Snow = "Hiệu ứng tuyết rơi", LangTitle = "NGÔN NGỮ / LANGUAGE",
+		ThemeCol = "MÀU GIAO DIỆN", DarkCol = "MÀU NỀN KHUNG CHÍNH", SideCol = "MÀU NỀN MENU", MenuCol = "MÀU NÚT MENU"
+	}
+}
+
+local function L(key)
+	local lang = Settings.Language or "English"
+	if Loc[lang] and Loc[lang][key] then
+		return Loc[lang][key]
+	elseif Loc["English"][key] then
+		return Loc["English"][key]
+	end
+	return key
+end
+
 local function SaveColorSettings()
 	pcall(function()
 		local colorData = {
+			Language = Settings.Language,
 			ThemeR = Settings.ThemeR, ThemeG = Settings.ThemeG, ThemeB = Settings.ThemeB,
 			DarkR = Settings.DarkR, DarkG = Settings.DarkG, DarkB = Settings.DarkB,
 			SideR = Settings.SideR, SideG = Settings.SideG, SideB = Settings.SideB,
@@ -84,6 +124,9 @@ local MenuButtonsList = {}
 
 local Old = PlayerGui:FindFirstChild("THub")
 if Old then Old:Destroy() end
+
+local OldFOV = PlayerGui:FindFirstChild("THubFOV")
+if OldFOV then OldFOV:Destroy() end
 
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "THub"
@@ -342,12 +385,12 @@ task.spawn(function()
 	end
 end)
 
-local function MenuButton(text, y)
+local function MenuButton(textKey, y)
 	local Button = Instance.new("TextButton")
 	Button.Size = UDim2.fromOffset(86, 22)
 	Button.Position = UDim2.fromOffset(7, y)
 	Button.BackgroundColor3 = MenuButtonColor
-	Button.Text = text
+	Button.Text = L(textKey)
 	Button.TextSize = 10
 	Button.Font = Enum.Font.GothamBold
 	Button.TextColor3 = Color3.new(1, 1, 1)
@@ -361,16 +404,16 @@ local function MenuButton(text, y)
 		math.clamp(MenuButtonColor.B * 255 + 25, 0, 255)
 	))
 	table.insert(MenuButtonsList, Button)
-	return Button
+	return Button, textKey
 end
 
-local MoveTab       = MenuButton("Chức năng", 33)
-local TeleTab       = MenuButton("D.Chuyển", 58)
-local VipTab        = MenuButton("Chức năng VIP", 83)
-local UtilityTab    = MenuButton("Tiện Ích", 108)
-local GameSupTab    = MenuButton("Hỗ Trợ Game", 133)
-local MiscTab       = MenuButton("Khác (Misc)", 158)
-local SetTab        = MenuButton("Cài Đặt", 183)
+local MoveTab, k1       = MenuButton("Move", 33)
+local TeleTab, k2       = MenuButton("Tele", 58)
+local VipTab, k3        = MenuButton("Vip", 83)
+local UtilityTab, k4    = MenuButton("Utility", 108)
+local GameSupTab, k5    = MenuButton("GameSup", 133)
+local MiscTab, k6       = MenuButton("Misc", 158)
+local SetTab, k7        = MenuButton("Settings", 183)
 
 local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -100, 1, 0)
@@ -405,72 +448,145 @@ local function ShowPage(name)
 	end
 end
 
-local function Title(parent, text)
+local function Title(parent, textKey)
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0, 25); label.BackgroundTransparency = 1; label.Text = text
+	label.Size = UDim2.new(1, 0, 0, 25); label.BackgroundTransparency = 1; label.Text = L(textKey)
 	label.TextSize = 16; label.Font = Enum.Font.GothamBold; label.TextColor3 = Theme; label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = parent
 	table.insert(DynamicButtons, { UpdateColor = function(newColor) label.TextColor3 = newColor end })
 	return label
 end
 
-local function ExpandableOption(parent, mainText, defaultToggle, subInputs, onToggleOnly)
+-- ================= HÀM TOGGLE SWITCH HIỆN ĐẠI =================
+local function CreateToggleSwitch(parent, mainTextKey, defaultToggle, subInputs, onToggleOnly)
 	local hasSub = subInputs and #subInputs > 0
-	local Container = Instance.new("Frame"); Container.Size = UDim2.new(1, 0, 0, 32); Container.BackgroundTransparency = 1; Container.ClipsDescendants = true; Container.Parent = parent
+	local Container = Instance.new("Frame")
+	Container.Size = UDim2.new(1, 0, 0, 36)
+	Container.BackgroundTransparency = 1
+	Container.ClipsDescendants = true
+	Container.Parent = parent
 
-	local Header = Instance.new("Frame"); Header.Size = UDim2.new(1, 0, 0, 32); Header.BackgroundTransparency = 1; Header.Parent = Container
+	local Header = Instance.new("Frame")
+	Header.Size = UDim2.new(1, 0, 0, 36)
+	Header.BackgroundTransparency = 1
+	Header.Parent = Container
 
-	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Size = UDim2.new(1, hasSub and -36 or 0, 0, 32)
-	ToggleBtn.BackgroundColor3 = defaultToggle and Theme or ButtonOffColor
-	ToggleBtn.TextColor3 = Color3.new(1, 1, 1); ToggleBtn.TextSize = 13; ToggleBtn.Font = Enum.Font.GothamBold; ToggleBtn.BorderSizePixel = 0
-	ToggleBtn.Parent = Header
-	Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.Size = UDim2.new(1, (hasSub and -85 or -50), 1, 0)
+	TitleLabel.Position = UDim2.fromOffset(5, 0)
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Text = L(mainTextKey)
+	TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+	TitleLabel.TextSize = 13
+	TitleLabel.Font = Enum.Font.GothamBold
+	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TitleLabel.Parent = Header
+
+	local SwitchBg = Instance.new("TextButton")
+	SwitchBg.Size = UDim2.fromOffset(46, 24)
+	SwitchBg.AnchorPoint = Vector2.new(1, 0.5)
+	SwitchBg.Position = UDim2.new(1, hasSub and -36 or -5, 0.5, 0)
+	SwitchBg.BackgroundColor3 = defaultToggle and Theme or Color3.fromRGB(120, 120, 120)
+	SwitchBg.Text = ""
+	SwitchBg.AutoButtonColor = false
+	SwitchBg.BorderSizePixel = 0
+	SwitchBg.Parent = Header
+	Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
+
+	local SwitchKnob = Instance.new("Frame")
+	SwitchKnob.Size = UDim2.fromOffset(20, 20)
+	SwitchKnob.AnchorPoint = Vector2.new(0, 0.5)
+	SwitchKnob.Position = defaultToggle and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	SwitchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+	SwitchKnob.BorderSizePixel = 0
+	SwitchKnob.Parent = SwitchBg
+	Instance.new("UICorner", SwitchKnob).CornerRadius = UDim.new(1, 0)
 
 	local enabled = defaultToggle or false
-	local function UpdateToggle()
-		ToggleBtn.Text = mainText .. ": " .. (enabled and "BẬT" or "TẮT")
-		TweenService:Create(ToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = enabled and Theme or ButtonOffColor}):Play()
-	end
-	UpdateToggle()
-	table.insert(DynamicToggles, { Button = ToggleBtn, GetState = function() return enabled end })
 
-	ToggleBtn.MouseButton1Click:Connect(function()
+	local function UpdateSwitch(smooth)
+		local targetColor = enabled and Theme or Color3.fromRGB(120, 120, 120)
+		local targetPos = enabled and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+		
+		if smooth then
+			TweenService:Create(SwitchBg, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+			TweenService:Create(SwitchKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+		else
+			SwitchBg.BackgroundColor3 = targetColor
+			SwitchKnob.Position = targetPos
+		end
+	end
+
+	UpdateSwitch(false)
+	table.insert(DynamicToggles, { 
+		Button = SwitchBg, 
+		GetState = function() return enabled end,
+		UpdateCustom = function(newTheme)
+			if enabled then SwitchBg.BackgroundColor3 = newTheme end
+		end
+	})
+
+	SwitchBg.MouseButton1Click:Connect(function()
 		enabled = not enabled
-		UpdateToggle()
-		if hasSub and subInputs.onToggle then subInputs.onToggle(enabled) elseif onToggleOnly then onToggleOnly(enabled) end
+		UpdateSwitch(true)
+		if hasSub and subInputs.onToggle then 
+			subInputs.onToggle(enabled) 
+		elseif onToggleOnly then 
+			onToggleOnly(enabled) 
+		end
 	end)
 
 	if hasSub then
 		local ExpandBtn = Instance.new("TextButton")
-		ExpandBtn.Size = UDim2.fromOffset(30, 32); ExpandBtn.Position = UDim2.new(1, -30, 0, 0)
-		ExpandBtn.BackgroundColor3 = ButtonOffColor; ExpandBtn.Text = "+"; ExpandBtn.TextColor3 = Color3.new(1, 1, 1); ExpandBtn.TextSize = 16
-		ExpandBtn.Font = Enum.Font.GothamBold; ExpandBtn.BorderSizePixel = 0; ExpandBtn.Parent = Header
+		ExpandBtn.Size = UDim2.fromOffset(30, 30)
+		ExpandBtn.AnchorPoint = Vector2.new(1, 0.5)
+		ExpandBtn.Position = UDim2.new(1, 0, 0.5, 0)
+		ExpandBtn.BackgroundColor3 = ButtonOffColor
+		ExpandBtn.Text = "+"
+		ExpandBtn.TextColor3 = Color3.new(1, 1, 1)
+		ExpandBtn.TextSize = 16
+		ExpandBtn.Font = Enum.Font.GothamBold
+		ExpandBtn.BorderSizePixel = 0
+		ExpandBtn.Parent = Header
 		Instance.new("UICorner", ExpandBtn).CornerRadius = UDim.new(0, 8)
 		ApplySmoothHover(ExpandBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 		local SubContainer = Instance.new("Frame")
-		SubContainer.Size = UDim2.new(1, 0, 0, #subInputs * 36); SubContainer.Position = UDim2.fromOffset(0, 36); SubContainer.BackgroundTransparency = 1; SubContainer.Parent = Container
+		SubContainer.Size = UDim2.new(1, 0, 0, #subInputs * 36)
+		SubContainer.Position = UDim2.fromOffset(0, 36)
+		SubContainer.BackgroundTransparency = 1
+		SubContainer.Parent = Container
 
 		local isExpanded = false
 		ExpandBtn.MouseButton1Click:Connect(function()
 			isExpanded = not isExpanded
 			ExpandBtn.Text = isExpanded and "-" or "+"
-			local targetHeight = isExpanded and (36 + #subInputs * 36) or 32
+			local targetHeight = isExpanded and (36 + #subInputs * 36) or 36
 			TweenService:Create(Container, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
 		end)
 
 		for i, sub in ipairs(subInputs) do
 			local box = Instance.new("TextBox")
-			box.Size = UDim2.new(1, -20, 0, 30); box.Position = UDim2.fromOffset(20, (i - 1) * 36)
-			box.BackgroundColor3 = Color3.fromRGB(30, 60, 85); box.TextColor3 = Color3.new(1, 1, 1); box.TextSize = 13; box.Font = Enum.Font.Gotham
-			box.Text = sub.text .. ": " .. tostring(sub.default); box.ClearTextOnFocus = false; box.BorderSizePixel = 0; box.Parent = SubContainer
+			box.Size = UDim2.new(1, -20, 0, 30)
+			box.Position = UDim2.fromOffset(20, (i - 1) * 36)
+			box.BackgroundColor3 = Color3.fromRGB(30, 60, 85)
+			box.TextColor3 = Color3.new(1, 1, 1)
+			box.TextSize = 13
+			box.Font = Enum.Font.Gotham
+			box.Text = L(sub.textKey) .. ": " .. tostring(sub.default)
+			box.ClearTextOnFocus = false
+			box.BorderSizePixel = 0
+			box.Parent = SubContainer
 			Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
 
 			box.FocusLost:Connect(function()
 				local number = tonumber(box.Text:match("-?%d+%.?%d*"))
-				if number then sub.callback(number); box.Text = sub.text .. ": " .. tostring(number)
-				else box.Text = sub.text .. ": " .. tostring(sub.default) end
+				if number then 
+					sub.callback(number)
+					box.Text = L(sub.textKey) .. ": " .. tostring(number)
+				else 
+					box.Text = L(sub.textKey) .. ": " .. tostring(sub.default) 
+				end
 			end)
 		end
 	end
@@ -479,21 +595,20 @@ end
 -- ================= CÁC TRANG CHỨC NĂNG =================
 
 local Movement = Page("Movement")
-Title(Movement, "CHỨC NĂNG CƠ BẢN")
-ExpandableOption(Movement, "Tăng tốc độ", Settings.Speed, { onToggle = function(v) Settings.Speed = v end, { text = "Tốc độ chạy", default = Settings.WalkSpeed, callback = function(v) Settings.WalkSpeed = math.clamp(v, 16, 200) end } })
-ExpandableOption(Movement, "Nhảy cao", Settings.Jump, { onToggle = function(v) Settings.Jump = v end, { text = "Độ cao nhảy", default = Settings.JumpPower, callback = function(v) Settings.JumpPower = math.clamp(v, 50, 300) end } })
+Title(Movement, "BasicFunc")
 
--- Tích hợp Infinite Jump vào đây
-ExpandableOption(Movement, "Nhảy vô cực (Inf Jump)", Settings.InfJump, nil, function(v)
+CreateToggleSwitch(Movement, "Speed", Settings.Speed, { onToggle = function(v) Settings.Speed = v end, { textKey = "WalkSpeedText", default = Settings.WalkSpeed, callback = function(v) Settings.WalkSpeed = math.max(0, v) end } })
+CreateToggleSwitch(Movement, "Jump", Settings.Jump, { onToggle = function(v) Settings.Jump = v end, { textKey = "JumpPowerText", default = Settings.JumpPower, callback = function(v) Settings.JumpPower = math.max(0, v) end } })
+
+CreateToggleSwitch(Movement, "InfJump", Settings.InfJump, nil, function(v)
 	Settings.InfJump = v
 end)
 
-ExpandableOption(Movement, "Xuyên tường", Settings.NoClip, nil, function(v)
+CreateToggleSwitch(Movement, "NoClip", Settings.NoClip, nil, function(v)
 	Settings.NoClip = v
 	if not v then for part, value in pairs(OriginalCollision) do if part and part.Parent then part.CanCollide = value end end table.clear(OriginalCollision) end
 end)
 
--- Xử lý logic Infinite Jump
 UserInputService.JumpRequest:Connect(function()
 	if Settings.InfJump then
 		pcall(function()
@@ -506,7 +621,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
-Title(Movement, "HIỂN THỊ ESP & TÊN")
+Title(Movement, "ESPTitle")
 local function RemoveESP(target)
 	if target and target.Character then
 		local highlight = target.Character:FindFirstChild("THubESP") if highlight then highlight:Destroy() end
@@ -516,38 +631,62 @@ end
 local function RemoveAllESP() for _, target in ipairs(Players:GetPlayers()) do if target ~= Player then RemoveESP(target) end end end
 
 local ESPContainer = Instance.new("Frame")
-ESPContainer.Size = UDim2.new(1, 0, 0, 32)
+ESPContainer.Size = UDim2.new(1, 0, 0, 36)
 ESPContainer.BackgroundTransparency = 1
 ESPContainer.ClipsDescendants = true
 ESPContainer.Parent = Movement
 
 local ESPHeader = Instance.new("Frame")
-ESPHeader.Size = UDim2.new(1, 0, 0, 32)
+ESPHeader.Size = UDim2.new(1, 0, 0, 36)
 ESPHeader.BackgroundTransparency = 1
 ESPHeader.Parent = ESPContainer
 
+local ESPTitleLabel = Instance.new("TextLabel")
+ESPTitleLabel.Size = UDim2.new(1, -85, 1, 0)
+ESPTitleLabel.Position = UDim2.fromOffset(5, 0)
+ESPTitleLabel.BackgroundTransparency = 1
+ESPTitleLabel.Text = L("ESPToggle")
+ESPTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+ESPTitleLabel.TextSize = 13
+ESPTitleLabel.Font = Enum.Font.GothamBold
+ESPTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+ESPTitleLabel.Parent = ESPHeader
+
 local ESPToggleBtn = Instance.new("TextButton")
-ESPToggleBtn.Size = UDim2.new(1, -36, 0, 32)
-ESPToggleBtn.BackgroundColor3 = Settings.ESP and Theme or ButtonOffColor
-ESPToggleBtn.Text = "Làm sáng người chơi: " .. (Settings.ESP and "BẬT" or "TẮT")
-ESPToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-ESPToggleBtn.TextSize = 13
-ESPToggleBtn.Font = Enum.Font.GothamBold
+ESPToggleBtn.Size = UDim2.fromOffset(46, 24)
+ESPToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+ESPToggleBtn.Position = UDim2.new(1, -36, 0.5, 0)
+ESPToggleBtn.BackgroundColor3 = Settings.ESP and Theme or Color3.fromRGB(120, 120, 120)
+ESPToggleBtn.Text = ""
+ESPToggleBtn.AutoButtonColor = false
 ESPToggleBtn.BorderSizePixel = 0
 ESPToggleBtn.Parent = ESPHeader
-Instance.new("UICorner", ESPToggleBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", ESPToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local ESPKnob = Instance.new("Frame")
+ESPKnob.Size = UDim2.fromOffset(20, 20)
+ESPKnob.AnchorPoint = Vector2.new(0, 0.5)
+ESPKnob.Position = Settings.ESP and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+ESPKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+ESPKnob.BorderSizePixel = 0
+ESPKnob.Parent = ESPToggleBtn
+Instance.new("UICorner", ESPKnob).CornerRadius = UDim.new(1, 0)
+
 table.insert(DynamicToggles, { Button = ESPToggleBtn, GetState = function() return Settings.ESP end })
 
 ESPToggleBtn.MouseButton1Click:Connect(function()
 	Settings.ESP = not Settings.ESP
-	ESPToggleBtn.Text = "Làm sáng người chơi: " .. (Settings.ESP and "BẬT" or "TẮT")
-	TweenService:Create(ESPToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.ESP and Theme or ButtonOffColor}):Play()
+	local targetColor = Settings.ESP and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = Settings.ESP and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(ESPToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(ESPKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
 	if not Settings.ESP then RemoveAllESP() end
 end)
 
 local ESPExpandBtn = Instance.new("TextButton")
-ESPExpandBtn.Size = UDim2.fromOffset(30, 32)
-ESPExpandBtn.Position = UDim2.new(1, -30, 0, 0)
+ESPExpandBtn.Size = UDim2.fromOffset(30, 30)
+ESPExpandBtn.AnchorPoint = Vector2.new(1, 0.5)
+ESPExpandBtn.Position = UDim2.new(1, 0, 0.5, 0)
 ESPExpandBtn.BackgroundColor3 = ButtonOffColor
 ESPExpandBtn.Text = "+"
 ESPExpandBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -568,7 +707,7 @@ local isESPExpanded = false
 ESPExpandBtn.MouseButton1Click:Connect(function()
 	isESPExpanded = not isESPExpanded
 	ESPExpandBtn.Text = isESPExpanded and "-" or "+"
-	local targetHeight = isESPExpanded and (36 + 76) or 32
+	local targetHeight = isESPExpanded and (36 + 76) or 36
 	TweenService:Create(ESPContainer, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
 end)
 
@@ -576,7 +715,7 @@ local ESPNamesBtn = Instance.new("TextButton")
 ESPNamesBtn.Size = UDim2.new(1, -20, 0, 32)
 ESPNamesBtn.Position = UDim2.fromOffset(20, 0)
 ESPNamesBtn.BackgroundColor3 = Settings.ShowNames and Theme or ButtonOffColor
-ESPNamesBtn.Text = "Hiện tên: " .. (Settings.ShowNames and "BẬT" or "TẮT")
+ESPNamesBtn.Text = L("ShowNames") .. ": " .. (Settings.ShowNames and "ON/BẬT" or "OFF/TẮT")
 ESPNamesBtn.TextColor3 = Color3.new(1, 1, 1)
 ESPNamesBtn.TextSize = 13
 ESPNamesBtn.Font = Enum.Font.GothamBold
@@ -587,7 +726,7 @@ ApplySmoothHover(ESPNamesBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 ESPNamesBtn.MouseButton1Click:Connect(function()
 	Settings.ShowNames = not Settings.ShowNames
-	ESPNamesBtn.Text = "Hiện tên: " .. (Settings.ShowNames and "BẬT" or "TẮT")
+	ESPNamesBtn.Text = L("ShowNames") .. ": " .. (Settings.ShowNames and "ON/BẬT" or "OFF/TẮT")
 	TweenService:Create(ESPNamesBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.ShowNames and Theme or ButtonOffColor}):Play()
 	if not Settings.ShowNames then RemoveAllESP() end
 end)
@@ -596,7 +735,7 @@ local ESPTeamBtn = Instance.new("TextButton")
 ESPTeamBtn.Size = UDim2.new(1, -20, 0, 32)
 ESPTeamBtn.Position = UDim2.fromOffset(20, 38)
 ESPTeamBtn.BackgroundColor3 = Settings.ESPCheckTeam and Theme or ButtonOffColor
-ESPTeamBtn.Text = "Bỏ qua đồng đội: " .. (Settings.ESPCheckTeam and "BẬT" or "TẮT")
+ESPTeamBtn.Text = L("CheckTeam") .. ": " .. (Settings.ESPCheckTeam and "ON/BẬT" or "OFF/TẮT")
 ESPTeamBtn.TextColor3 = Color3.new(1, 1, 1)
 ESPTeamBtn.TextSize = 13
 ESPTeamBtn.Font = Enum.Font.GothamBold
@@ -607,19 +746,19 @@ ApplySmoothHover(ESPTeamBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 ESPTeamBtn.MouseButton1Click:Connect(function()
 	Settings.ESPCheckTeam = not Settings.ESPCheckTeam
-	ESPTeamBtn.Text = "Bỏ qua đồng đội: " .. (Settings.ESPCheckTeam and "BẬT" or "TẮT")
+	ESPTeamBtn.Text = L("CheckTeam") .. ": " .. (Settings.ESPCheckTeam and "ON/BẬT" or "OFF/TẮT")
 	TweenService:Create(ESPTeamBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.ESPCheckTeam and Theme or ButtonOffColor}):Play()
 	RemoveAllESP()
 end)
 
 local TeleportPage = Page("Teleport")
-Title(TeleportPage, "DỊCH CHUYỂN & THEO SAU")
-ExpandableOption(TeleportPage, "Theo sau người gần", Settings.Follow, { onToggle = function(v) Settings.Follow = v end, { text = "Khoảng cách", default = Settings.FollowDistance, callback = function(v) Settings.FollowDistance = math.clamp(v, 1, 50) end }, { text = "Độ cao", default = Settings.FollowHeight, callback = function(v) Settings.FollowHeight = math.clamp(v, -30, 50) end } })
+Title(TeleportPage, "TeleTitle")
+CreateToggleSwitch(TeleportPage, "Follow", Settings.Follow, { onToggle = function(v) Settings.Follow = v end, { textKey = "Dist", default = Settings.FollowDistance, callback = function(v) Settings.FollowDistance = math.clamp(v, 1, 50) end }, { textKey = "Height", default = Settings.FollowHeight, callback = function(v) Settings.FollowHeight = math.clamp(v, -30, 50) end } })
 
 local PlayerHeaderContainer = Instance.new("Frame")
 PlayerHeaderContainer.Size = UDim2.new(1, 0, 0, 30); PlayerHeaderContainer.BackgroundTransparency = 1; PlayerHeaderContainer.Parent = TeleportPage
 local Selected = Instance.new("TextLabel")
-Selected.Size = UDim2.new(1, 0, 1, 0); Selected.BackgroundTransparency = 1; Selected.Text = "Chưa chọn người chơi"
+Selected.Size = UDim2.new(1, 0, 1, 0); Selected.BackgroundTransparency = 1; Selected.Text = L("NoPlayer")
 Selected.TextColor3 = Color3.new(1, 1, 1); Selected.TextSize = 13; Selected.Font = Enum.Font.GothamBold; Selected.TextXAlignment = Enum.TextXAlignment.Left; Selected.Parent = PlayerHeaderContainer
 
 local List = Instance.new("ScrollingFrame")
@@ -643,18 +782,18 @@ local function RefreshPlayers()
 			Instance.new("UICorner", AvatarImg).CornerRadius = UDim.new(1, 0)
 
 			local Name = Instance.new("TextButton"); Name.Size = UDim2.new(1, -35, 1, 0); Name.Position = UDim2.fromOffset(32, 0); Name.BackgroundTransparency = 1; Name.Text = " " .. target.DisplayName; Name.TextColor3 = Color3.new(1, 1, 1); Name.TextSize = 13; Name.Font = Enum.Font.GothamBold; Name.TextXAlignment = Enum.TextXAlignment.Left; Name.Parent = Row
-			Name.MouseButton1Click:Connect(function() Settings.Target = target; Selected.Text = "Chọn: " .. target.DisplayName end)
+			Name.MouseButton1Click:Connect(function() Settings.Target = target; Selected.Text = L("Select") .. target.DisplayName end)
 		end
 	end
 end
 Players.PlayerAdded:Connect(RefreshPlayers)
-Players.PlayerRemoving:Connect(function(target) if Settings.Target == target then Settings.Target = nil; Selected.Text = "Chưa chọn người chơi" end RefreshPlayers() end)
+Players.PlayerRemoving:Connect(function(target) if Settings.Target == target then Settings.Target = nil; Selected.Text = L("NoPlayer") end RefreshPlayers() end)
 RefreshPlayers()
 
-ExpandableOption(TeleportPage, "Dịch chuyển đến", Settings.Teleport, { onToggle = function(v) Settings.Teleport = v end, { text = "Khoảng cách", default = Settings.TeleportDistance, callback = function(v) Settings.TeleportDistance = math.clamp(v, 0, 50) end }, { text = "Độ cao", default = Settings.TeleportHeight, callback = function(v) Settings.TeleportHeight = math.clamp(v, -30, 50) end } })
+CreateToggleSwitch(TeleportPage, "TeleportTo", Settings.Teleport, { onToggle = function(v) Settings.Teleport = v end, { textKey = "Dist", default = Settings.TeleportDistance, callback = function(v) Settings.TeleportDistance = math.clamp(v, 0, 50) end }, { textKey = "Height", default = Settings.TeleportHeight, callback = function(v) Settings.TeleportHeight = math.clamp(v, -30, 50) end } })
 
 local VipPage = Page("Vip")
-Title(VipPage, "TÍNH NĂNG AIM LOCK & HITBOX")
+Title(VipPage, "AimTitle")
 
 local Camera = workspace.CurrentCamera
 
@@ -728,37 +867,61 @@ local function ResetAllHitboxes()
 end
 
 local AimLockContainer = Instance.new("Frame")
-AimLockContainer.Size = UDim2.new(1, 0, 0, 32)
+AimLockContainer.Size = UDim2.new(1, 0, 0, 36)
 AimLockContainer.BackgroundTransparency = 1
 AimLockContainer.ClipsDescendants = true
 AimLockContainer.Parent = VipPage
 
 local AimLockHeader = Instance.new("Frame")
-AimLockHeader.Size = UDim2.new(1, 0, 0, 32)
+AimLockHeader.Size = UDim2.new(1, 0, 0, 36)
 AimLockHeader.BackgroundTransparency = 1
 AimLockHeader.Parent = AimLockContainer
 
+local AimLockTitleLabel = Instance.new("TextLabel")
+AimLockTitleLabel.Size = UDim2.new(1, -85, 1, 0)
+AimLockTitleLabel.Position = UDim2.fromOffset(5, 0)
+AimLockTitleLabel.BackgroundTransparency = 1
+AimLockTitleLabel.Text = L("AimLock")
+AimLockTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+AimLockTitleLabel.TextSize = 13
+AimLockTitleLabel.Font = Enum.Font.GothamBold
+AimLockTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+AimLockTitleLabel.Parent = AimLockHeader
+
 local AimLockToggleBtn = Instance.new("TextButton")
-AimLockToggleBtn.Size = UDim2.new(1, -36, 0, 32)
-AimLockToggleBtn.BackgroundColor3 = Settings.AimLock and Theme or ButtonOffColor
-AimLockToggleBtn.Text = "Aim Lock: " .. (Settings.AimLock and "BẬT" or "TẮT")
-AimLockToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-AimLockToggleBtn.TextSize = 13
-AimLockToggleBtn.Font = Enum.Font.GothamBold
+AimLockToggleBtn.Size = UDim2.fromOffset(46, 24)
+AimLockToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+AimLockToggleBtn.Position = UDim2.new(1, -36, 0.5, 0)
+AimLockToggleBtn.BackgroundColor3 = Settings.AimLock and Theme or Color3.fromRGB(120, 120, 120)
+AimLockToggleBtn.Text = ""
+AimLockToggleBtn.AutoButtonColor = false
 AimLockToggleBtn.BorderSizePixel = 0
 AimLockToggleBtn.Parent = AimLockHeader
-Instance.new("UICorner", AimLockToggleBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", AimLockToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local AimLockKnob = Instance.new("Frame")
+AimLockKnob.Size = UDim2.fromOffset(20, 20)
+AimLockKnob.AnchorPoint = Vector2.new(0, 0.5)
+AimLockKnob.Position = Settings.AimLock and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+AimLockKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+AimLockKnob.BorderSizePixel = 0
+AimLockKnob.Parent = AimLockToggleBtn
+Instance.new("UICorner", AimLockKnob).CornerRadius = UDim.new(1, 0)
+
 table.insert(DynamicToggles, { Button = AimLockToggleBtn, GetState = function() return Settings.AimLock end })
 
 AimLockToggleBtn.MouseButton1Click:Connect(function()
 	Settings.AimLock = not Settings.AimLock
-	AimLockToggleBtn.Text = "Aim Lock: " .. (Settings.AimLock and "BẬT" or "TẮT")
-	TweenService:Create(AimLockToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.AimLock and Theme or ButtonOffColor}):Play()
+	local targetColor = Settings.AimLock and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = Settings.AimLock and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(AimLockToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(AimLockKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
 end)
 
 local AimLockExpandBtn = Instance.new("TextButton")
-AimLockExpandBtn.Size = UDim2.fromOffset(30, 32)
-AimLockExpandBtn.Position = UDim2.new(1, -30, 0, 0)
+AimLockExpandBtn.Size = UDim2.fromOffset(30, 30)
+AimLockExpandBtn.AnchorPoint = Vector2.new(1, 0.5)
+AimLockExpandBtn.Position = UDim2.new(1, 0, 0.5, 0)
 AimLockExpandBtn.BackgroundColor3 = ButtonOffColor
 AimLockExpandBtn.Text = "+"
 AimLockExpandBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -779,7 +942,7 @@ local isAimLockExpanded = false
 AimLockExpandBtn.MouseButton1Click:Connect(function()
 	isAimLockExpanded = not isAimLockExpanded
 	AimLockExpandBtn.Text = isAimLockExpanded and "-" or "+"
-	local targetHeight = isAimLockExpanded and (36 + 152) or 32
+	local targetHeight = isAimLockExpanded and (36 + 152) or 36
 	TweenService:Create(AimLockContainer, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
 end)
 
@@ -787,7 +950,7 @@ local FOVToggleBtn = Instance.new("TextButton")
 FOVToggleBtn.Size = UDim2.new(1, -20, 0, 32)
 FOVToggleBtn.Position = UDim2.fromOffset(20, 0)
 FOVToggleBtn.BackgroundColor3 = Settings.ShowFOV and Theme or ButtonOffColor
-FOVToggleBtn.Text = "Vòng FOV Đỏ (Bật=Vòng | Tắt=360°): " .. (Settings.ShowFOV and "BẬT" or "TẮT")
+FOVToggleBtn.Text = L("RedFOV") .. ": " .. (Settings.ShowFOV and "ON/BẬT" or "OFF/TẮT")
 FOVToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 FOVToggleBtn.TextSize = 11
 FOVToggleBtn.Font = Enum.Font.GothamBold
@@ -798,7 +961,7 @@ ApplySmoothHover(FOVToggleBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 FOVToggleBtn.MouseButton1Click:Connect(function()
 	Settings.ShowFOV = not Settings.ShowFOV
-	FOVToggleBtn.Text = "Vòng FOV Đỏ (Bật=Vòng | Tắt=360°): " .. (Settings.ShowFOV and "BẬT" or "TẮT")
+	FOVToggleBtn.Text = L("RedFOV") .. ": " .. (Settings.ShowFOV and "ON/BẬT" or "OFF/TẮT")
 	TweenService:Create(FOVToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.ShowFOV and Theme or ButtonOffColor}):Play()
 	SaveColorSettings()
 end)
@@ -812,7 +975,7 @@ FOVSizeFrame.Parent = AimLockSubContainer
 local FOVSizeLabel = Instance.new("TextLabel")
 FOVSizeLabel.Size = UDim2.new(1, -80, 1, 0)
 FOVSizeLabel.BackgroundColor3 = Color3.fromRGB(30, 60, 85)
-FOVSizeLabel.Text = "Kích thước FOV: " .. tostring(Settings.AimLockFOV)
+FOVSizeLabel.Text = L("FOVSize") .. ": " .. tostring(Settings.AimLockFOV)
 FOVSizeLabel.TextColor3 = Color3.new(1, 1, 1)
 FOVSizeLabel.TextSize = 13
 FOVSizeLabel.Font = Enum.Font.Gotham
@@ -848,13 +1011,13 @@ ApplySmoothHover(FOVPlusBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 FOVMinusBtn.MouseButton1Click:Connect(function()
 	Settings.AimLockFOV = math.clamp(Settings.AimLockFOV - 10, 20, 500)
-	FOVSizeLabel.Text = "Kích thước FOV: " .. tostring(Settings.AimLockFOV)
+	FOVSizeLabel.Text = L("FOVSize") .. ": " .. tostring(Settings.AimLockFOV)
 	SaveColorSettings()
 end)
 
 FOVPlusBtn.MouseButton1Click:Connect(function()
 	Settings.AimLockFOV = math.clamp(Settings.AimLockFOV + 10, 20, 500)
-	FOVSizeLabel.Text = "Kích thước FOV: " .. tostring(Settings.AimLockFOV)
+	FOVSizeLabel.Text = L("FOVSize") .. ": " .. tostring(Settings.AimLockFOV)
 	SaveColorSettings()
 end)
 
@@ -862,7 +1025,7 @@ local AimLockPartBtn = Instance.new("TextButton")
 AimLockPartBtn.Size = UDim2.new(1, -20, 0, 32)
 AimLockPartBtn.Position = UDim2.fromOffset(20, 76)
 AimLockPartBtn.BackgroundColor3 = ButtonOffColor
-AimLockPartBtn.Text = "Mục tiêu: " .. (Settings.AimLockTargetPart == "Head" and "Đầu (Head)" or "Thân (RootPart)")
+AimLockPartBtn.Text = L("TargetPart") .. ": " .. (Settings.AimLockTargetPart == "Head" and L("Head") or L("RootPart"))
 AimLockPartBtn.TextColor3 = Color3.new(1, 1, 1)
 AimLockPartBtn.TextSize = 13
 AimLockPartBtn.Font = Enum.Font.GothamBold
@@ -874,10 +1037,10 @@ ApplySmoothHover(AimLockPartBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 AimLockPartBtn.MouseButton1Click:Connect(function()
 	if Settings.AimLockTargetPart == "Head" then
 		Settings.AimLockTargetPart = "HumanoidRootPart"
-		AimLockPartBtn.Text = "Mục tiêu: Thân (RootPart)"
+		AimLockPartBtn.Text = L("TargetPart") .. ": " .. L("RootPart")
 	else
 		Settings.AimLockTargetPart = "Head"
-		AimLockPartBtn.Text = "Mục tiêu: Đầu (Head)"
+		AimLockPartBtn.Text = L("TargetPart") .. ": " .. L("Head")
 	end
 	SaveColorSettings()
 end)
@@ -886,7 +1049,7 @@ local AimLockTeamBtn = Instance.new("TextButton")
 AimLockTeamBtn.Size = UDim2.new(1, -20, 0, 32)
 AimLockTeamBtn.Position = UDim2.fromOffset(20, 114)
 AimLockTeamBtn.BackgroundColor3 = Settings.AimLockCheckTeam and Theme or ButtonOffColor
-AimLockTeamBtn.Text = "Check Team: " .. (Settings.AimLockCheckTeam and "BẬT" or "TẮT")
+AimLockTeamBtn.Text = L("CheckTeam") .. ": " .. (Settings.AimLockCheckTeam and "ON/BẬT" or "OFF/TẮT")
 AimLockTeamBtn.TextColor3 = Color3.new(1, 1, 1)
 AimLockTeamBtn.TextSize = 13
 AimLockTeamBtn.Font = Enum.Font.GothamBold
@@ -897,44 +1060,68 @@ ApplySmoothHover(AimLockTeamBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 AimLockTeamBtn.MouseButton1Click:Connect(function()
 	Settings.AimLockCheckTeam = not Settings.AimLockCheckTeam
-	AimLockTeamBtn.Text = "Check Team: " .. (Settings.AimLockCheckTeam and "BẬT" or "TẮT")
+	AimLockTeamBtn.Text = L("CheckTeam") .. ": " .. (Settings.AimLockCheckTeam and "ON/BẬT" or "OFF/TẮT")
 	TweenService:Create(AimLockTeamBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.AimLockCheckTeam and Theme or ButtonOffColor}):Play()
 	SaveColorSettings()
 end)
 
 local HitboxContainer = Instance.new("Frame")
-HitboxContainer.Size = UDim2.new(1, 0, 0, 32)
+HitboxContainer.Size = UDim2.new(1, 0, 0, 36)
 HitboxContainer.BackgroundTransparency = 1
 HitboxContainer.ClipsDescendants = true
 HitboxContainer.Parent = VipPage
 
 local HitboxHeader = Instance.new("Frame")
-HitboxHeader.Size = UDim2.new(1, 0, 0, 32)
+HitboxHeader.Size = UDim2.new(1, 0, 0, 36)
 HitboxHeader.BackgroundTransparency = 1
 HitboxHeader.Parent = HitboxContainer
 
+local HitboxTitleLabel = Instance.new("TextLabel")
+HitboxTitleLabel.Size = UDim2.new(1, -85, 1, 0)
+HitboxTitleLabel.Position = UDim2.fromOffset(5, 0)
+HitboxTitleLabel.BackgroundTransparency = 1
+HitboxTitleLabel.Text = L("Hitbox")
+HitboxTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+HitboxTitleLabel.TextSize = 13
+HitboxTitleLabel.Font = Enum.Font.GothamBold
+HitboxTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+HitboxTitleLabel.Parent = HitboxHeader
+
 local HitboxToggleBtn = Instance.new("TextButton")
-HitboxToggleBtn.Size = UDim2.new(1, -36, 0, 32)
-HitboxToggleBtn.BackgroundColor3 = Settings.Hitbox and Theme or ButtonOffColor
-HitboxToggleBtn.Text = "Bật Hitbox: " .. (Settings.Hitbox and "BẬT" or "TẮT")
-HitboxToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-HitboxToggleBtn.TextSize = 13
-HitboxToggleBtn.Font = Enum.Font.GothamBold
+HitboxToggleBtn.Size = UDim2.fromOffset(46, 24)
+HitboxToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+HitboxToggleBtn.Position = UDim2.new(1, -36, 0.5, 0)
+HitboxToggleBtn.BackgroundColor3 = Settings.Hitbox and Theme or Color3.fromRGB(120, 120, 120)
+HitboxToggleBtn.Text = ""
+HitboxToggleBtn.AutoButtonColor = false
 HitboxToggleBtn.BorderSizePixel = 0
 HitboxToggleBtn.Parent = HitboxHeader
-Instance.new("UICorner", HitboxToggleBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", HitboxToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local HitboxKnob = Instance.new("Frame")
+HitboxKnob.Size = UDim2.fromOffset(20, 20)
+HitboxKnob.AnchorPoint = Vector2.new(0, 0.5)
+HitboxKnob.Position = Settings.Hitbox and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+HitboxKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+HitboxKnob.BorderSizePixel = 0
+HitboxKnob.Parent = HitboxToggleBtn
+Instance.new("UICorner", HitboxKnob).CornerRadius = UDim.new(1, 0)
+
 table.insert(DynamicToggles, { Button = HitboxToggleBtn, GetState = function() return Settings.Hitbox end })
 
 HitboxToggleBtn.MouseButton1Click:Connect(function()
 	Settings.Hitbox = not Settings.Hitbox
-	HitboxToggleBtn.Text = "Bật Hitbox: " .. (Settings.Hitbox and "BẬT" or "TẮT")
-	TweenService:Create(HitboxToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.Hitbox and Theme or ButtonOffColor}):Play()
+	local targetColor = Settings.Hitbox and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = Settings.Hitbox and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(HitboxToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(HitboxKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
 	if not Settings.Hitbox then ResetAllHitboxes() end
 end)
 
 local HitboxExpandBtn = Instance.new("TextButton")
-HitboxExpandBtn.Size = UDim2.fromOffset(30, 32)
-HitboxExpandBtn.Position = UDim2.new(1, -30, 0, 0)
+HitboxExpandBtn.Size = UDim2.fromOffset(30, 30)
+HitboxExpandBtn.AnchorPoint = Vector2.new(1, 0.5)
+HitboxExpandBtn.Position = UDim2.new(1, 0, 0.5, 0)
 HitboxExpandBtn.BackgroundColor3 = ButtonOffColor
 HitboxExpandBtn.Text = "+"
 HitboxExpandBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -955,7 +1142,7 @@ local isHitboxExpanded = false
 HitboxExpandBtn.MouseButton1Click:Connect(function()
 	isHitboxExpanded = not isHitboxExpanded
 	HitboxExpandBtn.Text = isHitboxExpanded and "-" or "+"
-	local targetHeight = isHitboxExpanded and (36 + 114) or 32
+	local targetHeight = isHitboxExpanded and (36 + 114) or 36
 	TweenService:Create(HitboxContainer, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetHeight)}):Play()
 end)
 
@@ -968,7 +1155,7 @@ SizeBoxFrame.Parent = HitboxSubContainer
 local SizeLabel = Instance.new("TextLabel")
 SizeLabel.Size = UDim2.new(1, -80, 1, 0)
 SizeLabel.BackgroundColor3 = Color3.fromRGB(30, 60, 85)
-SizeLabel.Text = "Kích thước: " .. tostring(Settings.HitboxSize)
+SizeLabel.Text = L("Size") .. ": " .. tostring(Settings.HitboxSize)
 SizeLabel.TextColor3 = Color3.new(1, 1, 1)
 SizeLabel.TextSize = 13
 SizeLabel.Font = Enum.Font.Gotham
@@ -1004,13 +1191,13 @@ ApplySmoothHover(PlusBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 MinusBtn.MouseButton1Click:Connect(function()
 	Settings.HitboxSize = math.clamp(Settings.HitboxSize - 2, 2, 200)
-	SizeLabel.Text = "Kích thước: " .. tostring(Settings.HitboxSize)
+	SizeLabel.Text = L("Size") .. ": " .. tostring(Settings.HitboxSize)
 	SaveColorSettings()
 end)
 
 PlusBtn.MouseButton1Click:Connect(function()
 	Settings.HitboxSize = math.clamp(Settings.HitboxSize + 2, 2, 200)
-	SizeLabel.Text = "Kích thước: " .. tostring(Settings.HitboxSize)
+	SizeLabel.Text = L("Size") .. ": " .. tostring(Settings.HitboxSize)
 	SaveColorSettings()
 end)
 
@@ -1018,7 +1205,7 @@ local HitboxPartBtn = Instance.new("TextButton")
 HitboxPartBtn.Size = UDim2.new(1, -20, 0, 32)
 HitboxPartBtn.Position = UDim2.fromOffset(20, 38)
 HitboxPartBtn.BackgroundColor3 = ButtonOffColor
-HitboxPartBtn.Text = "Mục tiêu: " .. (Settings.HitboxTargetPart == "Head" and "Đầu (Head)" or "Thân (RootPart)")
+HitboxPartBtn.Text = L("TargetPart") .. ": " .. (Settings.HitboxTargetPart == "Head" and L("Head") or L("RootPart"))
 HitboxPartBtn.TextColor3 = Color3.new(1, 1, 1)
 HitboxPartBtn.TextSize = 13
 HitboxPartBtn.Font = Enum.Font.GothamBold
@@ -1031,10 +1218,10 @@ HitboxPartBtn.MouseButton1Click:Connect(function()
 	ResetAllHitboxes()
 	if Settings.HitboxTargetPart == "HumanoidRootPart" then
 		Settings.HitboxTargetPart = "Head"
-		HitboxPartBtn.Text = "Mục tiêu: Đầu (Head)"
+		HitboxPartBtn.Text = L("TargetPart") .. ": " .. L("Head")
 	else
 		Settings.HitboxTargetPart = "HumanoidRootPart"
-		HitboxPartBtn.Text = "Mục tiêu: Thân (RootPart)"
+		HitboxPartBtn.Text = L("TargetPart") .. ": " .. L("RootPart")
 	end
 	SaveColorSettings()
 end)
@@ -1043,7 +1230,7 @@ local HitboxTeamBtn = Instance.new("TextButton")
 HitboxTeamBtn.Size = UDim2.new(1, -20, 0, 32)
 HitboxTeamBtn.Position = UDim2.fromOffset(20, 76)
 HitboxTeamBtn.BackgroundColor3 = Settings.HitboxCheckTeam and Theme or ButtonOffColor
-HitboxTeamBtn.Text = "Check Team: " .. (Settings.HitboxCheckTeam and "BẬT" or "TẮT")
+HitboxTeamBtn.Text = L("CheckTeam") .. ": " .. (Settings.HitboxCheckTeam and "ON/BẬT" or "OFF/TẮT")
 HitboxTeamBtn.TextColor3 = Color3.new(1, 1, 1)
 HitboxTeamBtn.TextSize = 13
 HitboxTeamBtn.Font = Enum.Font.GothamBold
@@ -1054,16 +1241,16 @@ ApplySmoothHover(HitboxTeamBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
 HitboxTeamBtn.MouseButton1Click:Connect(function()
 	Settings.HitboxCheckTeam = not Settings.HitboxCheckTeam
-	HitboxTeamBtn.Text = "Check Team: " .. (Settings.HitboxCheckTeam and "BẬT" or "TẮT")
+	HitboxTeamBtn.Text = L("CheckTeam") .. ": " .. (Settings.HitboxCheckTeam and "ON/BẬT" or "OFF/TẮT")
 	TweenService:Create(HitboxTeamBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Settings.HitboxCheckTeam and Theme or ButtonOffColor}):Play()
 	ResetAllHitboxes()
 	SaveColorSettings()
 end)
 
 local UtilityPage = Page("Utility")
-Title(UtilityPage, "TIỆN ÍCH & HỖ TRỢ CHUNG")
-ExpandableOption(UtilityPage, "Chống AFK (Tránh mất kết nối)", Settings.AntiAFK, nil, function(v) Settings.AntiAFK = v end)
-ExpandableOption(UtilityPage, "Sáng màn hình (Fullbright)", Settings.Fullbright, nil, function(v)
+Title(UtilityPage, "UtilityTitle")
+CreateToggleSwitch(UtilityPage, "AntiAFK", Settings.AntiAFK, nil, function(v) Settings.AntiAFK = v end)
+CreateToggleSwitch(UtilityPage, "Fullbright", Settings.Fullbright, nil, function(v)
 	Settings.Fullbright = v
 	if v then
 		game:GetService("Lighting").Brightness = 2
@@ -1073,7 +1260,7 @@ ExpandableOption(UtilityPage, "Sáng màn hình (Fullbright)", Settings.Fullbrig
 		game:GetService("Lighting").GlobalShadows = true
 	end
 end)
-ExpandableOption(UtilityPage, "Tối ưu hóa FPS", Settings.LowGFX, nil, function(v)
+CreateToggleSwitch(UtilityPage, "LowGFX", Settings.LowGFX, nil, function(v)
 	Settings.LowGFX = v
 	if v then
 		pcall(function()
@@ -1086,9 +1273,9 @@ ExpandableOption(UtilityPage, "Tối ưu hóa FPS", Settings.LowGFX, nil, functi
 	end
 end)
 
-local function AddUtilityActionButton(name, callback)
+local function AddUtilityActionButton(nameKey, callback)
 	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(1, 0, 0, 32); Btn.BackgroundColor3 = ButtonOffColor; Btn.Text = name; Btn.TextColor3 = Color3.new(1, 1, 1); Btn.TextSize = 13; Btn.Font = Enum.Font.GothamBold; Btn.BorderSizePixel = 0; Btn.Parent = UtilityPage
+	Btn.Size = UDim2.new(1, 0, 0, 32); Btn.BackgroundColor3 = ButtonOffColor; Btn.Text = L(nameKey); Btn.TextColor3 = Color3.new(1, 1, 1); Btn.TextSize = 13; Btn.Font = Enum.Font.GothamBold; Btn.BorderSizePixel = 0; Btn.Parent = UtilityPage
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 8)
 	ApplySmoothHover(Btn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 	Btn.MouseButton1Click:Connect(callback)
@@ -1119,10 +1306,10 @@ local function ServerHop(preferHigh)
 	end)
 end
 
-AddUtilityActionButton("Đổi Server (Nhiều người)", function() ServerHop(true) end)
-AddUtilityActionButton("Đổi Server (Ít người)", function() ServerHop(false) end)
-AddUtilityActionButton("Sao chép Place ID", function() pcall(function() if setclipboard then setclipboard(tostring(game.PlaceId)) end end) end)
-AddUtilityActionButton("Vào lại Server (Rejoin)", function() pcall(function() TeleportService:Teleport(game.PlaceId, Player) end) end)
+AddUtilityActionButton("ServerHigh", function() ServerHop(true) end)
+AddUtilityActionButton("ServerLow", function() ServerHop(false) end)
+AddUtilityActionButton("CopyID", function() pcall(function() if setclipboard then setclipboard(tostring(game.PlaceId)) end end) end)
+AddUtilityActionButton("Rejoin", function() pcall(function() TeleportService:Teleport(game.PlaceId, Player) end) end)
 
 Player.Idled:Connect(function()
 	if Settings.AntiAFK then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end
@@ -1130,93 +1317,129 @@ end)
 
 -- HỖ TRỢ GAME (RUNAWAYS & ANIME ABILITY ARENA)
 local GameSupPage = Page("GameSupport")
-Title(GameSupPage, "HỖ TRỢ GAME RIÊNG BIỆT")
+Title(GameSupPage, "GameSupTitle")
 
 -- Mục Runaways
 local RunawaysContainer = Instance.new("Frame")
-RunawaysContainer.Size = UDim2.new(1, 0, 0, 32)
+RunawaysContainer.Size = UDim2.new(1, 0, 0, 36)
 RunawaysContainer.BackgroundTransparency = 1
 RunawaysContainer.ClipsDescendants = true
 RunawaysContainer.Parent = GameSupPage
 
 local RunawaysHeader = Instance.new("Frame")
-RunawaysHeader.Size = UDim2.new(1, 0, 0, 32)
+RunawaysHeader.Size = UDim2.new(1, 0, 0, 36)
 RunawaysHeader.BackgroundTransparency = 1
 RunawaysHeader.Parent = RunawaysContainer
 
+local RunawaysTitleLabel = Instance.new("TextLabel")
+RunawaysTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+RunawaysTitleLabel.Position = UDim2.fromOffset(5, 0)
+RunawaysTitleLabel.BackgroundTransparency = 1
+RunawaysTitleLabel.Text = "RUNAWAYS"
+RunawaysTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+RunawaysTitleLabel.TextSize = 13
+RunawaysTitleLabel.Font = Enum.Font.GothamBold
+RunawaysTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+RunawaysTitleLabel.Parent = RunawaysHeader
+
 local RunawaysToggleBtn = Instance.new("TextButton")
-RunawaysToggleBtn.Size = UDim2.new(1, 0, 0, 32)
-RunawaysToggleBtn.BackgroundColor3 = ButtonOffColor
-RunawaysToggleBtn.Text = "RUNAWAYS: TẮT"
-RunawaysToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-RunawaysToggleBtn.TextSize = 13
-RunawaysToggleBtn.Font = Enum.Font.GothamBold
+RunawaysToggleBtn.Size = UDim2.fromOffset(46, 24)
+RunawaysToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+RunawaysToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
+RunawaysToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+RunawaysToggleBtn.Text = ""
+RunawaysToggleBtn.AutoButtonColor = false
 RunawaysToggleBtn.BorderSizePixel = 0
 RunawaysToggleBtn.Parent = RunawaysHeader
-Instance.new("UICorner", RunawaysToggleBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", RunawaysToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local RunawaysKnob = Instance.new("Frame")
+RunawaysKnob.Size = UDim2.fromOffset(20, 20)
+RunawaysKnob.AnchorPoint = Vector2.new(0, 0.5)
+RunawaysKnob.Position = UDim2.new(0, 2, 0.5, 0)
+RunawaysKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+RunawaysKnob.BorderSizePixel = 0
+RunawaysKnob.Parent = RunawaysToggleBtn
+Instance.new("UICorner", RunawaysKnob).CornerRadius = UDim.new(1, 0)
 
 local runawaysActive = false
 
 RunawaysToggleBtn.MouseButton1Click:Connect(function()
 	runawaysActive = not runawaysActive
+	local targetColor = runawaysActive and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = runawaysActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(RunawaysKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
 
 	if runawaysActive then
-		RunawaysToggleBtn.Text = "RUNAWAYS: BẬT"
-		TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Theme}):Play()
-
 		pcall(function()
 			loadstring(game:HttpGet("https://luauforge-antiraw.netlify.app/raw/t-hub-DNYhrkv3QBdrrTI5QubQUZi"))()
 		end)
-	else
-		RunawaysToggleBtn.Text = "RUNAWAYS: TẮT"
-		TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = ButtonOffColor}):Play()
 	end
 end)
 
--- Mục Anime Ability Arena mới thêm vào
+-- Mục Anime Ability Arena
 local AnimeArenaContainer = Instance.new("Frame")
-AnimeArenaContainer.Size = UDim2.new(1, 0, 0, 32)
+AnimeArenaContainer.Size = UDim2.new(1, 0, 0, 36)
 AnimeArenaContainer.BackgroundTransparency = 1
 AnimeArenaContainer.ClipsDescendants = true
 AnimeArenaContainer.Parent = GameSupPage
 
 local AnimeArenaHeader = Instance.new("Frame")
-AnimeArenaHeader.Size = UDim2.new(1, 0, 0, 32)
+AnimeArenaHeader.Size = UDim2.new(1, 0, 0, 36)
 AnimeArenaHeader.BackgroundTransparency = 1
 AnimeArenaHeader.Parent = AnimeArenaContainer
 
+local AnimeArenaTitleLabel = Instance.new("TextLabel")
+AnimeArenaTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+AnimeArenaTitleLabel.Position = UDim2.fromOffset(5, 0)
+AnimeArenaTitleLabel.BackgroundTransparency = 1
+AnimeArenaTitleLabel.Text = "ANIME ABILITY ARENA"
+AnimeArenaTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+AnimeArenaTitleLabel.TextSize = 13
+AnimeArenaTitleLabel.Font = Enum.Font.GothamBold
+AnimeArenaTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+AnimeArenaTitleLabel.Parent = AnimeArenaHeader
+
 local AnimeArenaToggleBtn = Instance.new("TextButton")
-AnimeArenaToggleBtn.Size = UDim2.new(1, 0, 0, 32)
-AnimeArenaToggleBtn.BackgroundColor3 = ButtonOffColor
-AnimeArenaToggleBtn.Text = "ANIME ABILITY ARENA: TẮT"
-AnimeArenaToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-AnimeArenaToggleBtn.TextSize = 13
-AnimeArenaToggleBtn.Font = Enum.Font.GothamBold
+AnimeArenaToggleBtn.Size = UDim2.fromOffset(46, 24)
+AnimeArenaToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+AnimeArenaToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
+AnimeArenaToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+AnimeArenaToggleBtn.Text = ""
+AnimeArenaToggleBtn.AutoButtonColor = false
 AnimeArenaToggleBtn.BorderSizePixel = 0
 AnimeArenaToggleBtn.Parent = AnimeArenaHeader
-Instance.new("UICorner", AnimeArenaToggleBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", AnimeArenaToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local AnimeArenaKnob = Instance.new("Frame")
+AnimeArenaKnob.Size = UDim2.fromOffset(20, 20)
+AnimeArenaKnob.AnchorPoint = Vector2.new(0, 0.5)
+AnimeArenaKnob.Position = UDim2.new(0, 2, 0.5, 0)
+AnimeArenaKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+AnimeArenaKnob.BorderSizePixel = 0
+AnimeArenaKnob.Parent = AnimeArenaToggleBtn
+Instance.new("UICorner", AnimeArenaKnob).CornerRadius = UDim.new(1, 0)
 
 local animeArenaActive = false
 
 AnimeArenaToggleBtn.MouseButton1Click:Connect(function()
 	animeArenaActive = not animeArenaActive
+	local targetColor = animeArenaActive and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = animeArenaActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(AnimeArenaToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(AnimeArenaKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
 
 	if animeArenaActive then
-		AnimeArenaToggleBtn.Text = "ANIME ABILITY ARENA: BẬT"
-		TweenService:Create(AnimeArenaToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = Theme}):Play()
-
 		pcall(function()
 			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana"))()
 		end)
-	else
-		AnimeArenaToggleBtn.Text = "ANIME ABILITY ARENA: TẮT"
-		TweenService:Create(AnimeArenaToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = ButtonOffColor}):Play()
 	end
 end)
 
 -- ================= MỤC MISC (KHÁC) =================
 local MiscPage = Page("Misc")
-Title(MiscPage, "CÁC SCRIPT BỔ TRỢ (MISC)")
+Title(MiscPage, "MiscTitle")
 
 local function AddMiscButton(name, url)
 	local Btn = Instance.new("TextButton")
@@ -1248,13 +1471,48 @@ local SettingsPage = Page("Settings")
 local function UpdateThemeColor(newColor)
 	Theme = newColor; Open.BackgroundColor3 = newColor
 	for _, item in ipairs(DynamicButtons) do item.UpdateColor(newColor) end
-	for _, toggle in ipairs(DynamicToggles) do if toggle.GetState() then toggle.Button.BackgroundColor3 = newColor end end
+	for _, toggle in ipairs(DynamicToggles) do 
+		if toggle.GetState() then toggle.Button.BackgroundColor3 = newColor end 
+		if toggle.UpdateCustom then toggle.UpdateCustom(newColor) end
+	end
 	Settings.ThemeR = math.floor(newColor.R * 255); Settings.ThemeG = math.floor(newColor.G * 255); Settings.ThemeB = math.floor(newColor.B * 255)
 	SaveColorSettings()
 end
 
-Title(SettingsPage, "HIỆU ỨNG GIAO DIỆN")
-ExpandableOption(SettingsPage, "Hiệu ứng tuyết rơi", Settings.SnowEffect, nil, function(v)
+Title(SettingsPage, "SettingsTitle")
+
+-- THÊM PHẦN CHỌN NGÔN NGỮ (LANGUAGE)
+Title(SettingsPage, "LangTitle")
+local LangFrame = Instance.new("Frame"); LangFrame.Size = UDim2.new(1, 0, 0, 32); LangFrame.BackgroundTransparency = 1; LangFrame.Parent = SettingsPage
+local LangLayout = Instance.new("UIListLayout"); LangLayout.FillDirection = Enum.FillDirection.Horizontal; LangLayout.Padding = UDim.new(0, 10); LangLayout.Parent = LangFrame
+
+local function CreateLangButton(langName, displayName)
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.fromOffset(100, 30)
+	Btn.BackgroundColor3 = (Settings.Language == langName) and Theme or ButtonOffColor
+	Btn.Text = displayName
+	Btn.TextColor3 = Color3.new(1, 1, 1)
+	Btn.TextSize = 12
+	Btn.Font = Enum.Font.GothamBold
+	Btn.BorderSizePixel = 0
+	Btn.Parent = LangFrame
+	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 8)
+	ApplySmoothHover(Btn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
+	
+	Btn.MouseButton1Click:Connect(function()
+		Settings.Language = langName
+		SaveColorSettings()
+		-- Thông báo hoặc tự động load lại/thông báo đổi ngôn ngữ thành công
+		pcall(function()
+			TeleportService:Teleport(game.PlaceId, Player) -- Hoặc thông báo cho người dùng mở lại script để đổi toàn bộ ngôn ngữ chuẩn xác
+		end)
+	end)
+end
+
+CreateLangButton("English", "English")
+CreateLangButton("Vietnamese", "Tiếng Việt")
+
+CreateToggleSwitch(SettingsPage, "Snow", Settings.SnowEffect, nil, function(v)
 	Settings.SnowEffect = v
 	SaveColorSettings()
 end)
@@ -1264,8 +1522,8 @@ local DarkPalette = { Color3.fromRGB(20, 35, 50), Color3.fromRGB(15, 15, 15), Co
 local SidePalette = { Color3.fromRGB(20, 65, 95), Color3.fromRGB(25, 25, 25), Color3.fromRGB(50, 50, 60), Color3.fromRGB(25, 40, 65), Color3.fromRGB(45, 25, 60), Color3.fromRGB(60, 25, 30), Color3.fromRGB(25, 55, 35), Color3.fromRGB(55, 35, 25) }
 local MenuBtnPalette = { Color3.fromRGB(35, 70, 95), Color3.fromRGB(40, 40, 40), Color3.fromRGB(0, 120, 215), Color3.fromRGB(200, 40, 40), Color3.fromRGB(40, 160, 60), Color3.fromRGB(140, 40, 180), Color3.fromRGB(210, 100, 20), Color3.fromRGB(210, 70, 130) }
 
-local function CreateColorPaletteRow(titleText, colorList, onSelectColor)
-	Title(SettingsPage, titleText)
+local function CreateColorPaletteRow(titleKey, colorList, onSelectColor)
+	Title(SettingsPage, titleKey)
 	local Frame = Instance.new("Frame"); Frame.Size = UDim2.new(1, 0, 0, 32); Frame.BackgroundTransparency = 1; Frame.Parent = SettingsPage
 	local Layout = Instance.new("UIListLayout"); Layout.FillDirection = Enum.FillDirection.Horizontal; Layout.Padding = UDim.new(0, 8); Layout.Parent = Frame
 	for _, col in ipairs(colorList) do
@@ -1276,10 +1534,10 @@ local function CreateColorPaletteRow(titleText, colorList, onSelectColor)
 	end
 end
 
-CreateColorPaletteRow("MÀU GIAO DIỆN", ColorsPalette, function(c) UpdateThemeColor(c) end)
-CreateColorPaletteRow("MÀU NỀN KHUNG CHÍNH", DarkPalette, function(c) Dark = c; Main.BackgroundColor3 = c; Settings.DarkR = math.floor(c.R*255); Settings.DarkG = math.floor(c.G*255); Settings.DarkB = math.floor(c.B*255); SaveColorSettings() end)
-CreateColorPaletteRow("MÀU NỀN MENU", SidePalette, function(c) SidebarColor = c; Sidebar.BackgroundColor3 = c; Settings.SideR = math.floor(c.R*255); Settings.SideG = math.floor(c.G*255); Settings.SideB = math.floor(c.B*255); SaveColorSettings() end)
-CreateColorPaletteRow("MÀU NÚT MENU", MenuBtnPalette, function(c) MenuButtonColor = c; for _, btn in ipairs(MenuButtonsList) do btn.BackgroundColor3 = c end; Settings.MenuBtnR = math.floor(c.R*255); Settings.MenuBtnG = math.floor(c.G*255); Settings.MenuBtnB = math.floor(c.B*255); SaveColorSettings() end)
+CreateColorPaletteRow("ThemeCol", ColorsPalette, function(c) UpdateThemeColor(c) end)
+CreateColorPaletteRow("DarkCol", DarkPalette, function(c) Dark = c; Main.BackgroundColor3 = c; Settings.DarkR = math.floor(c.R*255); Settings.DarkG = math.floor(c.G*255); Settings.DarkB = math.floor(c.B*255); SaveColorSettings() end)
+CreateColorPaletteRow("SideCol", SidePalette, function(c) SidebarColor = c; Sidebar.BackgroundColor3 = c; Settings.SideR = math.floor(c.R*255); Settings.SideG = math.floor(c.G*255); Settings.SideB = math.floor(c.B*255); SaveColorSettings() end)
+CreateColorPaletteRow("MenuCol", MenuBtnPalette, function(c) MenuButtonColor = c; for _, btn in ipairs(MenuButtonsList) do btn.BackgroundColor3 = c end; Settings.MenuBtnR = math.floor(c.R*255); Settings.MenuBtnG = math.floor(c.G*255); Settings.MenuBtnB = math.floor(c.B*255); SaveColorSettings() end)
 
 local function Character()
 	local char = Player.Character if not char then return nil, nil, nil end
