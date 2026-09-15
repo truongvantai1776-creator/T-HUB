@@ -1,5 +1,5 @@
 --==================================================
--- T HUB - INVISIBLE HITBOX & ESP MODULE (FINAL FIXED)
+-- T HUB - INVISIBLE BODY HITBOX MODULE (WITH FOV & ESP)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -10,16 +10,18 @@ local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- Cấu hình thông số mặc định (Cố định FOV = 100)
+-- Cấu hình thông số mặc định
 local Settings = {
     Enabled = true,           
     AimLockFOV = 100,         
     HitboxCheckTeam = true,   
-    HitboxTargetPart = "Head"
+    HitboxTargetPart = "HumanoidRootPart",
+    ESPEnabled = true         -- Bật/tắt tính năng ESP trong FOV
 }
 
 local OriginalHitboxSizes = {}
-local ActiveHighlights = {}
+local DeathConnections = {}
+local Highlights = {}
 
 -- Xóa UI cũ nếu có
 local OldGui = PlayerGui:FindFirstChild("THub_ExtractedPanel")
@@ -56,7 +58,7 @@ FOVCorner.CornerRadius = UDim.new(1, 0)
 FOVCorner.Parent = FOVCircle
 
 
--- ================= 2. TẠO GIAO DIỆN (UI) NÚT MỞ/ĐÓNG MENU (CHỈ CÓ CHỮ T) =================
+-- ================= 2. TẠO GIAO DIỆN (UI) NÚT MỞ/ĐÓNG MENU =================
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "THub_ExtractedPanel"
 Gui.ResetOnSpawn = false
@@ -75,8 +77,8 @@ OpenBtn.Parent = Gui
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 8)
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.fromOffset(220, 125)
-MainFrame.Position = UDim2.new(0, 60, 0.5, -62)
+MainFrame.Size = UDim2.fromOffset(220, 200) -- Mở rộng chiều cao chứa thêm nút ESP
+MainFrame.Position = UDim2.new(0, 60, 0.5, -100)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false
@@ -147,6 +149,77 @@ local function CreateMenuToggle(parent, text, defaultState, callback)
     end)
 end
 
+-- Hàm tạo thanh trượt (Slider) tùy chỉnh FOV từ 50 đến 150
+local function CreateFOVSlider(parent, text, min, max, defaultVal, callback)
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(1, -16, 0, 40)
+    Container.BackgroundTransparency = 1
+    Container.Parent = parent
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, 0, 0, 18)
+    Label.BackgroundTransparency = 1
+    Label.Text = text .. ": " .. tostring(defaultVal)
+    Label.TextColor3 = Color3.new(1, 1, 1)
+    Label.TextSize = 11
+    Label.Font = Enum.Font.GothamBold
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Container
+
+    local SliderBar = Instance.new("Frame")
+    SliderBar.Size = UDim2.new(1, 0, 0, 8)
+    SliderBar.Position = UDim2.new(0, 0, 0, 24)
+    SliderBar.BackgroundColor3 = Color3.fromRGB(40, 60, 80)
+    SliderBar.BorderSizePixel = 0
+    SliderBar.Parent = Container
+    Instance.new("UICorner", SliderBar).CornerRadius = UDim.new(1, 0)
+
+    local FillBar = Instance.new("Frame")
+    FillBar.Size = UDim2.new((defaultVal - min) / (max - min), 0, 1, 0)
+    FillBar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    FillBar.BorderSizePixel = 0
+    FillBar.Parent = SliderBar
+    Instance.new("UICorner", FillBar).CornerRadius = UDim.new(1, 0)
+
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.fromOffset(14, 14)
+    Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    Knob.Position = UDim2.new(1, 0, 0.5, 0)
+    Knob.BackgroundColor3 = Color3.new(1, 1, 1)
+    Knob.BorderSizePixel = 0
+    Knob.Parent = FillBar
+    Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+
+    local function UpdateInput(input)
+        local pos = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + (max - min) * pos)
+        FillBar.Size = UDim2.new(pos, 0, 1, 0)
+        Label.Text = text .. ": " .. tostring(val)
+        callback(val)
+    end
+
+    SliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            UpdateInput(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            UpdateInput(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
 local UIList = Instance.new("UIListLayout")
 UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -174,14 +247,38 @@ CreateMenuToggle(checkTeamHolder, "Kiểm Tra Team", Settings.HitboxCheckTeam, f
     Settings.HitboxCheckTeam = v
 end)
 
+local espToggleHolder = Instance.new("Frame")
+espToggleHolder.Size = UDim2.new(1, -16, 0, 30)
+espToggleHolder.BackgroundTransparency = 1
+espToggleHolder.LayoutOrder = 4
+espToggleHolder.Parent = MainFrame
+
+CreateMenuToggle(espToggleHolder, "Bật/Tắt ESP FOV", Settings.ESPEnabled, function(v)
+    Settings.ESPEnabled = v
+end)
+
+local fovSliderHolder = Instance.new("Frame")
+fovSliderHolder.Size = UDim2.new(1, -16, 0, 45)
+fovSliderHolder.BackgroundTransparency = 1
+fovSliderHolder.LayoutOrder = 5
+fovSliderHolder.Parent = MainFrame
+
+CreateFOVSlider(fovSliderHolder, "Kích Thước FOV", 50, 150, Settings.AimLockFOV, function(v)
+    Settings.AimLockFOV = v
+end)
+
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
 
--- ================= 3. XỬ LÝ HITBOX TÀNG HÌNH & ESP HIGHLIGHT STABLE =================
-local function IsTeammate(target) 
-    return Player.Team and target.Team == Player.Team 
+-- ================= 3. XỬ LÝ HITBOX & ESP CHO PLAYER VÀ NPC =================
+local function IsTeammate(char) 
+    local player = Players:GetPlayerFromCharacter(char)
+    if player and Settings.HitboxCheckTeam then
+        return Player.Team and player.Team == Player.Team 
+    end
+    return false
 end
 
 local function ResetHitboxForPart(part)
@@ -193,28 +290,36 @@ local function ResetHitboxForPart(part)
     end
 end
 
-local function RemoveHighlight(target)
-    if ActiveHighlights[target] then
-        ActiveHighlights[target]:Destroy()
-        ActiveHighlights[target] = nil
+local function RemoveHighlight(char)
+    if Highlights[char] then
+        Highlights[char]:Destroy()
+        Highlights[char] = nil
     end
 end
 
-local function Alive(target)
-    return target and target ~= Player and target.Character and target.Character:FindFirstChildOfClass("Humanoid") and target.Character:FindFirstChild("Head") and target.Character:FindFirstChildOfClass("Humanoid").Health > 0
+local function IsAlive(model)
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local rootPart = model:FindFirstChild("HumanoidRootPart")
+    return humanoid and rootPart and humanoid.Health > 0
 end
 
-local function CheckWall(targetPart)
+local function CheckWall(targetPart, character)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     
     local filterList = {Player.Character}
-    if targetPart.Parent then
-        table.insert(filterList, targetPart.Parent)
+    if character then
+        table.insert(filterList, character)
     end
     raycastParams.FilterDescendantsInstances = filterList
     
-    local direction = targetPart.Position - Camera.CFrame.Position
+    local checkPos = targetPart.Position
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        checkPos = rootPart.Position
+    end
+
+    local direction = checkPos - Camera.CFrame.Position
     local result = workspace:Raycast(Camera.CFrame.Position, direction, raycastParams)
     
     return result == nil
@@ -227,27 +332,88 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Size = UDim2.fromOffset(diameter, diameter)
     FOVCircle.Visible = Settings.Enabled
 
-    for _, target in ipairs(Players:GetPlayers()) do
-        if target ~= Player and target.Character then
-            local targetPart = target.Character:FindFirstChild(Settings.HitboxTargetPart)
-            local isAlive = Alive(target)
-            local isTeamMatch = IsTeammate(target)
+    local targets = {}
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= Player and p.Character then
+            table.insert(targets, p.Character)
+        end
+    end
+    
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
+            if obj:FindFirstChildOfClass("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+                table.insert(targets, obj)
+            end
+        end
+    end
 
-            if not Settings.Enabled or not isAlive or (Settings.HitboxCheckTeam and isTeamMatch) then
-                if targetPart then ResetHitboxForPart(targetPart) end
-                RemoveHighlight(target)
-            else
-                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                local inFOV = false
+    local activeTracked = {}
 
-                if onScreen then
-                    local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if distToCenter <= Settings.AimLockFOV then
-                        inFOV = true
+    for _, char in ipairs(targets) do
+        local targetPart = char:FindFirstChild(Settings.HitboxTargetPart)
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local isAlive = IsAlive(char)
+        local isTeamMatch = IsTeammate(char)
+
+        -- Lắng nghe sự kiện chết ngay lập tức
+        if humanoid and not DeathConnections[char] then
+            DeathConnections[char] = humanoid.Died:Connect(function()
+                if targetPart then
+                    ResetHitboxForPart(targetPart)
+                end
+                RemoveHighlight(char)
+                if DeathConnections[char] then
+                    DeathConnections[char]:Disconnect()
+                    DeathConnections[char] = nil
+                end
+            end)
+        end
+
+        if not Settings.Enabled or not isAlive or isTeamMatch or not targetPart then
+            if targetPart then ResetHitboxForPart(targetPart) end
+            RemoveHighlight(char)
+        else
+            activeTracked[char] = true
+            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            local inFOV = false
+
+            if onScreen then
+                local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                if distToCenter <= Settings.AimLockFOV then
+                    inFOV = true
+                end
+            end
+
+            if inFOV then
+                local hasNoWall = CheckWall(targetPart, char)
+
+                -- Quản lý ESP (Highlight)
+                if Settings.ESPEnabled then
+                    if not Highlights[char] then
+                        local hl = Instance.new("Highlight")
+                        hl.Parent = char
+                        hl.Adornee = char
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        hl.FillTransparency = 0.5
+                        hl.OutlineTransparency = 0
+                        Highlights[char] = hl
                     end
+                    
+                    if hasNoWall then
+                        Highlights[char].FillColor = Color3.fromRGB(0, 255, 0)   -- Xanh lá cây (Không có vật cản)
+                        Highlights[char].OutlineColor = Color3.fromRGB(0, 255, 0)
+                    else
+                        Highlights[char].FillColor = Color3.fromRGB(255, 0, 0)   -- Đỏ (Có vật cản che)
+                        Highlights[char].OutlineColor = Color3.fromRGB(255, 0, 0)
+                    end
+                    Highlights[char].Enabled = true
+                else
+                    RemoveHighlight(char)
                 end
 
-                if inFOV then
+                if hasNoWall then
+                    -- Không có vật cản: PHÓNG TO HITBOX THÂN VÀ TÀNG HÌNH
                     if not OriginalHitboxSizes[targetPart] then
                         OriginalHitboxSizes[targetPart] = targetPart.Size
                     end
@@ -259,35 +425,41 @@ RunService.RenderStepped:Connect(function()
                     targetPart.Size = Vector3.new(calculatedSize, calculatedSize, calculatedSize)
                     targetPart.Transparency = 1 
                     targetPart.CanCollide = false
-                    
-                    local highlight = ActiveHighlights[target]
-                    if not highlight then
-                        highlight = Instance.new("Highlight")
-                        -- Gán thẳng Adornee vào Character nhưng loại trừ ảnh hưởng kích thước vô hình của Head bằng cách thiết lập thông số mặc định ổn định
-                        highlight.Adornee = target.Character
-                        highlight.Parent = target.Character
-                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        ActiveHighlights[target] = highlight
-                    end
-                    
-                    -- Đảm bảo Adornee luôn hợp lệ
-                    if highlight.Adornee ~= target.Character then
-                        highlight.Adornee = target.Character
-                    end
-
-                    -- Không có vật cản -> Màu Xanh Lá Cây | Có vật cản -> Màu Đỏ
-                    if CheckWall(targetPart) then
-                        highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                        highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
-                    else
-                        highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                        highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
-                    end
                 else
+                    -- Có vật cản: TRẢ VỀ KÍCH THƯỚC BAN ĐẦU
                     ResetHitboxForPart(targetPart)
-                    RemoveHighlight(target)
                 end
+            else
+                ResetHitboxForPart(targetPart)
+                RemoveHighlight(char)
             end
+        end
+    end
+
+    -- Dọn dẹp trạng thái khi mục tiêu không còn tồn tại
+    for part, _ in pairs(OriginalHitboxSizes) do
+        local found = false
+        for _, char in ipairs(targets) do
+            if char:FindFirstChild(Settings.HitboxTargetPart) == part and IsAlive(char) then
+                found = true
+                break
+            end
+        end
+        if not found then
+            ResetHitboxForPart(part)
+        end
+    end
+
+    for char, _ in pairs(Highlights) do
+        local found = false
+        for _, tChar in ipairs(targets) do
+            if tChar == char and IsAlive(char) then
+                found = true
+                break
+            end
+        end
+        if not found then
+            RemoveHighlight(char)
         end
     end
 end)
