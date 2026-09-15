@@ -1,5 +1,5 @@
 --==================================================
--- T HUB - INVISIBLE BODY HITBOX MODULE (WITH FOV & ESP)
+-- T HUB - INVISIBLE BODY HITBOX MODULE (ULTIMATE VFX & DRAGGABLE - FIXED)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -16,7 +16,7 @@ local Settings = {
     AimLockFOV = 100,         
     HitboxCheckTeam = true,   
     HitboxTargetPart = "HumanoidRootPart",
-    ESPEnabled = true         -- Bật/tắt tính năng ESP trong FOV
+    ESPEnabled = true         
 }
 
 local OriginalHitboxSizes = {}
@@ -30,7 +30,7 @@ if OldGui then OldGui:Destroy() end
 local OldFOV = PlayerGui:FindFirstChild("THubFOV_Extracted")
 if OldFOV then OldFOV:Destroy() end
 
--- ================= 1. TẠO VÒNG TRÒN FOV HIỂN THỊ VĨNH VIỄN =================
+-- ================= 1. TẠO VÒNG TRÒN FOV HIỂN THỊ VĨNH VIỄN + HIỆU ỨNG =================
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "THubFOV_Extracted"
 FOVGui.ResetOnSpawn = false
@@ -50,7 +50,7 @@ FOVConstraint.Parent = FOVCircle
 
 local FOVStroke = Instance.new("UIStroke")
 FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-FOVStroke.Thickness = 2
+FOVStroke.Thickness = 2.5
 FOVStroke.Parent = FOVCircle
 
 local FOVCorner = Instance.new("UICorner")
@@ -58,69 +58,129 @@ FOVCorner.CornerRadius = UDim.new(1, 0)
 FOVCorner.Parent = FOVCircle
 
 
--- ================= 2. TẠO GIAO DIỆN (UI) NÚT MỞ/ĐÓNG MENU =================
+-- ================= 2. TẠO GIAO DIỆN (UI) CỰC ĐẸP & KÉO THẢ =================
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "THub_ExtractedPanel"
 Gui.ResetOnSpawn = false
 Gui.Parent = PlayerGui
 
+-- Nút mở/đóng menu (Kích thước 55x55)
 local OpenBtn = Instance.new("TextButton")
-OpenBtn.Size = UDim2.fromOffset(35, 35)
-OpenBtn.Position = UDim2.new(0, 15, 0.5, -17)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+OpenBtn.Size = UDim2.fromOffset(55, 55)
+OpenBtn.Position = UDim2.new(0, 20, 0.5, -27)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 25, 40)
 OpenBtn.Text = "T"
-OpenBtn.TextColor3 = Color3.new(1, 1, 1)
-OpenBtn.TextSize = 16
-OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
+OpenBtn.TextSize = 26
+OpenBtn.Font = Enum.Font.GothamBlack
 OpenBtn.BorderSizePixel = 0
+OpenBtn.AutoButtonColor = false
 OpenBtn.Parent = Gui
-Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 14)
 
+local OpenBtnStroke = Instance.new("UIStroke")
+OpenBtnStroke.Color = Color3.fromRGB(0, 170, 255)
+OpenBtnStroke.Thickness = 2.5
+OpenBtnStroke.Parent = OpenBtn
+
+local OpenBtnShadow = Instance.new("UIStroke")
+OpenBtnShadow.Color = Color3.fromRGB(0, 100, 200)
+OpenBtnShadow.Thickness = 4
+OpenBtnShadow.Transparency = 0.5
+OpenBtnShadow.Parent = OpenBtn
+
+-- Khung Menu Chính
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.fromOffset(220, 200) -- Mở rộng chiều cao chứa thêm nút ESP
-MainFrame.Position = UDim2.new(0, 60, 0.5, -100)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
+MainFrame.Size = UDim2.fromOffset(260, 230)
+MainFrame.Position = UDim2.new(0, 90, 0.5, -115)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 25, 40)
+MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false
 MainFrame.Parent = Gui
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = Color3.fromRGB(0, 170, 255)
-MainStroke.Thickness = 2
+MainStroke.Thickness = 2.5
 MainStroke.Parent = MainFrame
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, 0, 0, 25)
-TitleLabel.Position = UDim2.fromOffset(0, 4)
+TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Position = UDim2.fromOffset(0, 6)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "T HUB SETTINGS"
-TitleLabel.TextColor3 = Color3.new(1, 1, 1)
-TitleLabel.TextSize = 12
-TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "✨ T HUB ULTIMATE ✨"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 220, 255)
+TitleLabel.TextSize = 14
+TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.Parent = MainFrame
 
+-- ================= HÀM KÉO THẢ (DRAGGABLE) =================
+local function MakeDraggable(item, handle)
+    handle = handle or item
+    local dragging, dragInput, dragStart, startPos
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = item.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    handle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            TweenService:Create(item, TweenInfo.new(0.05), {
+                Position = UDim2.new(
+                    startPos.X.Scale, 
+                    startPos.X.Offset + delta.X, 
+                    startPos.Y.Scale, 
+                    startPos.Y.Offset + delta.Y
+                )
+            }):Play()
+        end
+    end)
+end
+
+MakeDraggable(OpenBtn)
+MakeDraggable(MainFrame, TitleLabel)
+
+
+-- ================= CÁC HÀM TẠO GIAO DIỆN CON =================
 local function CreateMenuToggle(parent, text, defaultState, callback)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(1, -16, 0, 30)
+    Container.Size = UDim2.new(1, -20, 0, 35)
     Container.BackgroundTransparency = 1
     Container.Parent = parent
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -50, 1, 0)
+    Label.Size = UDim2.new(1, -55, 1, 0)
     Label.BackgroundTransparency = 1
     Label.Text = text
-    Label.TextColor3 = Color3.new(1, 1, 1)
-    Label.TextSize = 11
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.TextSize = 12
     Label.Font = Enum.Font.GothamBold
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Parent = Container
 
     local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.fromOffset(38, 20)
+    ToggleBtn.Size = UDim2.fromOffset(44, 22)
     ToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
     ToggleBtn.Position = UDim2.new(1, 0, 0.5, 0)
-    ToggleBtn.BackgroundColor3 = defaultState and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(120, 120, 120)
+    ToggleBtn.BackgroundColor3 = defaultState and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 70, 90)
     ToggleBtn.Text = ""
     ToggleBtn.AutoButtonColor = false
     ToggleBtn.BorderSizePixel = 0
@@ -128,9 +188,9 @@ local function CreateMenuToggle(parent, text, defaultState, callback)
     Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
 
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.fromOffset(16, 16)
+    Knob.Size = UDim2.fromOffset(18, 18)
     Knob.AnchorPoint = Vector2.new(0, 0.5)
-    Knob.Position = defaultState and UDim2.new(1, -18, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+    Knob.Position = defaultState and UDim2.new(1, -20, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
     Knob.BackgroundColor3 = Color3.new(1, 1, 1)
     Knob.BorderSizePixel = 0
     Knob.Parent = ToggleBtn
@@ -139,37 +199,36 @@ local function CreateMenuToggle(parent, text, defaultState, callback)
     local state = defaultState
     ToggleBtn.MouseButton1Click:Connect(function()
         state = not state
-        local targetColor = state and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(120, 120, 120)
-        local targetPos = state and UDim2.new(1, -18, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+        local targetColor = state and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 70, 90)
+        local targetPos = state and UDim2.new(1, -20, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
         
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
-        TweenService:Create(Knob, TweenInfo.new(0.2), {Position = targetPos}):Play()
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.25, Enum.EasingStyle.Back), {BackgroundColor3 = targetColor}):Play()
+        TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Back), {Position = targetPos}):Play()
 
         callback(state)
     end)
 end
 
--- Hàm tạo thanh trượt (Slider) tùy chỉnh FOV từ 50 đến 150
 local function CreateFOVSlider(parent, text, min, max, defaultVal, callback)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(1, -16, 0, 40)
+    Container.Size = UDim2.new(1, -20, 0, 45)
     Container.BackgroundTransparency = 1
     Container.Parent = parent
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, 0, 0, 18)
+    Label.Size = UDim2.new(1, 0, 0, 20)
     Label.BackgroundTransparency = 1
     Label.Text = text .. ": " .. tostring(defaultVal)
-    Label.TextColor3 = Color3.new(1, 1, 1)
-    Label.TextSize = 11
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.TextSize = 12
     Label.Font = Enum.Font.GothamBold
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Parent = Container
 
     local SliderBar = Instance.new("Frame")
     SliderBar.Size = UDim2.new(1, 0, 0, 8)
-    SliderBar.Position = UDim2.new(0, 0, 0, 24)
-    SliderBar.BackgroundColor3 = Color3.fromRGB(40, 60, 80)
+    SliderBar.Position = UDim2.new(0, 0, 0, 26)
+    SliderBar.BackgroundColor3 = Color3.fromRGB(30, 45, 65)
     SliderBar.BorderSizePixel = 0
     SliderBar.Parent = Container
     Instance.new("UICorner", SliderBar).CornerRadius = UDim.new(1, 0)
@@ -182,7 +241,7 @@ local function CreateFOVSlider(parent, text, min, max, defaultVal, callback)
     Instance.new("UICorner", FillBar).CornerRadius = UDim.new(1, 0)
 
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.fromOffset(14, 14)
+    Knob.Size = UDim2.fromOffset(16, 16)
     Knob.AnchorPoint = Vector2.new(0.5, 0.5)
     Knob.Position = UDim2.new(1, 0, 0.5, 0)
     Knob.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -223,22 +282,22 @@ end
 local UIList = Instance.new("UIListLayout")
 UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIList.SortOrder = Enum.SortOrder.LayoutOrder
-UIList.Padding = UDim.new(0, 4)
+UIList.Padding = UDim.new(0, 6)
 UIList.Parent = MainFrame
 TitleLabel.LayoutOrder = 1
 
 local mainToggleHolder = Instance.new("Frame")
-mainToggleHolder.Size = UDim2.new(1, -16, 0, 30)
+mainToggleHolder.Size = UDim2.new(1, -20, 0, 32)
 mainToggleHolder.BackgroundTransparency = 1
 mainToggleHolder.LayoutOrder = 2
 mainToggleHolder.Parent = MainFrame
 
-CreateMenuToggle(mainToggleHolder, "Bật/Tắt Tính Năng", Settings.Enabled, function(v)
+CreateMenuToggle(mainToggleHolder, "Silent Aim", Settings.Enabled, function(v)
     Settings.Enabled = v
 end)
 
 local checkTeamHolder = Instance.new("Frame")
-checkTeamHolder.Size = UDim2.new(1, -16, 0, 30)
+checkTeamHolder.Size = UDim2.new(1, -20, 0, 32)
 checkTeamHolder.BackgroundTransparency = 1
 checkTeamHolder.LayoutOrder = 3
 checkTeamHolder.Parent = MainFrame
@@ -248,7 +307,7 @@ CreateMenuToggle(checkTeamHolder, "Kiểm Tra Team", Settings.HitboxCheckTeam, f
 end)
 
 local espToggleHolder = Instance.new("Frame")
-espToggleHolder.Size = UDim2.new(1, -16, 0, 30)
+espToggleHolder.Size = UDim2.new(1, -20, 0, 32)
 espToggleHolder.BackgroundTransparency = 1
 espToggleHolder.LayoutOrder = 4
 espToggleHolder.Parent = MainFrame
@@ -258,7 +317,7 @@ CreateMenuToggle(espToggleHolder, "Bật/Tắt ESP FOV", Settings.ESPEnabled, fu
 end)
 
 local fovSliderHolder = Instance.new("Frame")
-fovSliderHolder.Size = UDim2.new(1, -16, 0, 45)
+fovSliderHolder.Size = UDim2.new(1, -20, 0, 48)
 fovSliderHolder.BackgroundTransparency = 1
 fovSliderHolder.LayoutOrder = 5
 fovSliderHolder.Parent = MainFrame
@@ -267,12 +326,38 @@ CreateFOVSlider(fovSliderHolder, "Kích Thước FOV", 50, 150, Settings.AimLock
     Settings.AimLockFOV = v
 end)
 
+-- Hiệu ứng mở/đóng Menu mượt mà
+local menuVisible = false
 OpenBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
+    menuVisible = not menuVisible
+    if menuVisible then
+        MainFrame.Visible = true
+        MainFrame.Size = UDim2.fromOffset(0, 0)
+        MainFrame.BackgroundTransparency = 1
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.fromOffset(260, 230),
+            BackgroundTransparency = 0.05
+        }):Play()
+    else
+        local tw = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.fromOffset(0, 0),
+            BackgroundTransparency = 1
+        })
+        tw:Play()
+        tw.Completed:Connect(function()
+            if not menuVisible then MainFrame.Visible = false end
+        end)
+    end
 end)
 
 
--- ================= 3. XỬ LÝ HITBOX & ESP CHO PLAYER VÀ NPC =================
+-- ================= 3. KHAI BÁO CÁC HÀM HỖ TRỢ =================
+local function IsAlive(model)
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local rootPart = model:FindFirstChild("HumanoidRootPart")
+    return humanoid and rootPart and humanoid.Health > 0
+end
+
 local function IsTeammate(char) 
     local player = Players:GetPlayerFromCharacter(char)
     if player and Settings.HitboxCheckTeam then
@@ -297,27 +382,17 @@ local function RemoveHighlight(char)
     end
 end
 
-local function IsAlive(model)
-    local humanoid = model:FindFirstChildOfClass("Humanoid")
-    local rootPart = model:FindFirstChild("HumanoidRootPart")
-    return humanoid and rootPart and humanoid.Health > 0
-end
-
 local function CheckWall(targetPart, character)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     
     local filterList = {Player.Character}
-    if character then
-        table.insert(filterList, character)
-    end
+    if character then table.insert(filterList, character) end
     raycastParams.FilterDescendantsInstances = filterList
     
     local checkPos = targetPart.Position
     local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-    if rootPart then
-        checkPos = rootPart.Position
-    end
+    if rootPart then checkPos = rootPart.Position end
 
     local direction = checkPos - Camera.CFrame.Position
     local result = workspace:Raycast(Camera.CFrame.Position, direction, raycastParams)
@@ -325,9 +400,17 @@ local function CheckWall(targetPart, character)
     return result == nil
 end
 
-RunService.RenderStepped:Connect(function()
-    local mousePos = Camera.ViewportSize / 2
 
+-- ================= 4. XỬ LÝ LOGIC CHÍNH & HIỆU ỨNG RAINBOW =================
+local tickTime = 0
+RunService.RenderStepped:Connect(function(dt)
+    tickTime = tickTime + dt * 1.5
+    local rainbowColor = Color3.fromHSV(tickTime % 1, 0.8, 1)
+    FOVStroke.Color = rainbowColor
+    MainStroke.Color = rainbowColor
+    OpenBtnStroke.Color = rainbowColor
+
+    local mousePos = Camera.ViewportSize / 2
     local diameter = Settings.AimLockFOV * 2
     FOVCircle.Size = UDim2.fromOffset(diameter, diameter)
     FOVCircle.Visible = Settings.Enabled
@@ -356,12 +439,9 @@ RunService.RenderStepped:Connect(function()
         local isAlive = IsAlive(char)
         local isTeamMatch = IsTeammate(char)
 
-        -- Lắng nghe sự kiện chết ngay lập tức
         if humanoid and not DeathConnections[char] then
             DeathConnections[char] = humanoid.Died:Connect(function()
-                if targetPart then
-                    ResetHitboxForPart(targetPart)
-                end
+                if targetPart then ResetHitboxForPart(targetPart) end
                 RemoveHighlight(char)
                 if DeathConnections[char] then
                     DeathConnections[char]:Disconnect()
@@ -388,23 +468,22 @@ RunService.RenderStepped:Connect(function()
             if inFOV then
                 local hasNoWall = CheckWall(targetPart, char)
 
-                -- Quản lý ESP (Highlight)
                 if Settings.ESPEnabled then
                     if not Highlights[char] then
                         local hl = Instance.new("Highlight")
                         hl.Parent = char
                         hl.Adornee = char
                         hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        hl.FillTransparency = 0.5
+                        hl.FillTransparency = 0.4
                         hl.OutlineTransparency = 0
                         Highlights[char] = hl
                     end
                     
                     if hasNoWall then
-                        Highlights[char].FillColor = Color3.fromRGB(0, 255, 0)   -- Xanh lá cây (Không có vật cản)
+                        Highlights[char].FillColor = Color3.fromRGB(0, 255, 0)
                         Highlights[char].OutlineColor = Color3.fromRGB(0, 255, 0)
                     else
-                        Highlights[char].FillColor = Color3.fromRGB(255, 0, 0)   -- Đỏ (Có vật cản che)
+                        Highlights[char].FillColor = Color3.fromRGB(255, 0, 0)
                         Highlights[char].OutlineColor = Color3.fromRGB(255, 0, 0)
                     end
                     Highlights[char].Enabled = true
@@ -413,7 +492,6 @@ RunService.RenderStepped:Connect(function()
                 end
 
                 if hasNoWall then
-                    -- Không có vật cản: PHÓNG TO HITBOX THÂN VÀ TÀNG HÌNH
                     if not OriginalHitboxSizes[targetPart] then
                         OriginalHitboxSizes[targetPart] = targetPart.Size
                     end
@@ -426,7 +504,6 @@ RunService.RenderStepped:Connect(function()
                     targetPart.Transparency = 1 
                     targetPart.CanCollide = false
                 else
-                    -- Có vật cản: TRẢ VỀ KÍCH THƯỚC BAN ĐẦU
                     ResetHitboxForPart(targetPart)
                 end
             else
@@ -436,7 +513,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Dọn dẹp trạng thái khi mục tiêu không còn tồn tại
     for part, _ in pairs(OriginalHitboxSizes) do
         local found = false
         for _, char in ipairs(targets) do
@@ -445,9 +521,7 @@ RunService.RenderStepped:Connect(function()
                 break
             end
         end
-        if not found then
-            ResetHitboxForPart(part)
-        end
+        if not found then ResetHitboxForPart(part) end
     end
 
     for char, _ in pairs(Highlights) do
@@ -458,8 +532,6 @@ RunService.RenderStepped:Connect(function()
                 break
             end
         end
-        if not found then
-            RemoveHighlight(char)
-        end
+        if not found then RemoveHighlight(char) end
     end
 end)
