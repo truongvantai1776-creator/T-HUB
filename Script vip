@@ -1,6 +1,6 @@
 --==================================================
 -- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
--- (Đã tích hợp Đa ngôn ngữ, Tốc độ & Nhảy không giới hạn)
+-- (Đã tích hợp Đa ngôn ngữ, Tốc độ, Nhảy không giới hạn, Murder Mystery 2 & Sl aim VIP)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -1247,6 +1247,65 @@ HitboxTeamBtn.MouseButton1Click:Connect(function()
 	SaveColorSettings()
 end)
 
+-- ================= MỤC SL AIM (TÍCH HỢP VIP SCRIPT) =================
+local SlAimContainer = Instance.new("Frame")
+SlAimContainer.Size = UDim2.new(1, 0, 0, 36)
+SlAimContainer.BackgroundTransparency = 1
+SlAimContainer.ClipsDescendants = true
+SlAimContainer.Parent = VipPage
+
+local SlAimHeader = Instance.new("Frame")
+SlAimHeader.Size = UDim2.new(1, 0, 0, 36)
+SlAimHeader.BackgroundTransparency = 1
+SlAimHeader.Parent = SlAimContainer
+
+local SlAimTitleLabel = Instance.new("TextLabel")
+SlAimTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+SlAimTitleLabel.Position = UDim2.fromOffset(5, 0)
+SlAimTitleLabel.BackgroundTransparency = 1
+SlAimTitleLabel.Text = "slient aim (beta)"
+SlAimTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+SlAimTitleLabel.TextSize = 13
+SlAimTitleLabel.Font = Enum.Font.GothamBold
+SlAimTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+SlAimTitleLabel.Parent = SlAimHeader
+
+local SlAimToggleBtn = Instance.new("TextButton")
+SlAimToggleBtn.Size = UDim2.fromOffset(46, 24)
+SlAimToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+SlAimToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
+SlAimToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+SlAimToggleBtn.Text = ""
+SlAimToggleBtn.AutoButtonColor = false
+SlAimToggleBtn.BorderSizePixel = 0
+SlAimToggleBtn.Parent = SlAimHeader
+Instance.new("UICorner", SlAimToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local SlAimKnob = Instance.new("Frame")
+SlAimKnob.Size = UDim2.fromOffset(20, 20)
+SlAimKnob.AnchorPoint = Vector2.new(0, 0.5)
+SlAimKnob.Position = UDim2.new(0, 2, 0.5, 0)
+SlAimKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+SlAimKnob.BorderSizePixel = 0
+SlAimKnob.Parent = SlAimToggleBtn
+Instance.new("UICorner", SlAimKnob).CornerRadius = UDim.new(1, 0)
+
+local slAimActive = false
+
+SlAimToggleBtn.MouseButton1Click:Connect(function()
+	slAimActive = not slAimActive
+	local targetColor = slAimActive and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = slAimActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(SlAimToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(SlAimKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+
+	if slAimActive then
+		pcall(function()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Sl%20aim"))()
+		end)
+	end
+end)
+
 local UtilityPage = Page("Utility")
 Title(UtilityPage, "UtilityTitle")
 CreateToggleSwitch(UtilityPage, "AntiAFK", Settings.AntiAFK, nil, function(v) Settings.AntiAFK = v end)
@@ -1315,7 +1374,7 @@ Player.Idled:Connect(function()
 	if Settings.AntiAFK then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end
 end)
 
--- HỖ TRỢ GAME (RUNAWAYS & ANIME ABILITY ARENA)
+-- HỖ TRỢ GAME (RUNAWAYS, ANIME ABILITY ARENA & MURDER MYSTERY 2)
 local GameSupPage = Page("GameSupport")
 Title(GameSupPage, "GameSupTitle")
 
@@ -1437,6 +1496,65 @@ AnimeArenaToggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- Mục Murder Mystery 2
+local MurderMystery2Container = Instance.new("Frame")
+MurderMystery2Container.Size = UDim2.new(1, 0, 0, 36)
+MurderMystery2Container.BackgroundTransparency = 1
+MurderMystery2Container.ClipsDescendants = true
+MurderMystery2Container.Parent = GameSupPage
+
+local MurderMystery2Header = Instance.new("Frame")
+MurderMystery2Header.Size = UDim2.new(1, 0, 0, 36)
+MurderMystery2Header.BackgroundTransparency = 1
+MurderMystery2Header.Parent = MurderMystery2Container
+
+local MurderMystery2TitleLabel = Instance.new("TextLabel")
+MurderMystery2TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+MurderMystery2TitleLabel.Position = UDim2.fromOffset(5, 0)
+MurderMystery2TitleLabel.BackgroundTransparency = 1
+MurderMystery2TitleLabel.Text = "MURDER MYSTERY 2"
+MurderMystery2TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+MurderMystery2TitleLabel.TextSize = 13
+MurderMystery2TitleLabel.Font = Enum.Font.GothamBold
+MurderMystery2TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+MurderMystery2TitleLabel.Parent = MurderMystery2Header
+
+local MurderMystery2ToggleBtn = Instance.new("TextButton")
+MurderMystery2ToggleBtn.Size = UDim2.fromOffset(46, 24)
+MurderMystery2ToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+MurderMystery2ToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
+MurderMystery2ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+MurderMystery2ToggleBtn.Text = ""
+MurderMystery2ToggleBtn.AutoButtonColor = false
+MurderMystery2ToggleBtn.BorderSizePixel = 0
+MurderMystery2ToggleBtn.Parent = MurderMystery2Header
+Instance.new("UICorner", MurderMystery2ToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local MurderMystery2Knob = Instance.new("Frame")
+MurderMystery2Knob.Size = UDim2.fromOffset(20, 20)
+MurderMystery2Knob.AnchorPoint = Vector2.new(0, 0.5)
+MurderMystery2Knob.Position = UDim2.new(0, 2, 0.5, 0)
+MurderMystery2Knob.BackgroundColor3 = Color3.new(1, 1, 1)
+MurderMystery2Knob.BorderSizePixel = 0
+MurderMystery2Knob.Parent = MurderMystery2ToggleBtn
+Instance.new("UICorner", MurderMystery2Knob).CornerRadius = UDim.new(1, 0)
+
+local murderMystery2Active = false
+
+MurderMystery2ToggleBtn.MouseButton1Click:Connect(function()
+	murderMystery2Active = not murderMystery2Active
+	local targetColor = murderMystery2Active and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = murderMystery2Active and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(MurderMystery2ToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(MurderMystery2Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+
+	if murderMystery2Active then
+		pcall(function()
+			loadstring(game:HttpGet("https://onyxscripts.xyz"))()
+		end)
+	end
+end)
+
 -- ================= MỤC MISC (KHÁC) =================
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
@@ -1502,9 +1620,8 @@ local function CreateLangButton(langName, displayName)
 	Btn.MouseButton1Click:Connect(function()
 		Settings.Language = langName
 		SaveColorSettings()
-		-- Thông báo hoặc tự động load lại/thông báo đổi ngôn ngữ thành công
 		pcall(function()
-			TeleportService:Teleport(game.PlaceId, Player) -- Hoặc thông báo cho người dùng mở lại script để đổi toàn bộ ngôn ngữ chuẩn xác
+			TeleportService:Teleport(game.PlaceId, Player)
 		end)
 	end)
 end
