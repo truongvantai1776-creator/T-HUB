@@ -1,0 +1,337 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local localPlayer = Players.LocalPlayer
+
+-- Tạo ScreenGui chứa giao diện
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PromptMasterGui"
+screenGui.ResetOnSpawn = false
+
+-- Hỗ trợ bảo vệ GUI nếu chạy trên các Executor hỗ trợ
+if syn and syn.protect_gui then
+    syn.protect_gui(screenGui)
+    screenGui.Parent = CoreGui
+else
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- Khung chính của UI (MainFrame)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 240, 0, 220)
+mainFrame.Position = UDim2.new(0.5, -120, 0.5, -110)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(60, 60, 75)
+mainStroke.Thickness = 1.5
+mainStroke.Parent = mainFrame
+
+-- Thanh Tiêu Đề (Dùng để kéo thả Menu chính)
+local titleBar = Instance.new("TextButton")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 38)
+titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+titleBar.Text = "  ⚡ T HUB"
+titleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleBar.TextSize = 14
+titleBar.Font = Enum.Font.GothamBold
+titleBar.TextXAlignment = Enum.TextXAlignment.Left
+titleBar.AutoButtonColor = false
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+-- Sửa lỗi bo góc bị lẹm ở dưới của tiêu đề
+local titleCover = Instance.new("Frame")
+titleCover.Size = UDim2.new(1, 0, 0, 6)
+titleCover.Position = UDim2.new(0, 0, 1, -6)
+titleCover.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+titleCover.BorderSizePixel = 0
+titleCover.Parent = titleBar
+
+-- Container chứa các nút chức năng bên trong MainFrame
+local container = Instance.new("Frame")
+container.Size = UDim2.new(1, -16, 1, -48)
+container.Position = UDim2.new(0, 8, 0, 42)
+container.BackgroundTransparency = 1
+container.Parent = mainFrame
+
+local uiLayout = Instance.new("UIListLayout")
+uiLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiLayout.Padding = UDim.new(0, 8)
+uiLayout.Parent = container
+
+-- Hàm tạo các nút chức năng phong cách hiện đại
+local function createButton(name, text, order)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+    btn.Text = "  " .. text .. ": TẮT"
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.TextSize = 12
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.LayoutOrder = order
+    btn.AutoButtonColor = false
+    btn.Parent = container
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = btn
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(60, 60, 80)
+    stroke.Thickness = 1
+    stroke.Parent = btn
+
+    return btn
+end
+
+local toggleRangeBtn = createButton("ToggleRangeBtn", "Tầm xa", 1)
+local toggleInstantBtn = createButton("ToggleInstantBtn", "Bấm nhanh", 2)
+local toggleESPBtn = createButton("ToggleESPBtn", "ESP Nút", 3)
+local toggleAutoBtn = createButton("ToggleAutoBtn", "Tự động nhấn", 4)
+
+-- Nút bật/tắt UI hình chữ T (Có thể kéo thả)
+local toggleUIButton = Instance.new("TextButton")
+toggleUIButton.Name = "ToggleUIButton"
+toggleUIButton.Size = UDim2.new(0, 48, 0, 48)
+toggleUIButton.Position = UDim2.new(0, 20, 0.4, 0)
+toggleUIButton.BackgroundColor3 = Color3.fromRGB(45, 85, 255)
+toggleUIButton.Text = "T"
+toggleUIButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleUIButton.TextSize = 22
+toggleUIButton.Font = Enum.Font.GothamBold
+toggleUIButton.AutoButtonColor = false
+toggleUIButton.Parent = screenGui
+
+local uiBtnCorner = Instance.new("UICorner")
+uiBtnCorner.CornerRadius = UDim.new(1, 0)
+uiBtnCorner.Parent = toggleUIButton
+
+local uiBtnStroke = Instance.new("UIStroke")
+uiBtnStroke.Color = Color3.fromRGB(255, 255, 255)
+uiBtnStroke.Thickness = 2
+uiBtnStroke.Parent = toggleUIButton
+
+-- === TÍNH NĂNG KÉO THẢ CHO CẢ 2 KHUNG (MENU & NÚT T) ===
+local function makeDraggable(obj, handle)
+    handle = handle or obj
+    local dragging, dragInput, dragStart, startPos
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = obj.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    handle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            obj.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, 
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+makeDraggable(mainFrame, titleBar)
+makeDraggable(toggleUIButton)
+
+-- === LOGIC PROXIMITY PROMPT, ESP & AUTO CLICK ===
+local isRangeEnabled = false
+local isInstantEnabled = false
+local isESPEnabled = false
+local isAutoEnabled = false
+local originalData = {}
+local espStorage = {}
+
+local function updatePrompt(prompt)
+    if not prompt:IsA("ProximityPrompt") then return end
+
+    if not originalData[prompt] then
+        originalData[prompt] = {
+            MaxDistance = prompt.MaxActivationDistance,
+            HoldTime = prompt.HoldDuration,
+            LineOfSight = prompt.RequiresLineOfSight
+        }
+    end
+
+    local original = originalData[prompt]
+
+    if isRangeEnabled then
+        prompt.MaxActivationDistance = math.huge
+        prompt.RequiresLineOfSight = false
+    else
+        prompt.MaxActivationDistance = original.MaxDistance
+        prompt.RequiresLineOfSight = original.LineOfSight
+    end
+
+    if isInstantEnabled then
+        prompt.HoldDuration = 0
+    else
+        prompt.HoldDuration = original.HoldTime
+    end
+end
+
+local function createESP(prompt)
+    if espStorage[prompt] then return end
+    local parentPart = prompt.Parent
+    if not parentPart or not parentPart:IsA("BasePart") then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "PromptESP"
+    billboard.Size = UDim2.new(0, 120, 0, 35)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Adornee = parentPart
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    textLabel.BackgroundTransparency = 0.3
+    textLabel.Text = "  " .. (prompt.ActionText ~= "" and prompt.ActionText or "Interact") .. "  "
+    textLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+    textLabel.TextStrokeTransparency = 0.5
+    textLabel.TextSize = 12
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Parent = billboard
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = textLabel
+
+    billboard.Parent = parentPart
+    espStorage[prompt] = billboard
+end
+
+local function removeESP(prompt)
+    if espStorage[prompt] then
+        espStorage[prompt]:Destroy()
+        espStorage[prompt] = nil
+    end
+end
+
+local function refreshAllPrompts()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            updatePrompt(obj)
+            if isESPEnabled then
+                createESP(obj)
+            else
+                removeESP(obj)
+            end
+        end
+    end
+end
+
+-- Sự kiện bật/tắt Tầm Xa
+toggleRangeBtn.MouseButton1Click:Connect(function()
+    isRangeEnabled = not isRangeEnabled
+    toggleRangeBtn.Text = "  Tầm xa: " .. (isRangeEnabled and "BẬT" or "TẮT")
+    toggleRangeBtn.TextColor3 = isRangeEnabled and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(200, 200, 200)
+    toggleRangeBtn.BackgroundColor3 = isRangeEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(40, 40, 52)
+    refreshAllPrompts()
+end)
+
+-- Sự kiện bật/tắt Bấm Nhanh
+toggleInstantBtn.MouseButton1Click:Connect(function()
+    isInstantEnabled = not isInstantEnabled
+    toggleInstantBtn.Text = "  Bấm nhanh: " .. (isInstantEnabled and "BẬT" or "TẮT")
+    toggleInstantBtn.TextColor3 = isInstantEnabled and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(200, 200, 200)
+    toggleInstantBtn.BackgroundColor3 = isInstantEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(40, 40, 52)
+    refreshAllPrompts()
+end)
+
+-- Sự kiện bật/tắt ESP Nút
+toggleESPBtn.MouseButton1Click:Connect(function()
+    isESPEnabled = not isESPEnabled
+    toggleESPBtn.Text = "  ESP Nút: " .. (isESPEnabled and "BẬT" or "TẮT")
+    toggleESPBtn.TextColor3 = isESPEnabled and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(200, 200, 200)
+    toggleESPBtn.BackgroundColor3 = isESPEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(40, 40, 52)
+    refreshAllPrompts()
+end)
+
+-- Sự kiện bật/tắt Tự Động Nhấn
+toggleAutoBtn.MouseButton1Click:Connect(function()
+    isAutoEnabled = not isAutoEnabled
+    toggleAutoBtn.Text = "  Tự động nhấn: " .. (isAutoEnabled and "BẬT" or "TẮT")
+    toggleAutoBtn.TextColor3 = isAutoEnabled and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(200, 200, 200)
+    toggleAutoBtn.BackgroundColor3 = isAutoEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(40, 40, 52)
+end)
+
+-- Vòng lặp xử lý Auto Click liên tục
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if isAutoEnabled then
+            local character = localPlayer.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") then
+                        local part = obj.Parent
+                        if part and part:IsA("BasePart") then
+                            local distance = (rootPart.Position - part.Position).Magnitude
+                            if distance <= (isRangeEnabled and 50 or obj.MaxActivationDistance) then
+                                pcall(function()
+                                    fireproximityprompt(obj)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Lắng nghe các prompt mới sinh ra trong game
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then
+        updatePrompt(obj)
+        if isESPEnabled then
+            createESP(obj)
+        end
+    end
+end)
+
+workspace.DescendantRemoving:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then
+        removeESP(obj)
+        originalData[obj] = nil
+    end
+end)
+
+-- === NÚT "T" BẬT / TẮT MENU CHÍNH ===
+toggleUIButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
