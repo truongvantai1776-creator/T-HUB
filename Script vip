@@ -1,6 +1,6 @@
 --==================================================
 -- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
--- (Đã tích hợp Đa ngôn ngữ, Tốc độ, Nhảy không giới hạn, Murder Mystery 2 & Sl aim VIP)
+-- (Đã tích hợp Đa ngôn ngữ, Tốc độ, Nhảy không giới hạn, Murder Mystery 2, Sl aim VIP & Fly Cam)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -1302,6 +1302,65 @@ SlAimToggleBtn.MouseButton1Click:Connect(function()
 	if slAimActive then
 		pcall(function()
 			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Sl%20aim"))()
+		end)
+	end
+end)
+
+-- ================= MỤC FLY CAM (TÍCH HỢP VIP SCRIPT) =================
+local FlyCamContainer = Instance.new("Frame")
+FlyCamContainer.Size = UDim2.new(1, 0, 0, 36)
+FlyCamContainer.BackgroundTransparency = 1
+FlyCamContainer.ClipsDescendants = true
+FlyCamContainer.Parent = VipPage
+
+local FlyCamHeader = Instance.new("Frame")
+FlyCamHeader.Size = UDim2.new(1, 0, 0, 36)
+FlyCamHeader.BackgroundTransparency = 1
+FlyCamHeader.Parent = FlyCamContainer
+
+local FlyCamTitleLabel = Instance.new("TextLabel")
+FlyCamTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+FlyCamTitleLabel.Position = UDim2.fromOffset(5, 0)
+FlyCamTitleLabel.BackgroundTransparency = 1
+FlyCamTitleLabel.Text = "fly cam"
+FlyCamTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+FlyCamTitleLabel.TextSize = 13
+FlyCamTitleLabel.Font = Enum.Font.GothamBold
+FlyCamTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+FlyCamTitleLabel.Parent = FlyCamHeader
+
+local FlyCamToggleBtn = Instance.new("TextButton")
+FlyCamToggleBtn.Size = UDim2.fromOffset(46, 24)
+FlyCamToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+FlyCamToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
+FlyCamToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+FlyCamToggleBtn.Text = ""
+FlyCamToggleBtn.AutoButtonColor = false
+FlyCamToggleBtn.BorderSizePixel = 0
+FlyCamToggleBtn.Parent = FlyCamHeader
+Instance.new("UICorner", FlyCamToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local FlyCamKnob = Instance.new("Frame")
+FlyCamKnob.Size = UDim2.fromOffset(20, 20)
+FlyCamKnob.AnchorPoint = Vector2.new(0, 0.5)
+FlyCamKnob.Position = UDim2.new(0, 2, 0.5, 0)
+FlyCamKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+FlyCamKnob.BorderSizePixel = 0
+FlyCamKnob.Parent = FlyCamToggleBtn
+Instance.new("UICorner", FlyCamKnob).CornerRadius = UDim.new(1, 0)
+
+local flyCamActive = false
+
+FlyCamToggleBtn.MouseButton1Click:Connect(function()
+	flyCamActive = not flyCamActive
+	local targetColor = flyCamActive and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = flyCamActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(FlyCamToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(FlyCamKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+
+	if flyCamActive then
+		pcall(function()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Flycam"))()
 		end)
 	end
 end)
