@@ -1,6 +1,6 @@
 --==================================================
 -- T HUB - AIM LOCK FOV + MISC SECTION + RUNAWAYS UPDATE
--- (Đã tích hợp Đa ngôn ngữ, Tốc độ, Nhảy không giới hạn, Murder Mystery 2, Sl aim VIP & Fly Cam)
+-- (Đã tích hợp Đa ngôn ngữ, Tốc độ, Nhảy không giới hạn, Murder Mystery 2, Sl aim VIP, Fly Cam & Button VIP)
 --==================================================
 
 local Players = game:GetService("Players")
@@ -108,9 +108,19 @@ end
 
 LoadColorSettings()
 
-local CurrentTarget
-local OriginalCollision = {}
-local OriginalHitboxSizes = {}
+local Old = PlayerGui:FindFirstChild("THub")
+if Old then Old:Destroy() end
+
+local OldFOV = PlayerGui:FindFirstChild("THubFOV")
+if OldFOV then OldFOV:Destroy() end
+
+local OldLoading = PlayerGui:FindFirstChild("THubLoading")
+if OldLoading then OldLoading:Destroy() end
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "THub"
+Gui.ResetOnSpawn = false
+Gui.Parent = PlayerGui
 
 local Theme = Color3.fromRGB(Settings.ThemeR, Settings.ThemeG, Settings.ThemeB)
 local Dark = Color3.fromRGB(Settings.DarkR, Settings.DarkG, Settings.DarkB)
@@ -122,18 +132,170 @@ local DynamicButtons = {}
 local DynamicToggles = {}
 local MenuButtonsList = {}
 
-local Old = PlayerGui:FindFirstChild("THub")
-if Old then Old:Destroy() end
+local Open = Instance.new("TextButton")
+Open.Size = UDim2.fromOffset(80, 50)
+Open.Position = UDim2.new(0, 15, 0.5, -25)
+Open.BackgroundColor3 = Theme
+Open.Text = "T HUB"
+Open.TextSize = 16
+Open.Font = Enum.Font.GothamBold
+Open.TextColor3 = Color3.new(1, 1, 1)
+Open.BorderSizePixel = 0
+Open.Visible = false
+Open.Parent = Gui
+Instance.new("UICorner", Open).CornerRadius = UDim.new(0, 12)
 
-local OldFOV = PlayerGui:FindFirstChild("THubFOV")
-if OldFOV then OldFOV:Destroy() end
+local function ApplySmoothHover(button, defaultColor, hoverColor)
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundColor3 = hoverColor,
+			Size = UDim2.new(button.Size.X.Scale, button.Size.X.Offset, button.Size.Y.Scale, button.Size.Y.Offset + 2)
+		}):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundColor3 = defaultColor,
+			Size = UDim2.new(button.Size.X.Scale, button.Size.X.Offset, button.Size.Y.Scale, button.Size.Y.Offset - 2)
+		}):Play()
+	end)
+end
 
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "THub"
-Gui.ResetOnSpawn = false
-Gui.Parent = PlayerGui
+ApplySmoothHover(Open, Theme, Color3.fromRGB(255, 255, 255))
 
--- VÒNG TRÒN FOV BẰNG UI
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "THubLoading"
+LoadingGui.ResetOnSpawn = false
+LoadingGui.IgnoreGuiInset = true
+LoadingGui.Parent = PlayerGui
+
+local LoadingBg = Instance.new("Frame")
+LoadingBg.Size = UDim2.fromScale(1, 1)
+LoadingBg.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
+LoadingBg.BorderSizePixel = 0
+LoadingBg.Parent = LoadingGui
+
+local Ring1 = Instance.new("Frame")
+Ring1.Size = UDim2.fromOffset(300, 300)
+Ring1.AnchorPoint = Vector2.new(0.5, 0.5)
+Ring1.Position = UDim2.fromScale(0.5, 0.45)
+Ring1.BackgroundTransparency = 1
+Ring1.Parent = LoadingBg
+Instance.new("UIStroke", Ring1).Color = Color3.fromRGB(0, 170, 255)
+Ring1.UIStroke.Thickness = 4
+Instance.new("UICorner", Ring1).CornerRadius = UDim.new(1, 0)
+
+local Ring2 = Instance.new("Frame")
+Ring2.Size = UDim2.fromOffset(240, 240)
+Ring2.AnchorPoint = Vector2.new(0.5, 0.5)
+Ring2.Position = UDim2.fromScale(0.5, 0.45)
+Ring2.BackgroundTransparency = 1
+Ring2.Parent = LoadingBg
+Instance.new("UIStroke", Ring2).Color = Color3.fromRGB(255, 0, 128)
+Ring2.UIStroke.Thickness = 3
+Instance.new("UICorner", Ring2).CornerRadius = UDim.new(1, 0)
+
+task.spawn(function()
+	while LoadingGui.Parent do
+		Ring1.Rotation = Ring1.Rotation + 3
+		Ring2.Rotation = Ring2.Rotation - 5
+		task.wait(0.01)
+	end
+end)
+
+local LoadTitle = Instance.new("TextLabel")
+LoadTitle.Size = UDim2.fromOffset(400, 50)
+LoadTitle.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadTitle.Position = UDim2.fromScale(0.5, 0.42)
+LoadTitle.BackgroundTransparency = 1
+LoadTitle.Text = "T HUB - LOADING SYSTEM"
+LoadTitle.TextColor3 = Color3.new(1, 1, 1)
+LoadTitle.TextSize = 24
+LoadTitle.Font = Enum.Font.GothamBold
+LoadTitle.Parent = LoadingBg
+
+local LoadStatus = Instance.new("TextLabel")
+LoadStatus.Size = UDim2.fromOffset(400, 30)
+LoadStatus.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadStatus.Position = UDim2.fromScale(0.5, 0.49)
+LoadStatus.BackgroundTransparency = 1
+LoadStatus.Text = "Initializing modules..."
+LoadStatus.TextColor3 = Color3.fromRGB(180, 180, 180)
+LoadStatus.TextSize = 14
+LoadStatus.Font = Enum.Font.Gotham
+LoadStatus.Parent = LoadingBg
+
+local BarBg = Instance.new("Frame")
+BarBg.Size = UDim2.fromOffset(350, 12)
+BarBg.AnchorPoint = Vector2.new(0.5, 0.5)
+BarBg.Position = UDim2.fromScale(0.5, 0.57)
+BarBg.BackgroundColor3 = Color3.fromRGB(30, 40, 60)
+BarBg.BorderSizePixel = 0
+BarBg.Parent = LoadingBg
+Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
+
+local BarFill = Instance.new("Frame")
+BarFill.Size = UDim2.new(0, 0, 1, 0)
+BarFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+BarFill.BorderSizePixel = 0
+BarFill.Parent = BarBg
+Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1, 0)
+
+local PercentText = Instance.new("TextLabel")
+PercentText.Size = UDim2.fromOffset(100, 30)
+PercentText.AnchorPoint = Vector2.new(0.5, 0.5)
+PercentText.Position = UDim2.fromScale(0.5, 0.63)
+PercentText.BackgroundTransparency = 1
+PercentText.Text = "0%"
+PercentText.TextColor3 = Color3.new(1, 1, 1)
+PercentText.TextSize = 16
+PercentText.Font = Enum.Font.GothamBold
+PercentText.Parent = LoadingBg
+
+task.spawn(function()
+	local statuses = {
+		{t = 0, text = "Loading security bypass...", p = 0.1},
+		{t = 1.5, text = "Injecting Slient Aim & Flycam...", p = 0.3},
+		{t = 3.5, text = "Loading Multi-Language dictionary...", p = 0.5},
+		{t = 6.0, text = "Syncing Player ESP & Hitboxes...", p = 0.75},
+		{t = 8.5, text = "Finalizing user interface...", p = 0.95},
+		{t = 10.0, text = "Complete!", p = 1.0}
+	}
+	
+	local startTime = tick()
+	local duration = 10
+	
+	while tick() - startTime < duration do
+		local alpha = math.clamp((tick() - startTime) / duration, 0, 1)
+		BarFill.Size = UDim2.new(alpha, 0, 1, 0)
+		PercentText.Text = math.floor(alpha * 100) .. "%"
+		
+		for _, v in ipairs(statuses) do
+			if (tick() - startTime) >= v.t then
+				LoadStatus.Text = v.text
+			end
+		end
+		task.wait(0.03)
+	end
+	
+	BarFill.Size = UDim2.new(1, 0, 1, 0)
+	PercentText.Text = "100%"
+	LoadStatus.Text = "Ready!"
+	
+	TweenService:Create(LoadingBg, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+	for _, child in ipairs(LoadingBg:GetChildren()) do
+		if child:IsA("GuiObject") then
+			TweenService:Create(child, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1}):Play()
+		end
+	end
+	task.wait(0.8)
+	LoadingGui:Destroy()
+	Open.Visible = true
+end)
+
+local CurrentTarget
+local OriginalCollision = {}
+local OriginalHitboxSizes = {}
+
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "THubFOV"
 FOVGui.ResetOnSpawn = false
@@ -162,21 +324,6 @@ RunService.RenderStepped:Connect(function()
 	FOVCircle.Size = UDim2.fromOffset(Settings.AimLockFOV * 2, Settings.AimLockFOV * 2)
 	FOVCircle.Visible = Settings.AimLock and Settings.ShowFOV
 end)
-
-local function ApplySmoothHover(button, defaultColor, hoverColor)
-	button.MouseEnter:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = hoverColor,
-			Size = UDim2.new(button.Size.X.Scale, button.Size.X.Offset, button.Size.Y.Scale, button.Size.Y.Offset + 2)
-		}):Play()
-	end)
-	button.MouseLeave:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = defaultColor,
-			Size = UDim2.new(button.Size.X.Scale, button.Size.X.Offset, button.Size.Y.Scale, button.Size.Y.Offset - 2)
-		}):Play()
-	end)
-end
 
 local Main = Instance.new("Frame")
 Main.Size = UDim2.fromOffset(500, 250)
@@ -227,20 +374,6 @@ task.spawn(function()
 		task.wait(1)
 	end
 end)
-
-local Open = Instance.new("TextButton")
-Open.Size = UDim2.fromOffset(80, 50)
-Open.Position = UDim2.new(0, 15, 0.5, -25)
-Open.BackgroundColor3 = Theme
-Open.Text = "T HUB"
-Open.TextSize = 16
-Open.Font = Enum.Font.GothamBold
-Open.TextColor3 = Color3.new(1, 1, 1)
-Open.BorderSizePixel = 0
-Open.Visible = true
-Open.Parent = Gui
-Instance.new("UICorner", Open).CornerRadius = UDim.new(0, 12)
-ApplySmoothHover(Open, Theme, Color3.fromRGB(255, 255, 255))
 
 local function CreateSnow(parentFrame, maxWidth, maxHeight)
 	task.spawn(function()
@@ -457,7 +590,6 @@ local function Title(parent, textKey)
 	return label
 end
 
--- ================= HÀM TOGGLE SWITCH HIỆN ĐẠI =================
 local function CreateToggleSwitch(parent, mainTextKey, defaultToggle, subInputs, onToggleOnly)
 	local hasSub = subInputs and #subInputs > 0
 	local Container = Instance.new("Frame")
@@ -591,8 +723,6 @@ local function CreateToggleSwitch(parent, mainTextKey, defaultToggle, subInputs,
 		end
 	end
 end
-
--- ================= CÁC TRANG CHỨC NĂNG =================
 
 local Movement = Page("Movement")
 Title(Movement, "BasicFunc")
@@ -1247,7 +1377,6 @@ HitboxTeamBtn.MouseButton1Click:Connect(function()
 	SaveColorSettings()
 end)
 
--- ================= MỤC SL AIM (TÍCH HỢP VIP SCRIPT) =================
 local SlAimContainer = Instance.new("Frame")
 SlAimContainer.Size = UDim2.new(1, 0, 0, 36)
 SlAimContainer.BackgroundTransparency = 1
@@ -1306,7 +1435,6 @@ SlAimToggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ================= MỤC FLY CAM (TÍCH HỢP VIP SCRIPT) =================
 local FlyCamContainer = Instance.new("Frame")
 FlyCamContainer.Size = UDim2.new(1, 0, 0, 36)
 FlyCamContainer.BackgroundTransparency = 1
@@ -1361,6 +1489,64 @@ FlyCamToggleBtn.MouseButton1Click:Connect(function()
 	if flyCamActive then
 		pcall(function()
 			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Flycam"))()
+		end)
+	end
+end)
+
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Size = UDim2.new(1, 0, 0, 36)
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.ClipsDescendants = true
+ButtonContainer.Parent = VipPage
+
+local ButtonHeader = Instance.new("Frame")
+ButtonHeader.Size = UDim2.new(1, 0, 0, 36)
+ButtonHeader.BackgroundTransparency = 1
+ButtonHeader.Parent = ButtonContainer
+
+local ButtonTitleLabel = Instance.new("TextLabel")
+ButtonTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+ButtonTitleLabel.Position = UDim2.fromOffset(5, 0)
+ButtonTitleLabel.BackgroundTransparency = 1
+ButtonTitleLabel.Text = "button"
+ButtonTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+ButtonTitleLabel.TextSize = 13
+ButtonTitleLabel.Font = Enum.Font.GothamBold
+ButtonTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+ButtonTitleLabel.Parent = ButtonHeader
+
+local ButtonToggleBtn = Instance.new("TextButton")
+ButtonToggleBtn.Size = UDim2.fromOffset(46, 24)
+ButtonToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+ButtonToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
+ButtonToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+ButtonToggleBtn.Text = ""
+ButtonToggleBtn.AutoButtonColor = false
+ButtonToggleBtn.BorderSizePixel = 0
+ButtonToggleBtn.Parent = ButtonHeader
+Instance.new("UICorner", ButtonToggleBtn).CornerRadius = UDim.new(1, 0)
+
+local ButtonKnob = Instance.new("Frame")
+ButtonKnob.Size = UDim2.fromOffset(20, 20)
+ButtonKnob.AnchorPoint = Vector2.new(0, 0.5)
+ButtonKnob.Position = UDim2.new(0, 2, 0.5, 0)
+ButtonKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+ButtonKnob.BorderSizePixel = 0
+ButtonKnob.Parent = ButtonToggleBtn
+Instance.new("UICorner", ButtonKnob).CornerRadius = UDim.new(1, 0)
+
+local buttonScriptActive = false
+
+ButtonToggleBtn.MouseButton1Click:Connect(function()
+	buttonScriptActive = not buttonScriptActive
+	local targetColor = buttonScriptActive and Theme or Color3.fromRGB(120, 120, 120)
+	local targetPos = buttonScriptActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+	TweenService:Create(ButtonToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+	TweenService:Create(ButtonKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+
+	if buttonScriptActive then
+		pcall(function()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Button"))()
 		end)
 	end
 end)
@@ -1433,11 +1619,9 @@ Player.Idled:Connect(function()
 	if Settings.AntiAFK then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end
 end)
 
--- HỖ TRỢ GAME (RUNAWAYS, ANIME ABILITY ARENA & MURDER MYSTERY 2)
 local GameSupPage = Page("GameSupport")
 Title(GameSupPage, "GameSupTitle")
 
--- Mục Runaways
 local RunawaysContainer = Instance.new("Frame")
 RunawaysContainer.Size = UDim2.new(1, 0, 0, 36)
 RunawaysContainer.BackgroundTransparency = 1
@@ -1496,7 +1680,6 @@ RunawaysToggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Mục Anime Ability Arena
 local AnimeArenaContainer = Instance.new("Frame")
 AnimeArenaContainer.Size = UDim2.new(1, 0, 0, 36)
 AnimeArenaContainer.BackgroundTransparency = 1
@@ -1555,7 +1738,6 @@ AnimeArenaToggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Mục Murder Mystery 2
 local MurderMystery2Container = Instance.new("Frame")
 MurderMystery2Container.Size = UDim2.new(1, 0, 0, 36)
 MurderMystery2Container.BackgroundTransparency = 1
@@ -1614,7 +1796,6 @@ MurderMystery2ToggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ================= MỤC MISC (KHÁC) =================
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
 
@@ -1643,7 +1824,6 @@ AddMiscButton("Auto Clicker", "https://rawscripts.net/raw/Universal-Script-Auto-
 AddMiscButton("Youtube Script", "https://rawscripts.net/raw/Universal-Script-Youtube-105902")
 AddMiscButton("Fly GUI V3", "https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt")
 
--- ================= CÀI ĐẶT (SETTINGS) =================
 local SettingsPage = Page("Settings")
 local function UpdateThemeColor(newColor)
 	Theme = newColor; Open.BackgroundColor3 = newColor
@@ -1658,7 +1838,6 @@ end
 
 Title(SettingsPage, "SettingsTitle")
 
--- THÊM PHẦN CHỌN NGÔN NGỮ (LANGUAGE)
 Title(SettingsPage, "LangTitle")
 local LangFrame = Instance.new("Frame"); LangFrame.Size = UDim2.new(1, 0, 0, 32); LangFrame.BackgroundTransparency = 1; LangFrame.Parent = SettingsPage
 local LangLayout = Instance.new("UIListLayout"); LangLayout.FillDirection = Enum.FillDirection.Horizontal; LangLayout.Padding = UDim.new(0, 10); LangLayout.Parent = LangFrame
@@ -1726,9 +1905,14 @@ end
 
 local function IsTeammate(target) return Player.Team and target.Team == Player.Team end
 
+-- ĐÃ SỬA LỖI SPEED TẠI ĐÂY (Kiểm tra Settings.Speed và gán đúng WalkSpeed)
 RunService.Heartbeat:Connect(function()
 	local _, humanoid = Character() if not humanoid then return end
-	if Settings.Speed then humanoid.WalkSpeed = Settings.Speed and Settings.WalkSpeed or 16 end
+	if Settings.Speed then 
+		humanoid.WalkSpeed = Settings.WalkSpeed 
+	else
+		humanoid.WalkSpeed = 16 -- Trả về tốc độ mặc định khi tắt
+	end
 	if Settings.Jump then humanoid.UseJumpPower = true; humanoid.JumpPower = Settings.JumpPower end
 end)
 
