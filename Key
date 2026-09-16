@@ -1,6 +1,6 @@
 -- Tải thư viện SigilUI
 local success, Sigil = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key"))()
+    return loadstring(game:HttpGet("https://cdn.jnkie.com/SigilUI.lua"))()
 end)
 
 if not success or not Sigil then
@@ -71,4 +71,3 @@ end
 print("Xác thực thành công! Đang khởi chạy script...")
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip"))()
-
