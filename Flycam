@@ -1,0 +1,215 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- [[ BIẾN CẤU HÌNH FREECAM ]]
+local CamActive = false
+local CamSpeed = 1
+local CamFOV = 70
+local SavedCameraType = Camera.CameraType
+local SavedSubject = Camera.CameraSubject
+local CamCFrame = Camera.CFrame
+
+-- Biến lưu góc xoay màn hình độc lập
+local CameraRotationX = 0
+local CameraRotationY = 0
+
+-- [[ KHỞI TẠO GIAO DIỆN CHUẨN ]]
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "FreecamGui"
+ScreenGui.ResetOnSpawn = false
+
+-- Nút T (Bật/Tắt UI) - Có thể kéo di chuyển
+local ToggleUIButton = Instance.new("TextButton", ScreenGui)
+ToggleUIButton.Size = UDim2.new(0, 45, 0, 45)
+ToggleUIButton.Position = UDim2.new(0.02, 0, 0.2, 0)
+ToggleUIButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+ToggleUIButton.Text = "T"
+ToggleUIButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleUIButton.Font = Enum.Font.SourceSansBold
+ToggleUIButton.TextSize = 20
+ToggleUIButton.Active = true
+ToggleUIButton.Draggable = true
+Instance.new("UICorner", ToggleUIButton).CornerRadius = UDim.new(0, 10)
+
+-- Khung chính FREECAM
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 180, 0, 150)
+MainFrame.Position = UDim2.new(0.08, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+-- Tiêu đề FREECAM
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(0, 100, 0, 30)
+Title.Position = UDim2.new(0, 15, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "FREECAM"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Khu vực FOV
+local FOVLabel = Instance.new("TextLabel", MainFrame)
+FOVLabel.Size = UDim2.new(1, 0, 0, 20)
+FOVLabel.Position = UDim2.new(0, 0, 0, 35)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.Text = "FOV: 70"
+FOVLabel.TextColor3 = Color3.fromRGB(0, 120, 255)
+FOVLabel.Font = Enum.Font.SourceSansBold
+FOVLabel.TextSize = 14
+
+-- Thanh trượt FOV
+local FOVSlider = Instance.new("TextButton", MainFrame)
+FOVSlider.Size = UDim2.new(0, 140, 0, 4)
+FOVSlider.Position = UDim2.new(0, 20, 0, 60)
+FOVSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+FOVSlider.Text = ""
+
+local FOVProgress = Instance.new("Frame", FOVSlider)
+FOVProgress.Size = UDim2.new(0.5, 0, 1, 0)
+FOVProgress.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+FOVProgress.BorderSizePixel = 0
+
+-- Nút TRẠNG THÁI: TẮT / BẬT
+local StatusBtn = Instance.new("TextButton", MainFrame)
+StatusBtn.Size = UDim2.new(0, 150, 0, 32)
+StatusBtn.Position = UDim2.new(0, 15, 0, 72)
+StatusBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+StatusBtn.Text = "TRẠNG THÁI: TẮT"
+StatusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusBtn.Font = Enum.Font.SourceSansBold
+StatusBtn.TextSize = 14
+Instance.new("UICorner", StatusBtn).CornerRadius = UDim.new(0, 6)
+
+-- Nút TỐC ĐỘ
+local SpeedBtn = Instance.new("TextButton", MainFrame)
+SpeedBtn.Size = UDim2.new(0, 150, 0, 32)
+SpeedBtn.Position = UDim2.new(0, 15, 0, 110)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+SpeedBtn.Text = "TỐC ĐỘ: 1x"
+SpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBtn.Font = Enum.Font.SourceSansBold
+SpeedBtn.TextSize = 14
+Instance.new("UICorner", SpeedBtn).CornerRadius = UDim.new(0, 6)
+
+
+-- [[ LOGIC HOẠT ĐỘNG ]]
+
+-- Hàm khóa/mở di chuyển nhân vật
+local function SetCharacterAnchor(anchor)
+    local char = LocalPlayer.Character
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Anchored = anchor
+        end
+    end
+end
+
+-- 1. Bật/Tắt Trạng thái Freecam (Đã tích hợp lại tính năng khóa nhân vật)
+local function ToggleFreecam()
+    CamActive = not CamActive
+    if CamActive then
+        StatusBtn.Text = "TRẠNG THÁI: BẬT"
+        StatusBtn.BackgroundColor3 = Color3.fromRGB(16, 128, 55)
+        
+        SavedCameraType = Camera.CameraType
+        SavedSubject = Camera.CameraSubject
+        CamCFrame = Camera.CFrame
+        
+        local _, y, z = Camera.CFrame:ToOrientation()
+        CameraRotationX = y
+        CameraRotationY = z
+        
+        Camera.CameraType = Enum.CameraType.Scriptable
+        SetCharacterAnchor(true)
+    else
+        StatusBtn.Text = "TRẠNG THÁI: TẮT"
+        StatusBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        
+        Camera.CameraType = SavedCameraType
+        Camera.CameraSubject = SavedSubject
+        SetCharacterAnchor(false)
+    end
+end
+
+StatusBtn.MouseButton1Click:Connect(ToggleFreecam)
+
+-- 2. Thay đổi tốc độ bay
+local Speeds = {1, 2, 5, 10, 20, 0.5}
+local currentSpeedIndex = 1
+SpeedBtn.MouseButton1Click:Connect(function()
+    currentSpeedIndex = currentSpeedIndex + 1
+    if currentSpeedIndex > #Speeds then currentSpeedIndex = 1 end
+    CamSpeed = Speeds[currentSpeedIndex]
+    SpeedBtn.Text = "TỐC ĐỘ: " .. CamSpeed .. "x"
+end)
+
+-- 3. Thanh trượt FOV
+FOVSlider.MouseButton1Click:Connect(function()
+    local mousePos = UserInputService:GetMouseLocation()
+    local relativeX = mousePos.X - FOVSlider.AbsolutePosition.X
+    local percentage = math.clamp(relativeX / FOVSlider.AbsoluteSize.X, 0, 1)
+    
+    CamFOV = math.floor(30 + (percentage * 90))
+    FOVProgress.Size = UDim2.new(percentage, 0, 1, 0)
+    FOVLabel.Text = "FOV: " .. CamFOV
+    Camera.FieldOfView = CamFOV
+end)
+
+-- 4. Tính năng Bật/Tắt hiển thị toàn bộ bảng UI chính thông qua nút T
+local UIWishedVisible = true
+ToggleUIButton.MouseButton1Click:Connect(function()
+    UIWishedVisible = not UIWishedVisible
+    MainFrame.Visible = UIWishedVisible
+end)
+
+-- 5. Xử lý vuốt màn hình xoay hướng tự do mượt mà
+UserInputService.InputChanged:Connect(function(input)
+    if not CamActive then return end
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        local sensitivity = 0.005
+        CameraRotationX = CameraRotationX - input.Delta.X * sensitivity
+        CameraRotationY = math.clamp(CameraRotationY - input.Delta.Y * sensitivity, -math.rad(80), math.rad(80))
+    end
+end)
+
+-- 6. VÒNG LẶP RENDERSTEPPED: Điều khiển hướng bay theo Joystick
+RunService.RenderStepped:Connect(function(dt)
+    if CamActive then
+        Camera.FieldOfView = CamFOV
+        
+        local finalRotation = CFrame.Angles(0, CameraRotationX, 0) * CFrame.Angles(CameraRotationY, 0, 0)
+        Camera.CFrame = CFrame.new(CamCFrame.Position) * finalRotation
+        
+        local moveDirection = Vector3.new(0, 0, 0)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            moveDirection = LocalPlayer.Character.Humanoid.MoveDirection
+        end
+        
+        if moveDirection.Magnitude > 0 then
+            local forwardVector = Camera.CFrame.LookVector
+            local rightVector = Camera.CFrame.RightVector
+            
+            local camActiveCFrame = Camera.CFrame
+            local forwardInput = moveDirection:Dot(Vector3.new(camActiveCFrame.LookVector.X, 0, camActiveCFrame.LookVector.Z).Unit)
+            local sideInput = moveDirection:Dot(Vector3.new(camActiveCFrame.RightVector.X, 0, camActiveCFrame.RightVector.Z).Unit)
+            
+            local flyVector = (forwardVector * forwardInput) + (rightVector * sideInput)
+            
+            if flyVector.Magnitude > 0 then
+                flyVector = flyVector.Unit
+                CamCFrame = CFrame.new(CamCFrame.Position + (flyVector * (CamSpeed * 60 * dt)))
+            end
+        end
+        
+        Camera.CFrame = CFrame.new(CamCFrame.Position) * finalRotation
+    end
+end)
