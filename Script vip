@@ -117,6 +117,9 @@ if OldFOV then OldFOV:Destroy() end
 local OldLoading = PlayerGui:FindFirstChild("THubLoading")
 if OldLoading then OldLoading:Destroy() end
 
+local OldNotif = PlayerGui:FindFirstChild("THubNotification")
+if OldNotif then OldNotif:Destroy() end
+
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "THub"
 Gui.ResetOnSpawn = false
@@ -161,6 +164,85 @@ local function ApplySmoothHover(button, defaultColor, hoverColor)
 end
 
 ApplySmoothHover(Open, Theme, Color3.fromRGB(255, 255, 255))
+
+--==================================================
+-- PHẦN THÔNG BÁO (ĐÃ ĐƯA RA GIỮA MÀN HÌNH)
+--==================================================
+local NotifGui = Instance.new("ScreenGui")
+NotifGui.Name = "THubNotification"
+NotifGui.ResetOnSpawn = false
+NotifGui.IgnoreGuiInset = true
+NotifGui.Parent = PlayerGui
+
+local NotifMain = Instance.new("Frame")
+NotifMain.Size = UDim2.fromOffset(380, 90)
+NotifMain.AnchorPoint = Vector2.new(0.5, 0.5)
+NotifMain.Position = UDim2.new(0.5, 0, 0.5, -150)
+NotifMain.BackgroundColor3 = Color3.fromRGB(15, 22, 36)
+NotifMain.BackgroundTransparency = 0.1
+NotifMain.BorderSizePixel = 0
+NotifMain.Parent = NotifGui
+
+Instance.new("UICorner", NotifMain).CornerRadius = UDim.new(0, 14)
+
+local NotifStroke = Instance.new("UIStroke")
+NotifStroke.Color = Color3.fromRGB(0, 170, 255)
+NotifStroke.Thickness = 2.5
+NotifStroke.Parent = NotifMain
+
+task.spawn(function()
+	local hue = 0
+	while NotifGui.Parent do
+		hue = (hue + 0.008) % 1
+		NotifStroke.Color = Color3.fromHSV(hue, 1, 1)
+		task.wait(0.03)
+	end
+end)
+
+local NotifTitle = Instance.new("TextLabel")
+NotifTitle.Size = UDim2.new(1, -20, 0, 25)
+NotifTitle.Position = UDim2.fromOffset(10, 8)
+NotifTitle.BackgroundTransparency = 1
+NotifTitle.Text = "✨ T HUB SYSTEM NOTIFICATION ✨"
+NotifTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+NotifTitle.TextSize = 13
+NotifTitle.Font = Enum.Font.GothamBold
+NotifTitle.Parent = NotifMain
+
+local NotifContent = Instance.new("TextLabel")
+NotifContent.Size = UDim2.new(1, -20, 0, 40)
+NotifContent.Position = UDim2.fromOffset(10, 33)
+NotifContent.BackgroundTransparency = 1
+NotifContent.Text = "Cải tiến + Thêm game support là Ride A Pet"
+NotifContent.TextColor3 = Color3.new(1, 1, 1)
+NotifContent.TextSize = 13
+NotifContent.Font = Enum.Font.Gotham
+NotifContent.TextWrapped = true
+NotifContent.Parent = NotifMain
+
+task.spawn(function()
+	TweenService:Create(NotifMain, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0.5, 0)
+	}):Play()
+	
+	task.wait(15)
+	
+	local fadeOutTween = TweenService:Create(NotifMain, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Position = UDim2.new(0.5, 0, 0.5, -150),
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(0, 0)
+	})
+	
+	TweenService:Create(NotifTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+	TweenService:Create(NotifContent, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+	TweenService:Create(NotifStroke, TweenInfo.new(0.5), {Transparency = 1}):Play()
+	
+	fadeOutTween:Play()
+	fadeOutTween.Completed:Connect(function()
+		NotifGui:Destroy()
+	end)
+end)
+--==================================================
 
 local LoadingGui = Instance.new("ScreenGui")
 LoadingGui.Name = "THubLoading"
@@ -1622,179 +1704,74 @@ end)
 local GameSupPage = Page("GameSupport")
 Title(GameSupPage, "GameSupTitle")
 
-local RunawaysContainer = Instance.new("Frame")
-RunawaysContainer.Size = UDim2.new(1, 0, 0, 36)
-RunawaysContainer.BackgroundTransparency = 1
-RunawaysContainer.ClipsDescendants = true
-RunawaysContainer.Parent = GameSupPage
+local GameListContainer = Instance.new("Frame")
+GameListContainer.Size = UDim2.new(1, 0, 0, 0)
+GameListContainer.BackgroundTransparency = 1
+GameListContainer.AutomaticSize = Enum.AutomaticSize.Y
+GameListContainer.Parent = GameSupPage
 
-local RunawaysHeader = Instance.new("Frame")
-RunawaysHeader.Size = UDim2.new(1, 0, 0, 36)
-RunawaysHeader.BackgroundTransparency = 1
-RunawaysHeader.Parent = RunawaysContainer
+local GridListLayout = Instance.new("UIListLayout")
+GridListLayout.FillDirection = Enum.FillDirection.Vertical
+GridListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+GridListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+GridListLayout.Padding = UDim.new(0, 6)
+GridListLayout.Parent = GameListContainer
 
-local RunawaysTitleLabel = Instance.new("TextLabel")
-RunawaysTitleLabel.Size = UDim2.new(1, -50, 1, 0)
-RunawaysTitleLabel.Position = UDim2.fromOffset(5, 0)
-RunawaysTitleLabel.BackgroundTransparency = 1
-RunawaysTitleLabel.Text = "RUNAWAYS"
-RunawaysTitleLabel.TextColor3 = Color3.new(1, 1, 1)
-RunawaysTitleLabel.TextSize = 13
-RunawaysTitleLabel.Font = Enum.Font.GothamBold
-RunawaysTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-RunawaysTitleLabel.Parent = RunawaysHeader
+local activeGameRows = {}
 
-local RunawaysToggleBtn = Instance.new("TextButton")
-RunawaysToggleBtn.Size = UDim2.fromOffset(46, 24)
-RunawaysToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
-RunawaysToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
-RunawaysToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-RunawaysToggleBtn.Text = ""
-RunawaysToggleBtn.AutoButtonColor = false
-RunawaysToggleBtn.BorderSizePixel = 0
-RunawaysToggleBtn.Parent = RunawaysHeader
-Instance.new("UICorner", RunawaysToggleBtn).CornerRadius = UDim.new(1, 0)
-
-local RunawaysKnob = Instance.new("Frame")
-RunawaysKnob.Size = UDim2.fromOffset(20, 20)
-RunawaysKnob.AnchorPoint = Vector2.new(0, 0.5)
-RunawaysKnob.Position = UDim2.new(0, 2, 0.5, 0)
-RunawaysKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-RunawaysKnob.BorderSizePixel = 0
-RunawaysKnob.Parent = RunawaysToggleBtn
-Instance.new("UICorner", RunawaysKnob).CornerRadius = UDim.new(1, 0)
-
-local runawaysActive = false
-
-RunawaysToggleBtn.MouseButton1Click:Connect(function()
-	runawaysActive = not runawaysActive
-	local targetColor = runawaysActive and Theme or Color3.fromRGB(120, 120, 120)
-	local targetPos = runawaysActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-	TweenService:Create(RunawaysToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
-	TweenService:Create(RunawaysKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
-
-	if runawaysActive then
-		pcall(function()
-			loadstring(game:HttpGet("https://luauforge-antiraw.netlify.app/raw/t-hub-DNYhrkv3QBdrrTI5QubQUZi"))()
-		end)
+local function GetOrCreateActiveRow()
+	local lastRow = activeGameRows[#activeGameRows]
+	if not lastRow or #lastRow:GetChildren() >= 4 then
+		lastRow = Instance.new("Frame")
+		lastRow.Size = UDim2.new(1, 0, 0, 36)
+		lastRow.BackgroundTransparency = 1
+		lastRow.Parent = GameListContainer
+		
+		local rowLayout = Instance.new("UIListLayout")
+		rowLayout.FillDirection = Enum.FillDirection.Horizontal
+		rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		rowLayout.Padding = UDim.new(0, 6)
+		rowLayout.Parent = lastRow
+		
+		table.insert(activeGameRows, lastRow)
 	end
-end)
+	return lastRow
+end
 
-local AnimeArenaContainer = Instance.new("Frame")
-AnimeArenaContainer.Size = UDim2.new(1, 0, 0, 36)
-AnimeArenaContainer.BackgroundTransparency = 1
-AnimeArenaContainer.ClipsDescendants = true
-AnimeArenaContainer.Parent = GameSupPage
+local function CreateToggleableGameButton(titleText, scriptUrl)
+	local currentRow = GetOrCreateActiveRow()
+	
+	local GameBtn = Instance.new("TextButton")
+	GameBtn.Size = UDim2.new(0, 125, 0, 36)
+	GameBtn.BackgroundColor3 = ButtonOffColor
+	GameBtn.Text = titleText .. "\n[OFF]"
+	GameBtn.TextColor3 = Color3.new(1, 1, 1)
+	GameBtn.TextSize = 10
+	GameBtn.Font = Enum.Font.GothamBold
+	GameBtn.BorderSizePixel = 0
+	GameBtn.Parent = currentRow
+	Instance.new("UICorner", GameBtn).CornerRadius = UDim.new(0, 8)
+	ApplySmoothHover(GameBtn, ButtonOffColor, Color3.fromRGB(50, 95, 125))
 
-local AnimeArenaHeader = Instance.new("Frame")
-AnimeArenaHeader.Size = UDim2.new(1, 0, 0, 36)
-AnimeArenaHeader.BackgroundTransparency = 1
-AnimeArenaHeader.Parent = AnimeArenaContainer
+	local isGameActive = false
+	GameBtn.MouseButton1Click:Connect(function()
+		-- Chỉ cho phép bật lên lần đầu tiên và khóa lại không cho bấm tắt để tránh spam
+		if not isGameActive then
+			isGameActive = true
+			GameBtn.Text = titleText .. "\n[ON]"
+			TweenService:Create(GameBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme}):Play()
+			pcall(function()
+				loadstring(game:HttpGet(scriptUrl))()
+			end)
+		end
+	end)
+end
 
-local AnimeArenaTitleLabel = Instance.new("TextLabel")
-AnimeArenaTitleLabel.Size = UDim2.new(1, -50, 1, 0)
-AnimeArenaTitleLabel.Position = UDim2.fromOffset(5, 0)
-AnimeArenaTitleLabel.BackgroundTransparency = 1
-AnimeArenaTitleLabel.Text = "ANIME ABILITY ARENA"
-AnimeArenaTitleLabel.TextColor3 = Color3.new(1, 1, 1)
-AnimeArenaTitleLabel.TextSize = 13
-AnimeArenaTitleLabel.Font = Enum.Font.GothamBold
-AnimeArenaTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-AnimeArenaTitleLabel.Parent = AnimeArenaHeader
-
-local AnimeArenaToggleBtn = Instance.new("TextButton")
-AnimeArenaToggleBtn.Size = UDim2.fromOffset(46, 24)
-AnimeArenaToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
-AnimeArenaToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
-AnimeArenaToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-AnimeArenaToggleBtn.Text = ""
-AnimeArenaToggleBtn.AutoButtonColor = false
-AnimeArenaToggleBtn.BorderSizePixel = 0
-AnimeArenaToggleBtn.Parent = AnimeArenaHeader
-Instance.new("UICorner", AnimeArenaToggleBtn).CornerRadius = UDim.new(1, 0)
-
-local AnimeArenaKnob = Instance.new("Frame")
-AnimeArenaKnob.Size = UDim2.fromOffset(20, 20)
-AnimeArenaKnob.AnchorPoint = Vector2.new(0, 0.5)
-AnimeArenaKnob.Position = UDim2.new(0, 2, 0.5, 0)
-AnimeArenaKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-AnimeArenaKnob.BorderSizePixel = 0
-AnimeArenaKnob.Parent = AnimeArenaToggleBtn
-Instance.new("UICorner", AnimeArenaKnob).CornerRadius = UDim.new(1, 0)
-
-local animeArenaActive = false
-
-AnimeArenaToggleBtn.MouseButton1Click:Connect(function()
-	animeArenaActive = not animeArenaActive
-	local targetColor = animeArenaActive and Theme or Color3.fromRGB(120, 120, 120)
-	local targetPos = animeArenaActive and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-	TweenService:Create(AnimeArenaToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
-	TweenService:Create(AnimeArenaKnob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
-
-	if animeArenaActive then
-		pcall(function()
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana"))()
-		end)
-	end
-end)
-
-local MurderMystery2Container = Instance.new("Frame")
-MurderMystery2Container.Size = UDim2.new(1, 0, 0, 36)
-MurderMystery2Container.BackgroundTransparency = 1
-MurderMystery2Container.ClipsDescendants = true
-MurderMystery2Container.Parent = GameSupPage
-
-local MurderMystery2Header = Instance.new("Frame")
-MurderMystery2Header.Size = UDim2.new(1, 0, 0, 36)
-MurderMystery2Header.BackgroundTransparency = 1
-MurderMystery2Header.Parent = MurderMystery2Container
-
-local MurderMystery2TitleLabel = Instance.new("TextLabel")
-MurderMystery2TitleLabel.Size = UDim2.new(1, -50, 1, 0)
-MurderMystery2TitleLabel.Position = UDim2.fromOffset(5, 0)
-MurderMystery2TitleLabel.BackgroundTransparency = 1
-MurderMystery2TitleLabel.Text = "MURDER MYSTERY 2"
-MurderMystery2TitleLabel.TextColor3 = Color3.new(1, 1, 1)
-MurderMystery2TitleLabel.TextSize = 13
-MurderMystery2TitleLabel.Font = Enum.Font.GothamBold
-MurderMystery2TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-MurderMystery2TitleLabel.Parent = MurderMystery2Header
-
-local MurderMystery2ToggleBtn = Instance.new("TextButton")
-MurderMystery2ToggleBtn.Size = UDim2.fromOffset(46, 24)
-MurderMystery2ToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
-MurderMystery2ToggleBtn.Position = UDim2.new(1, -5, 0.5, 0)
-MurderMystery2ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-MurderMystery2ToggleBtn.Text = ""
-MurderMystery2ToggleBtn.AutoButtonColor = false
-MurderMystery2ToggleBtn.BorderSizePixel = 0
-MurderMystery2ToggleBtn.Parent = MurderMystery2Header
-Instance.new("UICorner", MurderMystery2ToggleBtn).CornerRadius = UDim.new(1, 0)
-
-local MurderMystery2Knob = Instance.new("Frame")
-MurderMystery2Knob.Size = UDim2.fromOffset(20, 20)
-MurderMystery2Knob.AnchorPoint = Vector2.new(0, 0.5)
-MurderMystery2Knob.Position = UDim2.new(0, 2, 0.5, 0)
-MurderMystery2Knob.BackgroundColor3 = Color3.new(1, 1, 1)
-MurderMystery2Knob.BorderSizePixel = 0
-MurderMystery2Knob.Parent = MurderMystery2ToggleBtn
-Instance.new("UICorner", MurderMystery2Knob).CornerRadius = UDim.new(1, 0)
-
-local murderMystery2Active = false
-
-MurderMystery2ToggleBtn.MouseButton1Click:Connect(function()
-	murderMystery2Active = not murderMystery2Active
-	local targetColor = murderMystery2Active and Theme or Color3.fromRGB(120, 120, 120)
-	local targetPos = murderMystery2Active and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-	TweenService:Create(MurderMystery2ToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
-	TweenService:Create(MurderMystery2Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
-
-	if murderMystery2Active then
-		pcall(function()
-			loadstring(game:HttpGet("https://onyxscripts.xyz"))()
-		end)
-	end
-end)
+CreateToggleableGameButton("RUNAWAYS", "https://luauforge-antiraw.netlify.app/raw/t-hub-DNYhrkv3QBdrrTI5QubQUZi")
+CreateToggleableGameButton("ANIME ARENA", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana")
+CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
+CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
@@ -1905,13 +1882,12 @@ end
 
 local function IsTeammate(target) return Player.Team and target.Team == Player.Team end
 
--- ĐÃ SỬA LỖI SPEED TẠI ĐÂY (Kiểm tra Settings.Speed và gán đúng WalkSpeed)
 RunService.Heartbeat:Connect(function()
 	local _, humanoid = Character() if not humanoid then return end
 	if Settings.Speed then 
 		humanoid.WalkSpeed = Settings.WalkSpeed 
 	else
-		humanoid.WalkSpeed = 16 -- Trả về tốc độ mặc định khi tắt
+		humanoid.WalkSpeed = 16 
 	end
 	if Settings.Jump then humanoid.UseJumpPower = true; humanoid.JumpPower = Settings.JumpPower end
 end)
