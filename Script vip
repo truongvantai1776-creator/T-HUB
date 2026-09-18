@@ -213,7 +213,7 @@ local NotifContent = Instance.new("TextLabel")
 NotifContent.Size = UDim2.new(1, -20, 0, 40)
 NotifContent.Position = UDim2.fromOffset(10, 33)
 NotifContent.BackgroundTransparency = 1
-NotifContent.Text = "Cải tiến + Thêm game support là Steal a egg"
+NotifContent.Text = "Cải tiến + Thêm game support là Ride A Pet"
 NotifContent.TextColor3 = Color3.new(1, 1, 1)
 NotifContent.TextSize = 13
 NotifContent.Font = Enum.Font.Gotham
@@ -1756,6 +1756,7 @@ local function CreateToggleableGameButton(titleText, scriptUrl)
 
 	local isGameActive = false
 	GameBtn.MouseButton1Click:Connect(function()
+		-- Chỉ cho phép bật lên lần đầu tiên và khóa lại không cho bấm tắt để tránh spam
 		if not isGameActive then
 			isGameActive = true
 			GameBtn.Text = titleText .. "\n[ON]"
@@ -1771,7 +1772,6 @@ CreateToggleableGameButton("RUNAWAYS", "https://luauforge-antiraw.netlify.app/ra
 CreateToggleableGameButton("ANIME ARENA", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana")
 CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
 CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
-CreateToggleableGameButton("Steal a egg", "https://raw.githubusercontent.com/lennonxscripts/lennonhubv2/main/stealaneggv2")
 
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
@@ -1862,7 +1862,7 @@ local function CreateColorPaletteRow(titleKey, colorList, onSelectColor)
 		local Box = Instance.new("TextButton"); Box.Size = UDim2.fromOffset(28, 28); Box.BackgroundColor3 = col; Box.Text = ""; Box.BorderSizePixel = 0; Box.Parent = Frame
 		Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
 		ApplySmoothHover(Box, col, Color3.fromRGB(math.clamp(col.R*255+30, 0, 255), math.clamp(col.G*255+30, 0, 255), math.clamp(col.B*255+30, 0, 255)))
-		Box.MouseButton1Click:Connect(function() onSelectCall(col) end) -- Đã fix lỗi chính tả nhẹ tại hàm gọi callback bên trong
+		Box.MouseButton1Click:Connect(function() onSelectColor(col) end)
 	end
 end
 
