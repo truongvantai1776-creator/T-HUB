@@ -213,7 +213,7 @@ local NotifContent = Instance.new("TextLabel")
 NotifContent.Size = UDim2.new(1, -20, 0, 40)
 NotifContent.Position = UDim2.fromOffset(10, 33)
 NotifContent.BackgroundTransparency = 1
-NotifContent.Text = "upd: thêm game suppor: Anime Dice"
+NotifContent.Text = "upd: cập nhật Run A Ways"
 NotifContent.TextColor3 = Color3.new(1, 1, 1)
 NotifContent.TextSize = 13
 NotifContent.Font = Enum.Font.Gotham
@@ -1767,7 +1767,7 @@ local function CreateToggleableGameButton(titleText, scriptUrl)
 	end)
 end
 
-CreateToggleableGameButton("RUNAWAYS", "https://luauforge-antiraw.netlify.app/raw/t-hub-DNYhrkv3QBdrrTI5QubQUZi")
+CreateToggleableGameButton("Run A Ways", "https://raw.githubusercontent.com/Bac0nHck/Scripts/refs/heads/main/RUNAWAYS.lua")
 CreateToggleableGameButton("ANIME ARENA", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana")
 CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
 CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
