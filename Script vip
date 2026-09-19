@@ -213,7 +213,7 @@ local NotifContent = Instance.new("TextLabel")
 NotifContent.Size = UDim2.new(1, -20, 0, 40)
 NotifContent.Position = UDim2.fromOffset(10, 33)
 NotifContent.BackgroundTransparency = 1
-NotifContent.Text = "Cải tiến + Thêm game support là +1 loot to forge"
+NotifContent.Text = "upd: thêm game suppor: Anime Dice"
 NotifContent.TextColor3 = Color3.new(1, 1, 1)
 NotifContent.TextSize = 13
 NotifContent.Font = Enum.Font.Gotham
@@ -1772,6 +1772,7 @@ CreateToggleableGameButton("ANIME ARENA", "https://raw.githubusercontent.com/tru
 CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
 CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 CreateToggleableGameButton("+1 LOOT TO FORGE", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/lootforge.luau")
+CreateToggleableGameButton("ANIME DICE", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/animedice.lua")
 
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
