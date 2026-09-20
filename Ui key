@@ -1,6 +1,6 @@
 -- // Cấu hình 3 đường link chứa Key trên GitHub (Raw) cho 3 ngày luân phiên
 local KEY_URLS = {
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key1.txt", -- Key Ngày 1
+    "https://pastefy.app/pSr09gOo/raw", -- Key Ngày 1
     "https://raw.githubusercontent.com/Taikhoancuaban/t-hub-keys/main/key2.txt", -- Key Ngày 2
     "https://raw.githubusercontent.com/Taikhoancuaban/t-hub-keys/main/key3.txt"  -- Key Ngày 3
 }
