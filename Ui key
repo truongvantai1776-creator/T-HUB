@@ -44,12 +44,12 @@ if CheckSavedKey() then
     return -- Dừng script, không tạo giao diện nữa
 end
 
--- // Cấu hình 3 Link File Key Raw trên GitHub của bạn
-local KEY_URL_1 = "LINK_RAW_FILE_KEY_1"
-local KEY_URL_2 = "LINK_RAW_FILE_KEY_2"
-local KEY_URL_3 = "LINK_RAW_FILE_KEY_3"
+-- // Cấu hình 3 Link File Key Raw trên GitHub của bạn (Đã điền sẵn)
+local KEY_URL_1 = "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key1"
+local KEY_URL_2 = "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key2"
+local KEY_URL_3 = "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key3"
 
--- // Cấu hình 3 Link Get Key tương ứng cho từng ngày
+-- // Cấu hình 3 Link Get Key tương ứng cho từng ngày (Bạn hãy thay link trang get key của bạn vào đây)
 local GETKEY_URL_1 = "LINK_GET_KEY_NGAY_1"
 local GETKEY_URL_2 = "LINK_GET_KEY_NGAY_2"
 local GETKEY_URL_3 = "LINK_GET_KEY_NGAY_3"
