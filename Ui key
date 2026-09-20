@@ -1,0 +1,196 @@
+-- // Tên file lưu trạng thái vượt key trên thiết bị của người chơi
+local SAVE_FILE_NAME = "T_HUB_KeySystem_Data.json"
+local HttpService = game:GetService("HttpService")
+
+-- // Hàm kiểm tra xem đã lưu trạng thái vượt key trong vòng 24h qua chưa
+local function CheckSavedKey()
+    if readfile and isfile and isfile(SAVE_FILE_NAME) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(SAVE_FILE_NAME))
+        end)
+        if success and data and data.ExpiryTime then
+            -- Nếu thời gian hiện tại vẫn nhỏ hơn thời gian hết hạn (chưa quá 24h)
+            if os.time() < data.ExpiryTime then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- // Hàm lưu lại mốc thời gian đã nhập đúng key (hiệu lực trong 24 giờ = 86400 giây)
+local function SaveKeySession()
+    if writefile then
+        local data = {
+            ExpiryTime = os.time() + 86400 -- 24 giờ tới
+        }
+        pcall(function()
+            writefile(SAVE_FILE_NAME, HttpService:JSONEncode(data))
+        end)
+    end
+end
+
+-- // Hàm load script chính
+local function LoadMainScript()
+    print("Key chính xác! Đang mở script...")
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip"))()
+    end)
+end
+
+-- // Nếu trong vòng 24h đã nhập đúng key trước đó thì bỏ qua không hiện bảng nữa
+if CheckSavedKey() then
+    LoadMainScript()
+    return -- Dừng script, không tạo giao diện nữa
+end
+
+-- // Cấu hình 3 Link File Key Raw trên GitHub của bạn
+local KEY_URL_1 = "LINK_RAW_FILE_KEY_1"
+local KEY_URL_2 = "LINK_RAW_FILE_KEY_2"
+local KEY_URL_3 = "LINK_RAW_FILE_KEY_3"
+
+-- // Cấu hình 3 Link Get Key tương ứng cho từng ngày
+local GETKEY_URL_1 = "LINK_GET_KEY_NGAY_1"
+local GETKEY_URL_2 = "LINK_GET_KEY_NGAY_2"
+local GETKEY_URL_3 = "LINK_GET_KEY_NGAY_3"
+
+-- // Tính toán chu kỳ theo ngày (86400 giây = 24 giờ)
+local function GetCurrentDayIndex()
+    local currentDay = math.floor(os.time() / 86400)
+    return (currentDay % 3) + 1
+end
+
+local activeDayIndex = GetCurrentDayIndex()
+
+-- Chọn Link Key và Link Get Key phù hợp với ngày hiện tại
+local ACTIVE_KEY_URL = KEY_URL_1
+local ACTIVE_GETKEY_URL = GETKEY_URL_1
+
+if activeDayIndex == 2 then
+    ACTIVE_KEY_URL = KEY_URL_2
+    ACTIVE_GETKEY_URL = GETKEY_URL_2
+elseif activeDayIndex == 3 then
+    ACTIVE_KEY_URL = KEY_URL_3
+    ACTIVE_GETKEY_URL = GETKEY_URL_3
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- // Tạo giao diện (GUI)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "T_HUB_KeySystem"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 320, 0, 210)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -105)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+-- Tiêu đề "Key đâu em?"
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 280, 0, 30)
+TitleLabel.Position = UDim2.new(0.5, -140, 0.08, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Key đâu em?"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 20
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Parent = MainFrame
+
+-- Ô nhập Key (TextBox)
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(0, 280, 0, 40)
+TextBox.Position = UDim2.new(0.5, -140, 0.28, 0)
+TextBox.PlaceholderText = "Nhập key vào đây..."
+TextBox.Text = ""
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TextBox.BorderSizePixel = 0
+TextBox.TextSize = 14
+TextBox.Font = Enum.Font.Gotham
+TextBox.Parent = MainFrame
+
+-- Nút Get Key
+local GetKeyBtn = Instance.new("TextButton")
+GetKeyBtn.Size = UDim2.new(0, 135, 0, 38)
+GetKeyBtn.Position = UDim2.new(0.08, 0, 0.62, 0)
+GetKeyBtn.Text = "Get Key"
+GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+GetKeyBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+GetKeyBtn.BorderSizePixel = 0
+GetKeyBtn.TextSize = 14
+GetKeyBtn.Font = Enum.Font.GothamBold
+GetKeyBtn.Parent = MainFrame
+
+-- Nút Xác Nhận
+local SubmitBtn = Instance.new("TextButton")
+SubmitBtn.Size = UDim2.new(0, 135, 0, 38)
+SubmitBtn.Position = UDim2.new(0.52, 0, 0.62, 0)
+SubmitBtn.Text = "Xác Nhận"
+SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SubmitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+SubmitBtn.BorderSizePixel = 0
+SubmitBtn.TextSize = 14
+SubmitBtn.Font = Enum.Font.GothamBold
+SubmitBtn.Parent = MainFrame
+
+-- Trạng thái thông báo nhỏ dưới cùng
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0, 280, 0, 25)
+StatusLabel.Position = UDim2.new(0.5, -140, 0.82, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Hôm nay là Ngày " .. activeDayIndex .. " (Đã chọn file tương ứng)"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.GothamItalic
+StatusLabel.Parent = MainFrame
+
+-- // Chức năng bấm nút Get Key (Copy link vào clipboard)
+GetKeyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(ACTIVE_GETKEY_URL)
+        StatusLabel.Text = "Đã copy link Get Key vào Clipboard!"
+    else
+        StatusLabel.Text = "Trình thực thi không hỗ trợ setclipboard!"
+    end
+end)
+
+-- // Chức năng bấm nút Xác Nhận Key
+SubmitBtn.MouseButton1Click:Connect(function()
+    local userKey = TextBox.Text
+    if userKey == "" then
+        StatusLabel.Text = "Vui lòng nhập key trước!"
+        return
+    end
+
+    SubmitBtn.Text = "Đang kiểm tra..."
+    
+    -- Tải nội dung file key từ GitHub tương ứng với ngày hiện tại
+    local success, serverKey = pcall(function()
+        return game:HttpGet(ACTIVE_KEY_URL)
+    end)
+
+    if success and serverKey then
+        -- Xóa khoảng trắng hoặc xuống dòng thừa trong file key nếu có
+        serverKey = serverKey:gsub("%s+", "")
+        
+        if userKey == serverKey then
+            StatusLabel.Text = "Thành công! Đang lưu phiên..."
+            SaveKeySession() -- Lưu trạng thái để 24h sau không hiện lại
+            task.wait(0.5)
+            ScreenGui:Destroy()
+            LoadMainScript()
+        else
+            SubmitBtn.Text = "Xác Nhận"
+            StatusLabel.Text = "Sai Key! Vui lòng thử lại."
+        end
+    else
+        SubmitBtn.Text = "Xác Nhận"
+        StatusLabel.Text = "Lỗi kết nối tới GitHub!"
+    end
+end)
