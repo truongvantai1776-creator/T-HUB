@@ -7,9 +7,9 @@ local KEY_URLS = {
 
 -- // Cấu hình 3 Link Get Key tương ứng cho 3 ngày
 local GET_KEY_LINKS = {
-    "https://link-get-key-ngay-1.com", -- Link Get Key Ngày 1
-    "https://link-get-key-ngay-2.com", -- Link Get Key Ngày 2
-    "https://link-get-key-ngay-3.com"  -- Link Get Key Ngày 3
+    "https://link4m.net/eIr1lw", -- Link Get Key Ngày 1
+    "https://link4m.org/WxexRrW", -- Link Get Key Ngày 2
+    "https://link4m.org/dNuITuS"  -- Link Get Key Ngày 3
 }
 
 -- // Tính toán chọn file và link dựa theo chu kỳ 24 giờ (vòng lặp 3 ngày)
