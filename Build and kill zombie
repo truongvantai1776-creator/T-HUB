@@ -1,0 +1,663 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+_G.AutoFarmActive = false
+_G.AutoRollActive = false 
+_G.EspMobsActive = false
+
+-- Giao diện nút bấm
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+if playerGui:FindFirstChild("AutoFarmGui") then
+    playerGui.AutoFarmGui:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoFarmGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Khung chứa các nút chức năng
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 180, 0, 275)
+mainFrame.Position = UDim2.new(0, 40, 0, 40)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainFrameCorner = Instance.new("UICorner")
+mainFrameCorner.CornerRadius = UDim.new(0, 10)
+mainFrameCorner.Parent = mainFrame
+
+-- Viền hiệu ứng rực rỡ (UIStroke cho MainFrame)
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+-- Thêm tính năng kéo thả (Draggable UI) cho MainFrame
+local dragging, dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Nút mở/tắt UI (Chữ T) có thể kéo thả di chuyển linh hoạt
+local toggleUiBtn = Instance.new("TextButton")
+toggleUiBtn.Name = "ToggleUiBtn"
+toggleUiBtn.Size = UDim2.new(0, 45, 0, 45)
+toggleUiBtn.Position = UDim2.new(0, 40, 0, 0)
+toggleUiBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+toggleUiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleUiBtn.TextSize = 20
+toggleUiBtn.Font = Enum.Font.SourceSansBold
+toggleUiBtn.Text = "T"
+toggleUiBtn.Parent = screenGui
+
+local uiCornerToggle = Instance.new("UICorner")
+uiCornerToggle.CornerRadius = UDim.new(0, 10)
+uiCornerToggle.Parent = toggleUiBtn
+
+local toggleStroke = Instance.new("UIStroke")
+toggleStroke.Thickness = 2
+toggleStroke.Parent = toggleUiBtn
+
+-- Kéo thả cho nút Toggle (Chữ T)
+local tDragging, tDragInput, tDragStart, tStartPos
+toggleUiBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        tDragging = true
+        tDragStart = input.Position
+        tStartPos = toggleUiBtn.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                tDragging = false
+            end
+        end)
+    end
+end)
+
+toggleUiBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        tDragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == tDragInput and tDragging then
+        local delta = input.Position - tDragStart
+        toggleUiBtn.Position = UDim2.new(
+            tStartPos.X.Scale, 
+            tStartPos.X.Offset + delta.X, 
+            tStartPos.Y.Scale, 
+            tStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local uiVisible = true
+toggleUiBtn.MouseButton1Click:Connect(function()
+    uiVisible = not uiVisible
+    mainFrame.Visible = uiVisible
+end)
+
+-- Hiệu ứng đổi màu rực rỡ (RGB Color Cycle) cho viền và chữ T HUB
+RunService.RenderStepped:Connect(function()
+    local hue = (tick() % 5) / 5
+    local rainbowColor = Color3.fromHSV(hue, 1, 1)
+    mainStroke.Color = rainbowColor
+    toggleStroke.Color = rainbowColor
+end)
+
+-- Dòng chữ "được tạo bởi T HUB" ở dưới menu
+local creditLabel = Instance.new("TextLabel")
+creditLabel.Size = UDim2.new(0, 160, 0, 20)
+creditLabel.Position = UDim2.new(0, 10, 0, 250)
+creditLabel.BackgroundTransparency = 1
+creditLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+creditLabel.TextSize = 11
+creditLabel.Font = Enum.Font.SourceSansItalic
+creditLabel.Text = "được tạo bởi T HUB"
+creditLabel.Parent = mainFrame
+
+-- Hiệu ứng màu sắc cho chữ T HUB chạy liên tục
+task.spawn(function()
+    while true do
+        for i = 0, 1, 0.01 do
+            creditLabel.TextColor3 = Color3.fromHSV(i, 1, 1)
+            task.wait(0.05)
+        end
+    end
+end)
+
+-- Hàm giả lập nhấn phím
+local function PressKey(keyCode)
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+    end)
+end
+
+-- Hàm thực thi chuỗi: Nhấn F -> Đợi 1s -> Nhấn F -> Đợi 1s -> Nhấn F
+local function RunFarmKeySequence()
+    while _G.AutoFarmActive do
+        for i = 1, 3 do
+            if not _G.AutoFarmActive then break end
+            PressKey(Enum.KeyCode.F)
+            if i < 3 then
+                task.wait(1)
+            end
+        end
+        break 
+    end
+end
+
+-- Nút Auto Farm
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleBtn"
+toggleBtn.Size = UDim2.new(0, 160, 0, 45)
+toggleBtn.Position = UDim2.new(0, 10, 0, 10)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 15
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.Text = "Auto Farm: OFF"
+toggleBtn.Parent = mainFrame
+
+local uiCorner1 = Instance.new("UICorner")
+uiCorner1.CornerRadius = UDim.new(0, 8)
+uiCorner1.Parent = toggleBtn
+
+toggleBtn.MouseButton1Click:Connect(function()
+    _G.AutoFarmActive = not _G.AutoFarmActive
+    if _G.AutoFarmActive then
+        _G.AutoRollActive = false 
+        local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
+        if rollBtnUI then
+            rollBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            rollBtnUI.Text = "Auto Lever Roll: OFF"
+        end
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggleBtn.Text = "Auto Farm: ON"
+        
+        task.spawn(RunFarmKeySequence)
+    else
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleBtn.Text = "Auto Farm: OFF"
+    end
+end)
+
+-- Theo dõi sự kiện Chết, Hồi sinh và Bị dịch chuyển xa đột ngột để chạy lại chuỗi phím F
+local lastPosition = nil
+local isCheckingTeleport = false
+
+local function MonitorTeleportAndDeath(character)
+    local rootPart = character:WaitForChild("HumanoidRootPart", 5)
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    
+    if rootPart then
+        lastPosition = rootPart.Position
+    end
+
+    if humanoid then
+        humanoid.Died:Connect(function()
+            if _G.AutoFarmActive then
+                task.spawn(function()
+                    LocalPlayer.CharacterAdded:Wait()
+                    task.wait(0.5) -- Đợi nhân vật ổn định sau khi hồi sinh
+                    if _G.AutoFarmActive then
+                        RunFarmKeySequence()
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+-- Lắng nghe nhân vật mới
+LocalPlayer.CharacterAdded:Connect(function(character)
+    MonitorTeleportAndDeath(character)
+end)
+
+if LocalPlayer.Character then
+    MonitorTeleportAndDeath(LocalPlayer.Character)
+end
+
+-- Theo dõi liên tục khoảng cách để phát hiện dịch chuyển xa (Teleport)
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if _G.AutoFarmActive and LocalPlayer.Character then
+            local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            
+            if rootPart and humanoid and humanoid.Health > 0 then
+                if lastPosition then
+                    local distanceMoved = (rootPart.Position - lastPosition).Magnitude
+                    -- Nếu khoảng cách di chuyển bất thường lớn hơn 150 studs mà không phải do auto farm bay mượt (hoặc bị dịch chuyển map)
+                    if distanceMoved > 150 then
+                        task.spawn(RunFarmKeySequence)
+                    end
+                end
+                lastPosition = rootPart.Position
+            end
+        end
+    end
+end)
+
+-- Nút Auto Lever Roll (Bay đến Lever)
+local toggleRollBtn = Instance.new("TextButton")
+toggleRollBtn.Name = "ToggleRollBtn"
+toggleRollBtn.Size = UDim2.new(0, 160, 0, 45)
+toggleRollBtn.Position = UDim2.new(0, 10, 0, 65)
+toggleRollBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleRollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleRollBtn.TextSize = 13
+toggleRollBtn.Font = Enum.Font.SourceSansBold
+toggleRollBtn.Text = "Auto Lever Roll: OFF"
+toggleRollBtn.Parent = mainFrame
+
+local uiCorner2 = Instance.new("UICorner")
+uiCorner2.CornerRadius = UDim.new(0, 8)
+uiCorner2.Parent = toggleRollBtn
+
+toggleRollBtn.MouseButton1Click:Connect(function()
+    _G.AutoRollActive = not _G.AutoRollActive
+    if _G.AutoRollActive then
+        _G.AutoFarmActive = false 
+        local farmBtnUI = mainFrame:FindFirstChild("ToggleBtn")
+        if farmBtnUI then
+            farmBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            farmBtnUI.Text = "Auto Farm: OFF"
+        end
+        toggleRollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggleRollBtn.Text = "Auto Lever Roll: ON"
+        
+        pcall(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
+            end
+        end)
+    else
+        toggleRollBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleRollBtn.Text = "Auto Lever Roll: OFF"
+    end
+end)
+
+-- Nút ESP Mobs
+local toggleEspBtn = Instance.new("TextButton")
+toggleEspBtn.Name = "ToggleEspBtn"
+toggleEspBtn.Size = UDim2.new(0, 160, 0, 45)
+toggleEspBtn.Position = UDim2.new(0, 10, 0, 120)
+toggleEspBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleEspBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleEspBtn.TextSize = 15
+toggleEspBtn.Font = Enum.Font.SourceSansBold
+toggleEspBtn.Text = "ESP Mobs: OFF"
+toggleEspBtn.Parent = mainFrame
+
+local uiCorner3 = Instance.new("UICorner")
+uiCorner3.CornerRadius = UDim.new(0, 8)
+uiCorner3.Parent = toggleEspBtn
+
+toggleEspBtn.MouseButton1Click:Connect(function()
+    _G.EspMobsActive = not _G.EspMobsActive
+    if _G.EspMobsActive then
+        toggleEspBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggleEspBtn.Text = "ESP Mobs: ON"
+    else
+        toggleEspBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleEspBtn.Text = "ESP Mobs: OFF"
+    end
+end)
+
+-- Hàm tìm model có tên là "Basic" trong Workspace
+function GetBasicTarget()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Model") and string.lower(v.Name) == "basic" then
+            local targetPart = v.PrimaryPart or v:FindFirstChildWhichIsA("BasePart")
+            if targetPart then
+                return targetPart
+            end
+        end
+    end
+    return nil
+end
+
+-- Hàm kiểm tra tối giản cho ESP Mobs
+function IsValidMob(model)
+    if not model:IsA("Model") then return false end
+    if model == LocalPlayer.Character then return false end
+    if Players:GetPlayerFromCharacter(model) then return false end
+    
+    local rootPart = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+    if not rootPart then return false end
+    
+    local name = string.lower(model.Name)
+    if string.find(name, "shop") or string.find(name, "merchant") or string.find(name, "dealer") then
+        return false
+    end
+
+    return true
+end
+
+-- Hàm tìm part Lever tiếp theo
+function GetNextLeverPart(lastPart)
+    local partsList = {}
+    local playerName = string.lower(LocalPlayer.Name)
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("PrimaryPart")
+    if not rootPart then return nil end
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            if string.find(obj.Name, "Lever") then
+                local ownedByOther = false
+                local ancestor = obj
+                
+                while ancestor and ancestor ~= workspace do
+                    local ancestorName = string.lower(ancestor.Name)
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p ~= LocalPlayer and string.find(ancestorName, string.lower(p.Name)) then
+                            ownedByOther = true
+                            break
+                        end
+                    end
+                    if ownedByOther then break end
+                    
+                    if ancestor:IsA("Model") or ancestor:IsA("Folder") then
+                        for _, child in pairs(ancestor:GetChildren()) do
+                            local childName = string.lower(child.Name)
+                            if childName == "owner" or childName == "player" or childName == "playername" then
+                                if child:IsA("StringValue") then
+                                    local val = string.lower(child.Value)
+                                    if val ~= "" and val ~= playerName then
+                                        ownedByOther = true
+                                    end
+                                end
+                            elseif childName == "userid" then
+                                if child:IsA("IntValue") then
+                                    if child.Value ~= 0 and child.Value ~= LocalPlayer.UserId then
+                                        ownedByOther = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    ancestor = ancestor.Parent
+                end
+                
+                if not ownedByOther then
+                    local targetPart = nil
+                    if obj:IsA("Model") then
+                        targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+                    elseif obj:IsA("BasePart") then
+                        targetPart = obj
+                    end
+                    
+                    if targetPart then
+                        local isLastVisited = false
+                        if lastPart and (targetPart == lastPart or (targetPart.Position - lastPart.Position).Magnitude < 5) then
+                            isLastVisited = true
+                        end
+                        
+                        if not isLastVisited then
+                            local success, dist = pcall(function()
+                                return (targetPart.Position - rootPart.Position).Magnitude
+                            end)
+                            if success and dist > 3 then
+                                table.insert(partsList, {part = targetPart, distance = dist})
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    table.sort(partsList, function(a, b)
+        return a.distance < b.distance
+    end)
+    
+    if #partsList > 0 then
+        return partsList[1].part
+    end
+    return nil
+end
+
+-- Hàm tự động kích hoạt ProximityPrompt
+function TriggerLeverAction(targetPart)
+    pcall(function()
+        local prompt = targetPart:FindFirstChildWhichIsA("ProximityPrompt", true)
+        
+        if not prompt then
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") then
+                    local parent = obj.Parent
+                    if parent and (parent == targetPart or parent:IsDescendantOf(targetPart) or (parent:IsA("BasePart") and (parent.Position - targetPart.Position).Magnitude < 10)) then
+                        prompt = obj
+                        break
+                    end
+                end
+            end
+        end
+
+        if prompt then
+            local actionText = prompt.ActionText or ""
+            if string.find(string.lower(actionText), "roll") then
+                prompt.HoldDuration = 0
+                fireproximityprompt(prompt)
+            end
+        end
+
+        for _, descendant in pairs(ReplicatedStorage:GetDescendants()) do
+            if descendant:IsA("RemoteEvent") then
+                local name = string.lower(descendant.Name)
+                if string.find(name, "roll") or string.find(name, "lever") then
+                    descendant:FireServer(targetPart)
+                end
+            end
+        end
+    end)
+end
+
+function GetRootPartToMove()
+    local character = LocalPlayer.Character
+    if not character then return nil, nil end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.SeatPart then
+        local seat = humanoid.SeatPart
+        local model = seat:FindFirstAncestorOfClass("Model")
+        if model then
+            if model.PrimaryPart then
+                return model.PrimaryPart, model
+            else
+                return seat, model
+            end
+        end
+    end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    return rootPart, character
+end
+
+-- Hàm di chuyển bám sát mặt đất liên tục mượt mà
+function SmoothFlyToTarget(targetPart)
+    if not targetPart or not targetPart.Parent then return end
+    
+    local currentRoot, moveModel = GetRootPartToMove()
+    if not currentRoot then return end
+
+    local targetPos = targetPart.Position
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    
+    local groundRay = workspace:Raycast(targetPos + Vector3.new(0, 50, 0), Vector3.new(0, -100, 0), raycastParams)
+    if groundRay then
+        targetPos = groundRay.Position + Vector3.new(0, 3, 0)
+    else
+        targetPos = targetPos + Vector3.new(0, 3, 0)
+    end
+
+    local distance = (targetPos - currentRoot.Position).Magnitude
+    local speed = 60 
+    local timeTaken = math.clamp(distance / speed, 0.1, 3)
+
+    local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    local tween
+
+    if moveModel:IsA("Model") and moveModel.PrimaryPart then
+        tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
+    else
+        tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(targetPos)})
+    end
+
+    tween:Play()
+    
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not _G.AutoRollActive and not _G.AutoFarmActive then
+            tween:Cancel()
+            if connection then connection:Disconnect() end
+        end
+    end)
+
+    tween.Completed:Wait()
+    if connection then connection:Disconnect() end
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if IsValidMob(v) then
+            local head = v:FindFirstChild("Head") or v:FindFirstChild("HumanoidRootPart") or v:FindFirstChildWhichIsA("BasePart")
+            local humanoid = v:FindFirstChildOfClass("Humanoid")
+            
+            local highlight = v:FindFirstChild("MobEspHighlight")
+            local billboard = v:FindFirstChild("MobEspBillboard")
+            
+            if _G.EspMobsActive then
+                if not highlight then
+                    highlight = Instance.new("Highlight")
+                    highlight.Name = "MobEspHighlight"
+                    highlight.Adornee = v
+                    highlight.FillColor = Color3.fromRGB(255, 50, 50)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = v
+                end
+                
+                if not billboard and head then
+                    billboard = Instance.new("BillboardGui")
+                    billboard.Name = "MobEspBillboard"
+                    billboard.Size = UDim2.new(0, 100, 0, 50)
+                    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+                    billboard.AlwaysOnTop = true
+                    billboard.Adornee = head
+                    billboard.Parent = v
+                    
+                    local textLabel = Instance.new("TextLabel")
+                    textLabel.Name = "EspText"
+                    textLabel.Size = UDim2.new(1, 0, 1, 0)
+                    textLabel.BackgroundTransparency = 1
+                    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    textLabel.TextStrokeTransparency = 0
+                    textLabel.TextSize = 13
+                    textLabel.Font = Enum.Font.SourceSansBold
+                    textLabel.Parent = billboard
+                end
+                
+                if billboard and billboard:FindFirstChild("EspText") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and head then
+                    local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Magnitude)
+                    local hpText = humanoid and string.format("HP: %d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth)) or "Zombie"
+                    billboard.EspText.Text = string.format("%s\n%s\n[%dm]", v.Name, hpText, dist)
+                end
+            else
+                if highlight then highlight:Destroy() end
+                if billboard then billboard:Destroy() end
+            end
+        end
+    end
+end)
+
+-- Vòng lặp chính xử lý Auto Farm liên tục không ngừng nghỉ bám sát mục tiêu và mặt đất
+task.spawn(function()
+    local lastVisitedPart = nil
+    while true do
+        if _G.AutoFarmActive then
+            local targetPart = GetBasicTarget()
+            if targetPart then
+                SmoothFlyToTarget(targetPart)
+            else
+                task.wait(0.1)
+            end
+        elseif _G.AutoRollActive then
+            local character = LocalPlayer.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            
+            if not character or not humanoid or humanoid.Health <= 0 or not rootPart then
+                lastVisitedPart = nil
+                task.wait(1)
+                continue
+            end
+            
+            local nextPart = GetNextLeverPart(lastVisitedPart)
+            
+            if not nextPart and lastVisitedPart then
+                nextPart = lastVisitedPart
+            end
+            
+            if nextPart then
+                SmoothFlyToTarget(nextPart)
+                task.wait(0.1)
+                TriggerLeverAction(nextPart)
+                
+                lastVisitedPart = nextPart
+                task.wait(0.2)
+            else
+                lastVisitedPart = nil
+            end
+        end
+        task.wait(0.05)
+    end
+end)
