@@ -1773,6 +1773,7 @@ CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
 CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 CreateToggleableGameButton("+1 LOOT TO FORGE", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/lootforge.luau")
 CreateToggleableGameButton("ANIME DICE", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/animedice.lua")
+CreateToggleableGameButton("Slayers 2", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
