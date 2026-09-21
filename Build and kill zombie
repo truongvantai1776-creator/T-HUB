@@ -239,7 +239,7 @@ local function MonitorTeleportAndDeath(character)
             if _G.AutoFarmActive then
                 task.spawn(function()
                     LocalPlayer.CharacterAdded:Wait()
-                    task.wait(0.5) -- Đợi nhân vật ổn định sau khi hồi sinh
+                    task.wait(0.5)
                     if _G.AutoFarmActive then
                         RunFarmKeySequence()
                     end
@@ -249,7 +249,6 @@ local function MonitorTeleportAndDeath(character)
     end
 end
 
--- Lắng nghe nhân vật mới
 LocalPlayer.CharacterAdded:Connect(function(character)
     MonitorTeleportAndDeath(character)
 end)
@@ -258,7 +257,6 @@ if LocalPlayer.Character then
     MonitorTeleportAndDeath(LocalPlayer.Character)
 end
 
--- Theo dõi liên tục khoảng cách để phát hiện dịch chuyển xa (Teleport)
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -269,7 +267,6 @@ task.spawn(function()
             if rootPart and humanoid and humanoid.Health > 0 then
                 if lastPosition then
                     local distanceMoved = (rootPart.Position - lastPosition).Magnitude
-                    -- Nếu khoảng cách di chuyển bất thường lớn hơn 150 studs mà không phải do auto farm bay mượt (hoặc bị dịch chuyển map)
                     if distanceMoved > 150 then
                         task.spawn(RunFarmKeySequence)
                     end
@@ -461,36 +458,34 @@ function GetNextLeverPart(lastPart)
     return nil
 end
 
--- Hàm tự động kích hoạt ProximityPrompt
+-- Hàm tự động kích hoạt tất cả nút ở gần ngoại trừ nút chứa chữ "Select"
 function TriggerLeverAction(targetPart)
     pcall(function()
-        local prompt = targetPart:FindFirstChildWhichIsA("ProximityPrompt", true)
-        
-        if not prompt then
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then
-                    local parent = obj.Parent
-                    if parent and (parent == targetPart or parent:IsDescendantOf(targetPart) or (parent:IsA("BasePart") and (parent.Position - targetPart.Position).Magnitude < 10)) then
-                        prompt = obj
-                        break
+        -- 1. Xử lý toàn bộ ProximityPrompt ở gần mục tiêu, bỏ qua nếu chứa chữ "select"
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local parent = obj.Parent
+                if parent and (parent == targetPart or parent:IsDescendantOf(targetPart) or (parent:IsA("BasePart") and (parent.Position - targetPart.Position).Magnitude <= 10)) then
+                    local actionText = obj.ActionText or ""
+                    local objectText = obj.ObjectText or ""
+                    local combinedText = string.lower(actionText .. " " .. objectText .. " " .. obj.Name)
+                    
+                    if not string.find(combinedText, "select") then
+                        obj.HoldDuration = 0
+                        fireproximityprompt(obj)
                     end
                 end
             end
         end
 
-        if prompt then
-            local actionText = prompt.ActionText or ""
-            if string.find(string.lower(actionText), "roll") then
-                prompt.HoldDuration = 0
-                fireproximityprompt(prompt)
-            end
-        end
-
+        -- 2. Xử lý RemoteEvent liên quan, bỏ qua nếu tên chứa chữ "select"
         for _, descendant in pairs(ReplicatedStorage:GetDescendants()) do
             if descendant:IsA("RemoteEvent") then
                 local name = string.lower(descendant.Name)
-                if string.find(name, "roll") or string.find(name, "lever") then
-                    descendant:FireServer(targetPart)
+                if not string.find(name, "select") then
+                    if string.find(name, "roll") or string.find(name, "lever") or string.find(name, "interact") then
+                        descendant:FireServer(targetPart)
+                    end
                 end
             end
         end
