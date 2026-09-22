@@ -12,19 +12,52 @@ local GET_KEY_LINKS = {
     "https://link4m.net/eIr1lw",      -- Link Get Key Ngày 1
     "https://link4m.org/WxexRrW",     -- Link Get Key Ngày 2
     "https://link4m.org/dNuITuS",     -- Link Get Key Ngày 3
-    "https://link4m.net/zKnSwI",  -- Link Get Key Ngày 4 (Thay link của bạn vào đây)
-    "https://link4m.org/ATfGToAC"   -- Link Get Key Ngày 5 (Thay link của bạn vào đây)
+    "https://link4m.net/zKnSwI",      -- Link Get Key Ngày 4
+    "https://link4m.org/ATfGToAC"     -- Link Get Key Ngày 5
 }
 
--- // Tính toán chọn file và link dựa theo chu kỳ 24 giờ (vòng lặp 5 ngày)
-local function GetCurrentIndex()
+-- // Hàm random ngày riêng biệt cho từng người chơi (mỗi người khác nhau và không trùng ngày cũ)
+local LAST_DAY_FILE = "THUB_LastRandomDay.json"
+
+local function GetRandomIndexForPlayer()
     local secondsInDay = 86400
-    local currentDayIndex = math.floor(os.time() / secondsInDay)
-    -- Hàm luân phiên trả về từ 1 đến 5
-    return (currentDayIndex % 5) + 1
+    local currentDayEpoch = math.floor(os.time() / secondsInDay)
+    
+    local lastDayData = nil
+    if isfile and readfile and isfile(LAST_DAY_FILE) then
+        pcall(function()
+            lastDayData = game:GetService("HttpService"):JSONDecode(readfile(LAST_DAY_FILE))
+        end)
+    end
+    
+    -- Nếu trong cùng 1 ngày, giữ nguyên index đã random cho người chơi đó
+    if lastDayData and lastDayData.EpochDay == currentDayEpoch and lastDayData.AssignedIndex then
+        return lastDayData.AssignedIndex
+    end
+    
+    -- Sang ngày mới, random từ 1 đến 5 sao cho khác ngày vừa qua
+    math.randomseed(os.time() + tick())
+    local oldIndex = lastDayData and lastDayData.AssignedIndex or -1
+    local newIndex = math.random(1, 5)
+    
+    while newIndex == oldIndex do
+        newIndex = math.random(1, 5)
+    end
+    
+    -- Lưu lại thông tin cho ngày mới
+    if writefile and game:GetService("HttpService") then
+        pcall(function()
+            writefile(LAST_DAY_FILE, game:GetService("HttpService"):JSONEncode({
+                EpochDay = currentDayEpoch,
+                AssignedIndex = newIndex
+            }))
+        end)
+    end
+    
+    return newIndex
 end
 
-local activeIndex = GetCurrentIndex()
+local activeIndex = GetRandomIndexForPlayer()
 local CURRENT_KEY_URL = KEY_URLS[activeIndex]
 local CURRENT_GET_KEY_LINK = GET_KEY_LINKS[activeIndex]
 
@@ -37,7 +70,6 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 -- // Hàm tải script chính sau khi vượt qua Key System
 local function LoadMainScript()
     print("Đúng key! Đang mở script chính...")
-    -- Chạy script chính của bạn
     loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip"))()
 end
 
@@ -50,7 +82,6 @@ local function CheckSavedKey()
             return game:GetService("HttpService"):JSONDecode(readfile(SAVE_FILE_NAME))
         end)
         if success and data and data.ExpiryTime then
-            -- Nếu thời gian hiện tại vẫn nhỏ hơn thời gian hết hạn (chưa qua 24h)
             if os.time() < data.ExpiryTime then
                 return true
             end
@@ -62,7 +93,7 @@ end
 local function SaveKeySession()
     if writefile and game:GetService("HttpService") then
         local data = {
-            ExpiryTime = os.time() + 86400 -- 86400 giây tương ứng đúng 24 giờ
+            ExpiryTime = os.time() + 86400
         }
         pcall(function()
             writefile(SAVE_FILE_NAME, game:GetService("HttpService"):JSONEncode(data))
@@ -70,7 +101,6 @@ local function SaveKeySession()
     end
 end
 
--- Nếu trong vòng 24h đã nhập đúng key trước đó, tự động bỏ qua bảng UI và load thẳng script chính
 if CheckSavedKey() then
     LoadMainScript()
     return
@@ -89,7 +119,6 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
--- Hiệu ứng bo góc & viền phát sáng nhẹ cho khung chính
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
@@ -99,7 +128,6 @@ MainStroke.Color = Color3.fromRGB(70, 70, 70)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
--- // Thêm tiêu đề "key đâu em?" ở trên chỗ nhập key
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(0, 280, 0, 35)
 TitleLabel.Position = UDim2.new(0.5, -140, 0.05, 0)
@@ -145,7 +173,6 @@ local SubmitCorner = Instance.new("UICorner")
 SubmitCorner.CornerRadius = UDim.new(0, 8)
 SubmitCorner.Parent = SubmitBtn
 
--- // Thêm Nút Get Key
 local GetKeyBtn = Instance.new("TextButton")
 GetKeyBtn.Size = UDim2.new(0, 280, 0, 38)
 GetKeyBtn.Position = UDim2.new(0.5, -140, 0.67, 0)
@@ -161,7 +188,6 @@ local GetKeyCorner = Instance.new("UICorner")
 GetKeyCorner.CornerRadius = UDim.new(0, 8)
 GetKeyCorner.Parent = GetKeyBtn
 
--- // Trạng thái thông báo nhỏ dưới cùng
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 280, 0, 25)
 StatusLabel.Position = UDim2.new(0.5, -140, 0.87, 0)
@@ -172,7 +198,7 @@ StatusLabel.TextSize = 13
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.Parent = MainFrame
 
--- // HIỆU ỨNG DI CHUYỂN UI (DRAGGABLE)
+-- // HIỆU ỨNG DI CHUYỂN UI (Draggable)
 local dragging, dragInput, dragStart, startPos
 
 MainFrame.InputBegan:Connect(function(input)
@@ -207,7 +233,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- // HIỆU ỨNG HOVER (RÊ CHUỘT SÁNG NÚT & ĐỔI MÀU)
+-- // HIỆU ỨNG HOVER
 local function applyHoverEffect(btn, originalColor, hoverColor)
     btn.MouseEnter:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play()
@@ -220,7 +246,6 @@ end
 applyHoverEffect(SubmitBtn, Color3.fromRGB(0, 180, 80), Color3.fromRGB(0, 220, 100))
 applyHoverEffect(GetKeyBtn, Color3.fromRGB(0, 130, 230), Color3.fromRGB(30, 160, 255))
 
--- Hiệu ứng đổi màu chữ tiêu đề liên tục cho sinh động
 task.spawn(function()
     while true do
         for i = 0, 1, 0.01 do
@@ -249,7 +274,6 @@ SubmitBtn.MouseButton1Click:Connect(function()
     local userKey = TextBox.Text
     SubmitBtn.Text = "Đang kiểm tra..."
 
-    -- Tải key từ đường dẫn GitHub tương ứng của ngày hôm nay
     local success, serverKey = pcall(function()
         return game:HttpGet(CURRENT_KEY_URL)
     end)
@@ -259,9 +283,8 @@ SubmitBtn.MouseButton1Click:Connect(function()
         
         if userKey == serverKey then
             SubmitBtn.Text = "Thành công!"
-            SaveKeySession() -- Lưu mốc thời gian đã vượt key thành công (hiệu lực 24h)
+            SaveKeySession()
             
-            -- Hiệu ứng thu nhỏ và mờ dần trước khi tắt UI
             local info = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             TweenService:Create(MainFrame, info, {Size = UDim2.new(0, 0, 0, 0), Position = MainFrame.Position + UDim2.new(0, 160, 0, 120)}):Play()
             task.wait(0.3)
