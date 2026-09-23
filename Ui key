@@ -1,55 +1,81 @@
--- // Cấu hình 5 đường link chứa Key trên GitHub (Raw) cho 5 ngày luân phiên
+-- // Cấu hình 10 đường link chứa Key trên GitHub (Raw) cho 10 ngày
 local KEY_URLS = {
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key1",  -- Key Ngày 1
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key2",  -- Key Ngày 2
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key3",  -- Key Ngày 3
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key4",  -- Key Ngày 4
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key5"   -- Key Ngày 5
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key1",   -- Key Ngày 1
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key2",   -- Key Ngày 2
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key3",   -- Key Ngày 3
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key4",   -- Key Ngày 4
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key5",   -- Key Ngày 5
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key6",   -- Key Ngày 6 (Thay link tương ứng)
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key7",   -- Key Ngày 7 (Thay link tương ứng)
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key8",   -- Key Ngày 8 (Thay link tương ứng)
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key9",   -- Key Ngày 9 (Thay link tương ứng)
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key10"   -- Key Ngày 10 (Thay link tương ứng)
 }
 
--- // Cấu hình 5 Link Get Key tương ứng cho 5 ngày
+-- // Cấu hình 10 Link Get Key tương ứng cho 10 ngày
 local GET_KEY_LINKS = {
     "https://link4m.net/eIr1lw",      -- Link Get Key Ngày 1
     "https://link4m.org/WxexRrW",     -- Link Get Key Ngày 2
     "https://link4m.org/dNuITuS",     -- Link Get Key Ngày 3
     "https://link4m.net/zKnSwI",      -- Link Get Key Ngày 4
-    "https://link4m.org/ATfGToAC"     -- Link Get Key Ngày 5
+    "https://link4m.org/ATfGToAC",    -- Link Get Key Ngày 5
+    "https://link4m.net/gpGnz",   -- Link Get Key Ngày 6 (Thay link của bạn vào đây)
+    "https://link4m.org/Z8Peb",   -- Link Get Key Ngày 7 (Thay link của bạn vào đây)
+    "https://link4m.org/CweuPUQM",   -- Link Get Key Ngày 8 (Thay link của bạn vào đây)
+    "https://link4m.net/Wv7EGWo",   -- Link Get Key Ngày 9 (Thay link của bạn vào đây)
+    "https://link4m.net/p5xQwVT"   -- Link Get Key Ngày 10 (Thay link của bạn vào đây)
 }
 
--- // Hàm random ngày riêng biệt cho từng người chơi (mỗi người khác nhau và không trùng ngày cũ)
-local LAST_DAY_FILE = "THUB_LastRandomDay.json"
+-- // Hàm random ngày riêng biệt cho từng người chơi (lưu lịch sử 5 ngày gần nhất để không bị trùng lại)
+local LAST_DAY_FILE = "THUB_LastRandomDay_V2.json"
 
 local function GetRandomIndexForPlayer()
     local secondsInDay = 86400
     local currentDayEpoch = math.floor(os.time() / secondsInDay)
     
-    local lastDayData = nil
+    local data = nil
     if isfile and readfile and isfile(LAST_DAY_FILE) then
         pcall(function()
-            lastDayData = game:GetService("HttpService"):JSONDecode(readfile(LAST_DAY_FILE))
+            data = game:GetService("HttpService"):JSONDecode(readfile(LAST_DAY_FILE))
         end)
     end
     
     -- Nếu trong cùng 1 ngày, giữ nguyên index đã random cho người chơi đó
-    if lastDayData and lastDayData.EpochDay == currentDayEpoch and lastDayData.AssignedIndex then
-        return lastDayData.AssignedIndex
+    if data and data.EpochDay == currentDayEpoch and data.AssignedIndex then
+        return data.AssignedIndex
     end
     
-    -- Sang ngày mới, random từ 1 đến 5 sao cho khác ngày vừa qua
+    -- Lấy danh sách lịch sử các ngày vừa qua (mặc định là bảng rỗng nếu chưa có)
+    local history = (data and data.History) or {}
+    
+    -- Random từ 1 đến 10 sao cho không nằm trong danh sách 5 ngày vừa qua
     math.randomseed(os.time() + tick())
-    local oldIndex = lastDayData and lastDayData.AssignedIndex or -1
-    local newIndex = math.random(1, 5)
+    local newIndex = math.random(1, 10)
     
-    while newIndex == oldIndex do
-        newIndex = math.random(1, 5)
+    local function isInHistory(val, tbl)
+        for _, v in ipairs(tbl) do
+            if v == val then return true end
+        end
+        return false
     end
     
-    -- Lưu lại thông tin cho ngày mới
+    while isInHistory(newIndex, history) do
+        newIndex = math.random(1, 10)
+    end
+    
+    -- Thêm index mới vào lịch sử và giới hạn chỉ giữ lại tối đa 5 phần tử gần nhất
+    table.insert(history, newIndex)
+    if #history > 5 then
+        table.remove(history, 1)
+    end
+    
+    -- Lưu lại thông tin vào file cấu hình của người chơi
     if writefile and game:GetService("HttpService") then
         pcall(function()
             writefile(LAST_DAY_FILE, game:GetService("HttpService"):JSONEncode({
                 EpochDay = currentDayEpoch,
-                AssignedIndex = newIndex
+                AssignedIndex = newIndex,
+                History = history
             }))
         end)
     end
