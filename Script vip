@@ -1777,7 +1777,7 @@ CreateToggleableGameButton("Slayers 2", "https://raw.githubusercontent.com/joust
 CreateToggleableGameButton("Build And Kill Zombie", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Build%20and%20kill%20zombie")
 CreateToggleableGameButton("heavyweight fishing", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/heavyweightfishing.lua")
 CreateToggleableGameButton("Build The Pyramid", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
-CreateToggleableGameButton("blox fruit", " https://raw.githubusercontent.com/duczsitink/DUCKHUB/refs/heads/main/main.lua")
+CreateToggleableGameButton("blox fruit", "https://raw.githubusercontent.com/duczsitink/DUCKHUB/refs/heads/main/main.lua")
 
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
