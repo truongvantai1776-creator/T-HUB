@@ -213,7 +213,7 @@ local NotifContent = Instance.new("TextLabel")
 NotifContent.Size = UDim2.new(1, -20, 0, 40)
 NotifContent.Position = UDim2.fromOffset(10, 33)
 NotifContent.BackgroundTransparency = 1
-NotifContent.Text = "upd: cập nhập thêm game support là build the pyramid và blox fruit"
+NotifContent.Text = "upd: cập nhập thêm game support là fishing master"
 NotifContent.TextColor3 = Color3.new(1, 1, 1)
 NotifContent.TextSize = 13
 NotifContent.Font = Enum.Font.Gotham
@@ -1778,6 +1778,7 @@ CreateToggleableGameButton("Build And Kill Zombie", "https://raw.githubuserconte
 CreateToggleableGameButton("heavyweight fishing", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/heavyweightfishing.lua")
 CreateToggleableGameButton("Build The Pyramid", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 CreateToggleableGameButton("blox fruit", "https://raw.githubusercontent.com/duczsitink/DUCKHUB/refs/heads/main/main.lua")
+CreateToggleableGameButton("fishing master", " https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Fishing%20master")
 
 local MiscPage = Page("Misc")
 Title(MiscPage, "MiscTitle")
