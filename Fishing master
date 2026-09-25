@@ -5,6 +5,9 @@ if CoreGui:FindFirstChild("RobloxFishingMasterV12") then
 end
 
 local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Tạo ScreenGUI chính
 local ScreenGui = Instance.new("ScreenGui")
@@ -33,9 +36,9 @@ ToggleStroke.Color = Color3.fromRGB(0, 255, 200)
 ToggleStroke.Thickness = 2
 ToggleStroke.Parent = ToggleButton
 
--- Khung chính giao diện (Siêu nhỏ gọn, có hiệu ứng bo tròn và viền sáng)
+-- Khung chính giao diện (Tăng chiều cao để chứa thêm nút Speed Buff)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 210, 0, 115)
+MainFrame.Size = UDim2.new(0, 210, 0, 160)
 MainFrame.Position = UDim2.new(0.5, -105, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
@@ -57,7 +60,6 @@ ToggleButton.MouseButton1Click:Connect(function()
     local targetVis = not MainFrame.Visible
     MainFrame.Visible = targetVis
     
-    -- Hiệu ứng scale nút T
     local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     TweenService:Create(ToggleButton, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
     task.wait(0.15)
@@ -98,7 +100,6 @@ CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = MainFrame
 
 CloseBtn.MouseButton1Click:Connect(function()
-    local Players = game:GetService("Players")
     local lp = Players.LocalPlayer
     local camera = workspace.CurrentCamera
     camera.CameraType = Enum.CameraType.Custom
@@ -109,14 +110,14 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- ================= GIAO DIỆN CHÍNH (NÚT BẬT/TẮT AUTO CÓ HIỆU ỨNG) =================
+-- ================= NÚT BẬT/TẮT AUTO CÂU + SKILL =================
 local ToggleMasterBtn = Instance.new("TextButton")
-ToggleMasterBtn.Size = UDim2.new(1, -20, 0, 38)
-ToggleMasterBtn.Position = UDim2.new(0, 10, 0, 42)
+ToggleMasterBtn.Size = UDim2.new(1, -20, 0, 35)
+ToggleMasterBtn.Position = UDim2.new(0, 10, 0, 38)
 ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
 ToggleMasterBtn.Text = "🚀 BẬT AUTO CÂU + SKILL"
 ToggleMasterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleMasterBtn.TextSize = 12
+ToggleMasterBtn.TextSize = 11
 ToggleMasterBtn.Font = Enum.Font.GothamBold
 ToggleMasterBtn.Parent = MainFrame
 
@@ -130,10 +131,31 @@ BtnStroke.Transparency = 0.5
 BtnStroke.Thickness = 1.5
 BtnStroke.Parent = ToggleMasterBtn
 
+-- ================= NÚT SPEED BUFF =================
+local SpeedBuffBtn = Instance.new("TextButton")
+SpeedBuffBtn.Size = UDim2.new(1, -20, 0, 32)
+SpeedBuffBtn.Position = UDim2.new(0, 10, 0, 78)
+SpeedBuffBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
+SpeedBuffBtn.Text = "⚡ Speed Buff: TẮT (40)"
+SpeedBuffBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBuffBtn.TextSize = 11
+SpeedBuffBtn.Font = Enum.Font.GothamBold
+SpeedBuffBtn.Parent = MainFrame
+
+local SpeedCorner = Instance.new("UICorner")
+SpeedCorner.CornerRadius = UDim.new(0, 8)
+SpeedCorner.Parent = SpeedBuffBtn
+
+local SpeedStroke = Instance.new("UIStroke")
+SpeedStroke.Color = Color3.fromRGB(255, 255, 255)
+SpeedStroke.Transparency = 0.5
+SpeedStroke.Thickness = 1.5
+SpeedStroke.Parent = SpeedBuffBtn
+
 -- BẢNG TRẠNG THÁI
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -20, 0, 20)
-StatusLabel.Position = UDim2.new(0, 10, 0, 86)
+StatusLabel.Position = UDim2.new(0, 10, 0, 115)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
 StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -141,7 +163,7 @@ StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.GothamBold
 StatusLabel.Parent = MainFrame
 
--- Vòng tròn đỏ định vị nhỏ có hiệu ứng xung lực (Pulse)
+-- Vòng tròn định vị (Indicator)
 local Indicator = Instance.new("Frame")
 Indicator.Size = UDim2.new(0, 18, 0, 18)
 Indicator.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -156,7 +178,6 @@ IndicatorStroke.Color = Color3.fromRGB(255, 255, 255)
 IndicatorStroke.Thickness = 2
 IndicatorStroke.Parent = Indicator
 
--- Hiệu ứng xoay/đổi màu vòng tròn định vị liên tục khi bật
 task.spawn(function()
     while true do
         if Indicator.Visible then
@@ -170,7 +191,42 @@ task.spawn(function()
     end
 end)
 
--- ================= CẤU HÌNH TỌA ĐỘ MẶC ĐỊNH =================
+-- ================= LOGIC XỬ LÝ SPEED BUFF =================
+local isSpeedBuffEnabled = false
+
+SpeedBuffBtn.MouseButton1Click:Connect(function()
+    isSpeedBuffEnabled = not isSpeedBuffEnabled
+    local lp = Players.LocalPlayer
+    
+    local clickTween = TweenService:Create(SpeedBuffBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -24, 0, 29)})
+    clickTween:Play()
+    task.wait(0.1)
+    TweenService:Create(SpeedBuffBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -20, 0, 32)}):Play()
+    
+    if isSpeedBuffEnabled then
+        SpeedBuffBtn.Text = "⚡ Speed Buff: BẬT (40)"
+        SpeedBuffBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+        if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+            lp.Character.Humanoid.WalkSpeed = 40
+        end
+    else
+        SpeedBuffBtn.Text = "⚡ Speed Buff: TẮT (40)"
+        SpeedBuffBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
+        if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+            lp.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+end)
+
+-- Duy trì tốc độ khi nhân vật chết hoặc hồi sinh
+Players.LocalPlayer.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid")
+    if isSpeedBuffEnabled then
+        char.Humanoid.WalkSpeed = 40
+    end
+end)
+
+-- ================= CẤU HÌNH TỌA ĐỘ AUTO FARM (GIỮ NGUYÊN) =================
 local Config_MasterX = 660
 local Config_MasterY = 330
 local Config_MasterSpeed = 5
@@ -182,12 +238,6 @@ local Config_Skills = {
     {x = 740, y = 180}  -- Skill 4
 }
 
--- ================= LOGIC CHẠY AUTO + HIỆU ỨNG MƯỢT MÀ =================
-local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
 local isRunning = false
 local cameraConnection = nil
 
@@ -196,11 +246,10 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
     local lp = Players.LocalPlayer
     local camera = workspace.CurrentCamera
     
-    -- Hiệu ứng nhún nút bấm
-    local clickTween = TweenService:Create(ToggleMasterBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -24, 0, 35)})
+    local clickTween = TweenService:Create(ToggleMasterBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -24, 0, 32)})
     clickTween:Play()
     task.wait(0.1)
-    TweenService:Create(ToggleMasterBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -20, 0, 38)}):Play()
+    TweenService:Create(ToggleMasterBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -20, 0, 35)}):Play()
     
     if isRunning then
         ToggleMasterBtn.Text = "🛑 TẮT AUTO (Đang chạy)"
@@ -208,13 +257,15 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
         StatusLabel.Text = "✨ Đang khởi tạo khóa camera..."
         
         if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-            lp.Character.Humanoid.WalkSpeed = 0
+            -- Nếu đang bật speed buff thì giữ tốc độ 40, nếu không thì set về 0 để đứng yên câu cá
+            if not isSpeedBuffEnabled then
+                lp.Character.Humanoid.WalkSpeed = 0
+            end
             lp.Character.Humanoid.JumpPower = 0
         end
         
         camera.CameraType = Enum.CameraType.Scriptable
         
-        -- Khóa ở đầu trước
         local startTime = tick()
         while tick() - startTime < 0.4 and isRunning do
             if lp.Character and lp.Character:FindFirstChild("Head") then
@@ -226,7 +277,6 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
         
         if not isRunning then return end
         
-        -- Chuyển sang góc phải cố định
         StatusLabel.Text = "🎣 Đang chạy Auto + Khóa góc phải..."
         cameraConnection = RunService.RenderStepped:Connect(function()
             if lp.Character and lp.Character:FindFirstChild("Head") then
@@ -239,7 +289,6 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
         
         task.spawn(function()
             while isRunning do
-                -- BƯỚC 1: AUTO CÂU
                 StatusLabel.Text = "🎣 Đang Auto Thả Câu..."
                 
                 Indicator.Position = UDim2.new(0, Config_MasterX, 0, Config_MasterY)
@@ -276,7 +325,6 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
                 
                 if not isRunning then break end
                 
-                -- BƯỚC 2: XẢ 4 SKILL LIÊN TỤC
                 StatusLabel.Text = "🔥 Đang xả 4 Skill cực nhanh..."
                 for _, skill in ipairs(Config_Skills) do
                     if not isRunning then break end
@@ -293,7 +341,6 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
                 task.wait(0.1)
             end
             
-            -- Dọn dẹp khi tắt
             Indicator.Visible = false
             StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
             if cameraConnection then
@@ -302,7 +349,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
             end
             camera.CameraType = Enum.CameraType.Custom
             if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-                lp.Character.Humanoid.WalkSpeed = 16
+                lp.Character.Humanoid.WalkSpeed = isSpeedBuffEnabled and 40 or 16
                 lp.Character.Humanoid.JumpPower = 50
             end
         end)
@@ -318,7 +365,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
         end
         camera.CameraType = Enum.CameraType.Custom
         if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-            lp.Character.Humanoid.WalkSpeed = 16
+            lp.Character.Humanoid.WalkSpeed = isSpeedBuffEnabled and 40 or 16
             lp.Character.Humanoid.JumpPower = 50
         end
     end
