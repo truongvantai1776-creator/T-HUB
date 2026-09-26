@@ -1,4 +1,4 @@
--- Xóa GUI cũ nếu đã tồn tại
+-- ================= SCRIPT FISHING MASTER (GIỮ 0.6S & CHẠY LIÊN TỤC) =================
 local CoreGui = game:GetService("CoreGui")
 if CoreGui:FindFirstChild("RobloxFishingMasterV12") then
     CoreGui.RobloxFishingMasterV12:Destroy()
@@ -8,13 +8,15 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Tạo ScreenGUI chính
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "RobloxFishingMasterV12"
 ScreenGui.Parent = CoreGui
 
--- ================= NÚT BẬT/TẮT GIAO DIỆN (CHỮ T, CÓ THỂ KÉO, HIỆU ỨNG GLOW) =================
+-- ================= NÚT BẬT/TẮT GIAO DIỆN (CHỮ T) =================
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.Position = UDim2.new(0, 50, 0, 100)
@@ -36,10 +38,10 @@ ToggleStroke.Color = Color3.fromRGB(0, 255, 200)
 ToggleStroke.Thickness = 2
 ToggleStroke.Parent = ToggleButton
 
--- Khung chính giao diện (Tăng chiều cao để chứa thêm nút Speed Buff)
+-- Khung chính giao diện
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 210, 0, 160)
-MainFrame.Position = UDim2.new(0.5, -105, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 175)
+MainFrame.Position = UDim2.new(0.5, -110, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -55,7 +57,7 @@ MainStroke.Color = Color3.fromRGB(100, 100, 255)
 MainStroke.Thickness = 2
 MainStroke.Parent = MainFrame
 
--- Hiệu ứng nhún nhảy khi bấm nút T
+-- Hiệu ứng nút T
 ToggleButton.MouseButton1Click:Connect(function()
     local targetVis = not MainFrame.Visible
     MainFrame.Visible = targetVis
@@ -66,11 +68,11 @@ ToggleButton.MouseButton1Click:Connect(function()
     TweenService:Create(ToggleButton, tweenInfo, {Size = UDim2.new(0, 45, 0, 45)}):Play()
 end)
 
--- Tiêu đề có hiệu ứng Gradient màu sắc chạy liên tục
+-- Tiêu đề
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 32)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "✨ FISHING MASTER ✨"
+Title.Text = "✨ FISHING MASTER v1 ✨"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
@@ -100,57 +102,38 @@ CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = MainFrame
 
 CloseBtn.MouseButton1Click:Connect(function()
-    local lp = Players.LocalPlayer
     local camera = workspace.CurrentCamera
     camera.CameraType = Enum.CameraType.Custom
-    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-        lp.Character.Humanoid.WalkSpeed = 16
-        lp.Character.Humanoid.JumpPower = 50
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        LocalPlayer.Character.Humanoid.JumpPower = 50
     end
     ScreenGui:Destroy()
 end)
 
--- ================= NÚT BẬT/TẮT AUTO CÂU + SKILL =================
+-- ================= NÚT CHÍNH: AUTO CÂU + SKILL =================
 local ToggleMasterBtn = Instance.new("TextButton")
-ToggleMasterBtn.Size = UDim2.new(1, -20, 0, 35)
+ToggleMasterBtn.Size = UDim2.new(1, -20, 0, 32)
 ToggleMasterBtn.Position = UDim2.new(0, 10, 0, 38)
 ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
-ToggleMasterBtn.Text = "🚀 BẬT AUTO CÂU + SKILL"
+ToggleMasterBtn.Text = "auto câu + skill( tất cả thiết bị)"
 ToggleMasterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleMasterBtn.TextSize = 11
+ToggleMasterBtn.TextSize = 10
 ToggleMasterBtn.Font = Enum.Font.GothamBold
 ToggleMasterBtn.Parent = MainFrame
-
-local BtnCorner = Instance.new("UICorner")
-BtnCorner.CornerRadius = UDim.new(0, 8)
-BtnCorner.Parent = ToggleMasterBtn
-
-local BtnStroke = Instance.new("UIStroke")
-BtnStroke.Color = Color3.fromRGB(255, 255, 255)
-BtnStroke.Transparency = 0.5
-BtnStroke.Thickness = 1.5
-BtnStroke.Parent = ToggleMasterBtn
+Instance.new("UICorner", ToggleMasterBtn).CornerRadius = UDim.new(0, 8)
 
 -- ================= NÚT SPEED BUFF =================
 local SpeedBuffBtn = Instance.new("TextButton")
 SpeedBuffBtn.Size = UDim2.new(1, -20, 0, 32)
-SpeedBuffBtn.Position = UDim2.new(0, 10, 0, 78)
+SpeedBuffBtn.Position = UDim2.new(0, 10, 0, 75)
 SpeedBuffBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
 SpeedBuffBtn.Text = "⚡ Speed Buff: TẮT (40)"
 SpeedBuffBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedBuffBtn.TextSize = 11
 SpeedBuffBtn.Font = Enum.Font.GothamBold
 SpeedBuffBtn.Parent = MainFrame
-
-local SpeedCorner = Instance.new("UICorner")
-SpeedCorner.CornerRadius = UDim.new(0, 8)
-SpeedCorner.Parent = SpeedBuffBtn
-
-local SpeedStroke = Instance.new("UIStroke")
-SpeedStroke.Color = Color3.fromRGB(255, 255, 255)
-SpeedStroke.Transparency = 0.5
-SpeedStroke.Thickness = 1.5
-SpeedStroke.Parent = SpeedBuffBtn
+Instance.new("UICorner", SpeedBuffBtn).CornerRadius = UDim.new(0, 8)
 
 -- BẢNG TRẠNG THÁI
 local StatusLabel = Instance.new("TextLabel")
@@ -178,30 +161,12 @@ IndicatorStroke.Color = Color3.fromRGB(255, 255, 255)
 IndicatorStroke.Thickness = 2
 IndicatorStroke.Parent = Indicator
 
-task.spawn(function()
-    while true do
-        if Indicator.Visible then
-            TweenService:Create(Indicator, TweenInfo.new(0.3), {Size = UDim2.new(0, 24, 0, 24)}):Play()
-            task.wait(0.3)
-            TweenService:Create(Indicator, TweenInfo.new(0.3), {Size = UDim2.new(0, 18, 0, 18)}):Play()
-            task.wait(0.3)
-        else
-            task.wait(0.5)
-        end
-    end
-end)
-
 -- ================= LOGIC XỬ LÝ SPEED BUFF =================
 local isSpeedBuffEnabled = false
 
 SpeedBuffBtn.MouseButton1Click:Connect(function()
     isSpeedBuffEnabled = not isSpeedBuffEnabled
     local lp = Players.LocalPlayer
-    
-    local clickTween = TweenService:Create(SpeedBuffBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -24, 0, 29)})
-    clickTween:Play()
-    task.wait(0.1)
-    TweenService:Create(SpeedBuffBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -20, 0, 32)}):Play()
     
     if isSpeedBuffEnabled then
         SpeedBuffBtn.Text = "⚡ Speed Buff: BẬT (40)"
@@ -218,7 +183,6 @@ SpeedBuffBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Duy trì tốc độ khi nhân vật chết hoặc hồi sinh
 Players.LocalPlayer.CharacterAdded:Connect(function(char)
     char:WaitForChild("Humanoid")
     if isSpeedBuffEnabled then
@@ -226,18 +190,7 @@ Players.LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
--- ================= CẤU HÌNH TỌA ĐỘ AUTO FARM (GIỮ NGUYÊN) =================
-local Config_MasterX = 660
-local Config_MasterY = 330
-local Config_MasterSpeed = 5
-
-local Config_Skills = {
-    {x = 660, y = 250}, -- Skill 1
-    {x = 740, y = 250}, -- Skill 2
-    {x = 660, y = 180}, -- Skill 3
-    {x = 740, y = 180}  -- Skill 4
-}
-
+-- ================= NÚT CHÍNH: AUTO CÂU + SKILL (GIỮ 0.6S & CHẠY LIÊN TỤC) =================
 local isRunning = false
 local cameraConnection = nil
 
@@ -246,18 +199,12 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
     local lp = Players.LocalPlayer
     local camera = workspace.CurrentCamera
     
-    local clickTween = TweenService:Create(ToggleMasterBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -24, 0, 32)})
-    clickTween:Play()
-    task.wait(0.1)
-    TweenService:Create(ToggleMasterBtn, TweenInfo.new(0.1), {Size = UDim2.new(1, -20, 0, 35)}):Play()
-    
     if isRunning then
         ToggleMasterBtn.Text = "🛑 TẮT AUTO (Đang chạy)"
         ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
         StatusLabel.Text = "✨ Đang khởi tạo khóa camera..."
         
         if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-            -- Nếu đang bật speed buff thì giữ tốc độ 40, nếu không thì set về 0 để đứng yên câu cá
             if not isSpeedBuffEnabled then
                 lp.Character.Humanoid.WalkSpeed = 0
             end
@@ -267,7 +214,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
         camera.CameraType = Enum.CameraType.Scriptable
         
         local startTime = tick()
-        while tick() - startTime < 0.4 and isRunning do
+        while tick() - startTime < 0.3 and isRunning do
             if lp.Character and lp.Character:FindFirstChild("Head") then
                 local headPos = lp.Character.Head.Position
                 camera.CFrame = CFrame.new(headPos + Vector3.new(0, 3, -4), headPos)
@@ -277,7 +224,9 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
         
         if not isRunning then return end
         
-        StatusLabel.Text = "🎣 Đang chạy Auto + Khóa góc phải..."
+        StatusLabel.Text = "🔥 Đang chạy Auto Câu + Skill (0.6s)..."
+        
+        -- Khóa góc camera bên phải
         cameraConnection = RunService.RenderStepped:Connect(function()
             if lp.Character and lp.Character:FindFirstChild("Head") then
                 local headPos = lp.Character.Head.Position
@@ -287,77 +236,87 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
             end
         end)
         
+        -- Task vòng lặp tuần tự: Auto Câu (giữ 0.6s) -> Xong xả Skill ngay -> Lặp lại không ngừng
         task.spawn(function()
-            while isRunning do
-                StatusLabel.Text = "🎣 Đang Auto Thả Câu..."
-                
-                Indicator.Position = UDim2.new(0, Config_MasterX, 0, Config_MasterY)
-                Indicator.Visible = true
-                
-                pcall(function()
-                    VirtualInputManager:SendMouseButtonEvent(Config_MasterX, Config_MasterY, 0, true, game, 0)
-                end)
-                
-                local waitTime = 0
-                while waitTime < 0.6 and isRunning do
-                    task.wait(0.05)
-                    waitTime = waitTime + 0.05
-                end
-                
-                pcall(function()
-                    VirtualInputManager:SendMouseButtonEvent(Config_MasterX, Config_MasterY, 0, false, game, 0)
-                end)
-                
-                if not isRunning then break end
-                task.wait(0.1)
-                
-                local mspd = Config_MasterSpeed
-                if mspd <= 0 then mspd = 1 end
-                for i = 1, 2 do
-                    if not isRunning then break end
-                    pcall(function()
-                        VirtualInputManager:SendMouseButtonEvent(Config_MasterX, Config_MasterY, 0, true, game, 0)
-                        task.wait(0.01)
-                        VirtualInputManager:SendMouseButtonEvent(Config_MasterX, Config_MasterY, 0, false, game, 0)
-                    end)
-                    task.wait(1 / mspd)
-                end
-                
-                if not isRunning then break end
-                
-                StatusLabel.Text = "🔥 Đang xả 4 Skill cực nhanh..."
-                for _, skill in ipairs(Config_Skills) do
-                    if not isRunning then break end
-                    Indicator.Position = UDim2.new(0, skill.x, 0, skill.y)
-                    pcall(function()
-                        VirtualInputManager:SendMouseButtonEvent(skill.x, skill.y, 0, true, game, 0)
-                        task.wait(0.01)
-                        VirtualInputManager:SendMouseButtonEvent(skill.x, skill.y, 0, false, game, 0)
-                    end)
-                    task.wait(0.02)
-                end
-                
-                if not isRunning then break end
-                task.wait(0.1)
-            end
+            local targetSkillNames = {
+                ["Slot1"] = true,
+                ["Slot2"] = true,
+                ["Slot3"] = true,
+                ["Slot4"] = true,
+                ["SlotTemplate"] = true
+            }
             
-            Indicator.Visible = false
-            StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-            if cameraConnection then
-                cameraConnection:Disconnect()
-                cameraConnection = nil
-            end
-            camera.CameraType = Enum.CameraType.Custom
-            if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-                lp.Character.Humanoid.WalkSpeed = isSpeedBuffEnabled and 40 or 16
-                lp.Character.Humanoid.JumpPower = 50
+            while isRunning do
+                -- 1. BƯỚC AUTO CÂU (Giữ 0.6s -> Nhấn 3 lần)
+                pcall(function()
+                    for _, gui in ipairs(PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") and isRunning then
+                            for _, desc in ipairs(gui:GetDescendants()) do
+                                if desc.Name == "FishingActionButton" and desc:IsA("ImageButton") and desc.Visible and isRunning then
+                                    local absPos = desc.AbsolutePosition
+                                    local absSize = desc.AbsoluteSize
+                                    local baseCenterX = absPos.X + (absSize.X / 2)
+                                    local baseCenterY = absPos.Y + (absSize.Y / 2)
+                                    
+                                    local finalX = baseCenterX + 45
+                                    local finalY = baseCenterY + 55
+                                    
+                                    Indicator.Position = UDim2.new(0, finalX, 0, finalY)
+                                    Indicator.Visible = true
+                                    
+                                    -- Giữ chuột 0.6s đúng yêu cầu
+                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
+                                    task.wait(0.6)
+                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
+                                    task.wait(0.05)
+                                    
+                                    -- Nhấn 3 lần liên tiếp
+                                    for i = 1, 3 do
+                                        if not isRunning then break end
+                                        VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
+                                        task.wait(0.02)
+                                        VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
+                                        task.wait(0.05)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+                
+                -- 2. BƯỚC AUTO SKILL (Xả ngay lập tức sau khi câu xong)
+                pcall(function()
+                    for _, gui in ipairs(PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") and isRunning then
+                            for _, desc in ipairs(gui:GetDescendants()) do
+                                if targetSkillNames[desc.Name] and desc.Visible and isRunning then
+                                    local absPos = desc.AbsolutePosition
+                                    local absSize = desc.AbsoluteSize
+                                    local baseCenterX = absPos.X + (absSize.X / 2)
+                                    local baseCenterY = absPos.Y + (absSize.Y / 2)
+                                    
+                                    local finalX = baseCenterX + 45
+                                    local finalY = baseCenterY + 55
+                                    
+                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
+                                    task.wait(0.01)
+                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
+                                    task.wait(0.01)
+                                end
+                            end
+                        end
+                    end
+                end)
+                
+                -- Tiếp tục vòng lặp ngay lập tức không ngừng nghỉ
+                task.wait(0.01)
             end
         end)
     else
-        ToggleMasterBtn.Text = "🚀 BẬT AUTO CÂU + SKILL"
+        ToggleMasterBtn.Text = "auto câu + skill( tất cả thiết bị)"
         ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
-        Indicator.Visible = false
         StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
+        Indicator.Visible = false
         
         if cameraConnection then
             cameraConnection:Disconnect()
