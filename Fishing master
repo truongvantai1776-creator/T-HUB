@@ -78,7 +78,7 @@ end)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 32)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "✨ FISHING MASTER V1.1 ✨"
+Title.Text = "✨ FISHING MASTER ✨"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
