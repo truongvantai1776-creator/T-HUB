@@ -1,4 +1,4 @@
--- ================= SCRIPT FISHING MASTER (ĐÃ BỎ ĐIỀU CHỈNH SAI SỐ & THÊM TÙY CHỈNH THỜI GIAN AUTO SELL) =================
+-- ================= SCRIPT FISHING MASTER (ĐÃ CẬP NHẬT) =================
 local CoreGui = game:GetService("CoreGui")
 if CoreGui:FindFirstChild("RobloxFishingMasterV12") then
     CoreGui.RobloxFishingMasterV12:Destroy()
@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -16,12 +17,8 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "RobloxFishingMasterV12"
 ScreenGui.Parent = CoreGui
 
--- Sai số mặc định cố định (ẩn không cho chỉnh sửa)
-local sellOffsetX = 45
-local sellOffsetY = 60
-
--- Biến lưu thời gian Auto Sell (Mặc định 5 phút)
-local autoSellMinutes = 5
+-- Biến lưu thời gian Auto Sell (Mặc định 300 giây = 5 phút)
+local autoSellSeconds = 300
 
 -- ================= NÚT BẬT/TẮT GIAO DIỆN (CHỮ T) =================
 local ToggleButton = Instance.new("TextButton")
@@ -45,7 +42,7 @@ ToggleStroke.Color = Color3.fromRGB(0, 255, 200)
 ToggleStroke.Thickness = 2
 ToggleStroke.Parent = ToggleButton
 
--- Khung chính giao diện (Thu gọn lại vì đã bỏ phần offset)
+-- Khung chính giao diện
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 220, 0, 235)
 MainFrame.Position = UDim2.new(0.5, -110, 0.2, 0)
@@ -153,7 +150,7 @@ AutoSellBtn.Font = Enum.Font.GothamBold
 AutoSellBtn.Parent = MainFrame
 Instance.new("UICorner", AutoSellBtn).CornerRadius = UDim.new(0, 8)
 
--- Nút trừ thời gian Auto Sell (-)
+-- Nút trừ thời gian Auto Sell (-) nhanh
 local MinusSellBtn = Instance.new("TextButton")
 MinusSellBtn.Size = UDim2.new(0, 22, 0, 32)
 MinusSellBtn.Position = UDim2.new(1, -52, 0, 112)
@@ -165,7 +162,7 @@ MinusSellBtn.Font = Enum.Font.GothamBold
 MinusSellBtn.Parent = MainFrame
 Instance.new("UICorner", MinusSellBtn).CornerRadius = UDim.new(0, 6)
 
--- Nút cộng thời gian Auto Sell (+)
+-- Nút mở bảng cài đặt thời gian (+)
 local PlusSellBtn = Instance.new("TextButton")
 PlusSellBtn.Size = UDim2.new(0, 22, 0, 32)
 PlusSellBtn.Position = UDim2.new(1, -26, 0, 112)
@@ -177,10 +174,10 @@ PlusSellBtn.Font = Enum.Font.GothamBold
 PlusSellBtn.Parent = MainFrame
 Instance.new("UICorner", PlusSellBtn).CornerRadius = UDim.new(0, 6)
 
--- ================= UI NHẬP SỐ PHÚT TỰ BÁN CÁ (HIỂN THỊ KHI NHẤN NÚT +) =================
+-- ================= UI NHẬP PHÚT VÀ GIÂY TỰ BÁN CÁ =================
 local TimeInputFrame = Instance.new("Frame")
-TimeInputFrame.Size = UDim2.new(0, 180, 0, 95)
-TimeInputFrame.Position = UDim2.new(0.5, -90, 0.5, -45)
+TimeInputFrame.Size = UDim2.new(0, 210, 0, 125)
+TimeInputFrame.Position = UDim2.new(0.5, -105, 0.5, -62)
 TimeInputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TimeInputFrame.Visible = false
 TimeInputFrame.Active = true
@@ -195,7 +192,7 @@ TimeInputStroke.Parent = TimeInputFrame
 local TimeInputTitle = Instance.new("TextLabel")
 TimeInputTitle.Size = UDim2.new(1, 0, 0, 25)
 TimeInputTitle.BackgroundTransparency = 1
-TimeInputTitle.Text = "⚙️ Cài đặt phút Auto Sell"
+TimeInputTitle.Text = "⚙️ Cài đặt Phút / Giây Auto Sell"
 TimeInputTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 TimeInputTitle.TextSize = 11
 TimeInputTitle.Font = Enum.Font.GothamBold
@@ -205,67 +202,115 @@ local TimeDisplayLabel = Instance.new("TextLabel")
 TimeDisplayLabel.Size = UDim2.new(1, 0, 0, 25)
 TimeDisplayLabel.Position = UDim2.new(0, 0, 0, 28)
 TimeDisplayLabel.BackgroundTransparency = 1
-TimeDisplayLabel.Text = "Thời gian: 5 phút"
+TimeDisplayLabel.Text = "Thời gian: 05:00 (300s)"
 TimeDisplayLabel.TextColor3 = Color3.fromRGB(100, 255, 200)
-TimeDisplayLabel.TextSize = 12
+TimeDisplayLabel.TextSize = 11
 TimeDisplayLabel.Font = Enum.Font.GothamBold
 TimeDisplayLabel.Parent = TimeInputFrame
 
+local function updateTimeDisplay()
+    local m = math.floor(autoSellSeconds / 60)
+    local s = autoSellSeconds % 60
+    TimeDisplayLabel.Text = string.format("Thời gian: %02d:%02d (%ds)", m, s, autoSellSeconds)
+end
+
+-- Nút -1 Phút
 local SubMinBtn = Instance.new("TextButton")
-SubMinBtn.Size = UDim2.new(0, 35, 0, 25)
-SubMinBtn.Position = UDim2.new(0.15, 0, 0, 60)
+SubMinBtn.Size = UDim2.new(0, 38, 0, 22)
+SubMinBtn.Position = UDim2.new(0.08, 0, 0, 56)
 SubMinBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-SubMinBtn.Text = "-1p"
+SubMinBtn.Text = "-1m"
 SubMinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SubMinBtn.TextSize = 10
 SubMinBtn.Font = Enum.Font.GothamBold
 SubMinBtn.Parent = TimeInputFrame
 Instance.new("UICorner", SubMinBtn).CornerRadius = UDim.new(0, 6)
 
+-- Nút +1 Phút
 local AddMinBtn = Instance.new("TextButton")
-AddMinBtn.Size = UDim2.new(0, 35, 0, 25)
-AddMinBtn.Position = UDim2.new(0.5, 5, 0, 60)
+AddMinBtn.Size = UDim2.new(0, 38, 0, 22)
+AddMinBtn.Position = UDim2.new(0.38, 0, 0, 56)
 AddMinBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-AddMinBtn.Text = "+1p"
+AddMinBtn.Text = "+1m"
 AddMinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 AddMinBtn.TextSize = 10
 AddMinBtn.Font = Enum.Font.GothamBold
 AddMinBtn.Parent = TimeInputFrame
 Instance.new("UICorner", AddMinBtn).CornerRadius = UDim.new(0, 6)
 
+-- Nút -10 Giây
+local Sub10SecBtn = Instance.new("TextButton")
+Sub10SecBtn.Size = UDim2.new(0, 38, 0, 22)
+Sub10SecBtn.Position = UDim2.new(0.08, 0, 0, 84)
+Sub10SecBtn.BackgroundColor3 = Color3.fromRGB(150, 80, 50)
+Sub10SecBtn.Text = "-10s"
+Sub10SecBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Sub10SecBtn.TextSize = 10
+Sub10SecBtn.Font = Enum.Font.GothamBold
+Sub10SecBtn.Parent = TimeInputFrame
+Instance.new("UICorner", Sub10SecBtn).CornerRadius = UDim.new(0, 6)
+
+-- Nút +10 Giây
+local Add10SecBtn = Instance.new("TextButton")
+Add10SecBtn.Size = UDim2.new(0, 38, 0, 22)
+Add10SecBtn.Position = UDim2.new(0.38, 0, 0, 84)
+Add10SecBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 150)
+Add10SecBtn.Text = "+10s"
+Add10SecBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Add10SecBtn.TextSize = 10
+Add10SecBtn.Font = Enum.Font.GothamBold
+Add10SecBtn.Parent = TimeInputFrame
+Instance.new("UICorner", Add10SecBtn).CornerRadius = UDim.new(0, 6)
+
+-- Nút Đóng / OK
 local CloseTimeBtn = Instance.new("TextButton")
-CloseTimeBtn.Size = UDim2.new(0, 35, 0, 25)
-CloseTimeBtn.Position = UDim2.new(0.75, 5, 0, 60)
+CloseTimeBtn.Size = UDim2.new(0, 48, 0, 50)
+CloseTimeBtn.Position = UDim2.new(0.68, 0, 0, 56)
 CloseTimeBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 CloseTimeBtn.Text = "OK"
 CloseTimeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseTimeBtn.TextSize = 10
+CloseTimeBtn.TextSize = 11
 CloseTimeBtn.Font = Enum.Font.GothamBold
 CloseTimeBtn.Parent = TimeInputFrame
 Instance.new("UICorner", CloseTimeBtn).CornerRadius = UDim.new(0, 6)
 
--- Logic nút chỉnh phút
 PlusSellBtn.MouseButton1Click:Connect(function()
     TimeInputFrame.Visible = not TimeInputFrame.Visible
 end)
 
 MinusSellBtn.MouseButton1Click:Connect(function()
-    if autoSellMinutes > 1 then
-        autoSellMinutes = autoSellMinutes - 1
-        TimeDisplayLabel.Text = "Thời gian: " .. autoSellMinutes .. " phút"
+    if autoSellSeconds > 10 then
+        autoSellSeconds = autoSellSeconds - 10
+        updateTimeDisplay()
     end
 end)
 
 SubMinBtn.MouseButton1Click:Connect(function()
-    if autoSellMinutes > 1 then
-        autoSellMinutes = autoSellMinutes - 1
-        TimeDisplayLabel.Text = "Thời gian: " .. autoSellMinutes .. " phút"
+    if autoSellSeconds >= 60 then
+        autoSellSeconds = autoSellSeconds - 60
+    else
+        autoSellSeconds = 0
     end
+    updateTimeDisplay()
 end)
 
 AddMinBtn.MouseButton1Click:Connect(function()
-    autoSellMinutes = autoSellMinutes + 1
-    TimeDisplayLabel.Text = "Thời gian: " .. autoSellMinutes .. " phút"
+    autoSellSeconds = autoSellSeconds + 60
+    updateTimeDisplay()
+end)
+
+Sub10SecBtn.MouseButton1Click:Connect(function()
+    if autoSellSeconds >= 10 then
+        autoSellSeconds = autoSellSeconds - 10
+    else
+        autoSellSeconds = 0
+    end
+    updateTimeDisplay()
+end)
+
+Add10SecBtn.MouseButton1Click:Connect(function()
+    autoSellSeconds = autoSellSeconds + 10
+    updateTimeDisplay()
 end)
 
 CloseTimeBtn.MouseButton1Click:Connect(function()
@@ -283,7 +328,7 @@ StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.GothamBold
 StatusLabel.Parent = MainFrame
 
--- Vòng tròn định vị (Indicator)
+-- Vòng tròn định vị (Indicator) hiển thị chính xác ở tâm nút
 local Indicator = Instance.new("Frame")
 Indicator.Size = UDim2.new(0, 18, 0, 18)
 Indicator.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -325,6 +370,23 @@ Players.LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
+-- ================= HÀM CLICK CHUẨN XÁC KÈM ĐỘ LỆCH TRỤC NGANG +20 =================
+local function clickButtonTarget(desc)
+    local absPos = desc.AbsolutePosition
+    local absSize = desc.AbsoluteSize
+    local inset = GuiService:GetGuiInset()
+    
+    local finalX = absPos.X + (absSize.X / 2) + 20
+    local finalY = absPos.Y + (absSize.Y / 2) + inset.Y
+    
+    Indicator.Position = UDim2.new(0, finalX, 0, finalY - inset.Y)
+    Indicator.Visible = true
+    
+    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
+    task.wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
+end
+
 local isRunning = false
 local lockedCameraCFrame = nil
 
@@ -333,7 +395,7 @@ local function startAutoMaster()
     isRunning = true
     ToggleMasterBtn.Text = "🛑 TẮT AUTO (Đang chạy)"
     ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-    StatusLabel.Text = "✨ Đang khóa camera cố định bên tay phải..."
+    StatusLabel.Text = "✨ Đang khóa camera cố định..."
     
     local lp = Players.LocalPlayer
     local camera = workspace.CurrentCamera
@@ -371,6 +433,7 @@ local function startAutoMaster()
                 workspace.CurrentCamera.CFrame = lockedCameraCFrame
             end
             
+            -- 1. Auto Câu (Sửa lỗi giữ 0.6s ở khúc đầu)
             pcall(function()
                 for _, gui in ipairs(PlayerGui:GetChildren()) do
                     if gui:IsA("ScreenGui") and isRunning then
@@ -378,34 +441,30 @@ local function startAutoMaster()
                             if desc.Name == "FishingActionButton" and desc:IsA("ImageButton") and desc.Visible and isRunning then
                                 local absPos = desc.AbsolutePosition
                                 local absSize = desc.AbsoluteSize
-                                local baseCenterX = absPos.X + (absSize.X / 2)
-                                local baseCenterY = absPos.Y + (absSize.Y / 2)
+                                local inset = GuiService:GetGuiInset()
+                                local finalX = absPos.X + (absSize.X / 2) + 20
+                                local finalY = absPos.Y + (absSize.Y / 2) + inset.Y
                                 
-                                local finalX = baseCenterX + sellOffsetX
-                                local finalY = baseCenterY + sellOffsetY
-                                
-                                Indicator.Position = UDim2.new(0, finalX, 0, finalY)
+                                Indicator.Position = UDim2.new(0, finalX, 0, finalY - inset.Y)
                                 Indicator.Visible = true
                                 
+                                -- Nhấn và GIỮ chuột trong 0.6 giây
                                 VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
                                 task.wait(0.6)
                                 VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
-                                task.wait(0.05)
                                 
                                 for i = 1, 3 do
                                     if not isRunning then break end
-                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
-                                    task.wait(0.02)
-                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
+                                    clickButtonTarget(desc)
                                     task.wait(0.05)
                                 end
-
+                                
                                 local vpSize = workspace.CurrentCamera.ViewportSize
-                                local midX = (vpSize.X / 2) + sellOffsetX
-                                local midY = (vpSize.Y / 2) + sellOffsetY
-                                VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, true, game, 0)
+                                local midX = (vpSize.X / 2) + 20
+                                local midY = vpSize.Y / 2
+                                VirtualInputManager:SendMouseButtonEvent(midX, midY + GuiService:GetGuiInset().Y, 0, true, game, 0)
                                 task.wait(0.02)
-                                VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, false, game, 0)
+                                VirtualInputManager:SendMouseButtonEvent(midX, midY + GuiService:GetGuiInset().Y, 0, false, game, 0)
                                 task.wait(0.05)
                             end
                         end
@@ -413,23 +472,14 @@ local function startAutoMaster()
                 end
             end)
             
+            -- 2. Auto Skills
             pcall(function()
                 for _, gui in ipairs(PlayerGui:GetChildren()) do
                     if gui:IsA("ScreenGui") and isRunning then
                         for _, desc in ipairs(gui:GetDescendants()) do
                             if targetSkillNames[desc.Name] and desc.Visible and isRunning then
-                                local absPos = desc.AbsolutePosition
-                                local absSize = desc.AbsoluteSize
-                                local baseCenterX = absPos.X + (absSize.X / 2)
-                                local baseCenterY = absPos.Y + (absSize.Y / 2)
-                                
-                                local finalX = baseCenterX + sellOffsetX
-                                local finalY = baseCenterY + sellOffsetY
-                                
-                                VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
-                                task.wait(0.01)
-                                VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
-                                task.wait(0.01)
+                                clickButtonTarget(desc)
+                                task.wait(0.02)
                             end
                         end
                     end
@@ -467,7 +517,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ================= HÀM BAY XUYÊN ĐẤT, NOCLIP & TRỒI LÊN CHUẨN XÁC =================
+-- ================= HÀM BAY XUYÊN ĐẤT & TRỒI LÊN =================
 local function flySmoothlyTo(targetCFrame)
     local lp = Players.LocalPlayer
     local char = lp.Character
@@ -542,7 +592,7 @@ local function flySmoothlyTo(targetCFrame)
     return finalDist <= 12
 end
 
--- ================= LOGIC AUTO SELL (SỬ DỤNG SỐ PHÚT TÙY CHỈNH) =================
+-- ================= LOGIC AUTO SELL (ĐẾM NGƯỢC THEO PHÚT/GIÂY) =================
 local isAutoSellRunning = false
 
 AutoSellBtn.MouseButton1Click:Connect(function()
@@ -554,7 +604,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
         
         task.spawn(function()
             while isAutoSellRunning do
-                local totalSeconds = autoSellMinutes * 60
+                local totalSeconds = autoSellSeconds
                 while totalSeconds > 0 and isAutoSellRunning do
                     local mins = math.floor(totalSeconds / 60)
                     local secs = totalSeconds % 60
@@ -589,14 +639,21 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                 
                 if not isAutoSellRunning then break end
                 
-                StatusLabel.Text = "🖱️ Nhấn 1 lần vào giữa màn hình..."
+                -- YÊU CẦU MỚI: Nhấn vào giữa màn hình 3 lần trước khi bay đi bán cá
+                StatusLabel.Text = "🖱️ Nhấn giữa màn hình 3 lần..."
                 pcall(function()
                     local vpSize = workspace.CurrentCamera.ViewportSize
-                    local midX = (vpSize.X / 2) + sellOffsetX
-                    local midY = (vpSize.Y / 2) + sellOffsetY
-                    VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, true, game, 0)
-                    task.wait(0.1)
-                    VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, false, game, 0)
+                    local midX = (vpSize.X / 2) + 20
+                    local midY = vpSize.Y / 2
+                    local insetY = GuiService:GetGuiInset().Y
+                    
+                    for i = 1, 3 do
+                        if not isAutoSellRunning then break end
+                        VirtualInputManager:SendMouseButtonEvent(midX, midY + insetY, 0, true, game, 0)
+                        task.wait(0.05)
+                        VirtualInputManager:SendMouseButtonEvent(midX, midY + insetY, 0, false, game, 0)
+                        task.wait(0.2)
+                    end
                 end)
                 task.wait(0.5)
 
@@ -668,7 +725,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                 end
                             end)
                             
-                            StatusLabel.Text = "⏳ Đợi sau khi nhấn talk (2s)..."
+                            StatusLabel.Text = "⏳ Đợi mở hội thoại (2s)..."
                             task.wait(2.0)
                             
                             local function clickButtonByName(btnName)
@@ -678,17 +735,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                         if gui:IsA("ScreenGui") then
                                             for _, desc in ipairs(gui:GetDescendants()) do
                                                 if desc.Name == btnName and desc:IsA("TextButton") and desc.Visible then
-                                                    local absPos = desc.AbsolutePosition
-                                                    local absSize = desc.AbsoluteSize
-                                                    local baseCenterX = absPos.X + (absSize.X / 2)
-                                                    local baseCenterY = absPos.Y + (absSize.Y / 2)
-                                                    
-                                                    local finalX = baseCenterX + sellOffsetX
-                                                    local finalY = baseCenterY + sellOffsetY
-                                                    
-                                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
-                                                    task.wait(0.05)
-                                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
+                                                    clickButtonTarget(desc)
                                                     clicked = true
                                                 end
                                             end
@@ -700,26 +747,21 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                             
                             StatusLabel.Text = "🛒 Nhấn Option002 lần 1..."
                             clickButtonByName("Option002")
-                            
-                            StatusLabel.Text = "⏳ Đợi 2s trước khi nhấn Option001..."
                             task.wait(2.0)
                             
                             StatusLabel.Text = "🛒 Nhấn Option001..."
                             clickButtonByName("Option001")
-                            
-                            StatusLabel.Text = "⏳ Đợi 2s trước khi nhấn Option002 lần 2..."
                             task.wait(2.0)
                             
                             StatusLabel.Text = "🛒 Nhấn Option002 lần 2..."
                             clickButtonByName("Option002")
-                            
                             task.wait(1.0)
                         else
                             StatusLabel.Text = "⚠️ Không thể bay tới vị trí NPC!"
                             task.wait(2)
                         end
                         
-                        StatusLabel.Text = "🕳️ Đang bay xuyên lòng đất về vị trí cũ..."
+                        StatusLabel.Text = "🕳️ Đang bay về vị trí cũ..."
                         local arrivedAtOldPos = flySmoothlyTo(originalCFrame)
                         
                         if arrivedAtOldPos then
@@ -730,6 +772,8 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                             end
                             StatusLabel.Text = "✨ Đã khôi phục vị trí câu cũ."
                         end
+                        
+                        task.wait(0.5)
                         
                     else
                         StatusLabel.Text = "⚠️ Không tìm thấy NPC bán cá!"
