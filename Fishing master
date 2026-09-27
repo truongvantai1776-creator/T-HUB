@@ -28,7 +28,7 @@ local boxHeightSize = 60
 -- ================= NÚT BẬT/TẮT GIAO DIỆN (CHỮ T) =================
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(0, 40, 0, 40)
-ToggleButton.Position = UDim2.new(0, 50, 0, 100)
+ToggleButton.Position = UDim2.new(1, -60, 0, 0) -- Dính sát mép trên cùng (Y = 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 ToggleButton.Text = "T"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -47,14 +47,14 @@ ToggleStroke.Color = Color3.fromRGB(0, 255, 200)
 ToggleStroke.Thickness = 2
 ToggleStroke.Parent = ToggleButton
 
--- Khung chính giao diện
+-- Khung chính giao diện (Đã dịch lên trên cùng màn hình, Y = 0)
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 190, 0, 165)
-MainFrame.Position = UDim2.new(0.5, -95, 0.2, 0)
+MainFrame.Position = UDim2.new(1, -210, 0, 45) -- Dính sát mép trên cùng màn hình
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true
+MainFrame.Draggable = false -- Vô hiệu hóa kéo thả để cố định GUI
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
@@ -185,11 +185,11 @@ StatusLabel.Parent = MainFrame
 -- ================= UI NHẬP PHÚT VÀ GIÂY TỰ BÁN CÁ =================
 local TimeInputFrame = Instance.new("Frame")
 TimeInputFrame.Size = UDim2.new(0, 190, 0, 115)
-TimeInputFrame.Position = UDim2.new(0.5, -95, 0.5, -57)
+TimeInputFrame.Position = UDim2.new(1, -210, 0, 215) -- Đặt bảng phụ ngay dưới bảng chính
 TimeInputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TimeInputFrame.Visible = false
 TimeInputFrame.Active = true
-TimeInputFrame.Draggable = true
+TimeInputFrame.Draggable = false
 TimeInputFrame.Parent = ScreenGui
 Instance.new("UICorner", TimeInputFrame).CornerRadius = UDim.new(0, 8)
 local TimeInputStroke = Instance.new("UIStroke")
@@ -393,7 +393,7 @@ local function startAutoMaster()
     isRunning = true
     ToggleMasterBtn.Text = "🛑 TẮT AUTO"
     ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-    StatusLabel.Text = "🔥 Đang chạy Auto Farm Siêu Tốc..."
+    StatusLabel.Text = "🔥 Đang chạy Auto Farm Siêu Tốc...\n\n"
     
     enableCameraLock()
     
@@ -407,7 +407,7 @@ local function startAutoMaster()
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
                 
                 local startTime = tick()
-                while tick() - startTime < 0.2 and isRunning do -- Giảm thời gian giữ chuột xuống 0.2s để lặp cực nhanh
+                while tick() - startTime < 0.2 and isRunning do 
                     spamSkillKeys()
                     task.wait(0.01)
                 end
@@ -427,11 +427,11 @@ local function startAutoMaster()
                     spamSkillKeys()
                     VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
                     
-                    task.wait(0.01) -- Giảm độ trễ xuống mức thấp nhất để click cực nhanh
+                    task.wait(0.01) 
                 end
             end)
             
-            task.wait(0.01) -- Thời gian nghỉ giữa các vòng lặp cực ngắn
+            task.wait(0.01) 
         end
     end)
 end
@@ -441,7 +441,7 @@ local function stopAutoMaster()
     isRunning = false
     ToggleMasterBtn.Text = "auto câu + skill"
     ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
-    StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
+    StatusLabel.Text = "⚡ Trạng thái: Đang tắt\n\n"
     
     disableCameraLock()
     
@@ -460,7 +460,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ================= HÀM BAY XUYÊN ĐẤT & TRỒI LÊN =================
+-- ================= HÀM BAY XUYÊN ĐẤT (TỐC ĐỘ ĐÃ TĂNG LÊN HƠN MỘT TÍ) =================
 local function flySmoothlyTo(targetCFrame)
     local lp = Players.LocalPlayer
     local char = lp.Character
@@ -470,7 +470,7 @@ local function flySmoothlyTo(targetCFrame)
     local humanoid = char.Humanoid
     
     humanoid.PlatformStand = true
-    local speed = 70
+    local speed = 22 -- Đã tăng tốc độ bay lên hơn một tí (từ 12 lên 22)
     local runServiceConnection
     local noclipConnection
     
@@ -501,13 +501,13 @@ local function flySmoothlyTo(targetCFrame)
             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             if runServiceConnection then runServiceConnection:Disconnect() end
         else
-            local velocity = direction.Unit * math.min(speed, distance * 10)
+            local velocity = direction.Unit * math.min(speed, distance * 5)
             hrp.AssemblyLinearVelocity = velocity
             hrp.CFrame = CFrame.new(currentPos, undergroundTarget)
         end
     end)
     
-    local timeout = tick() + 15
+    local timeout = tick() + 25
     while (Vector3.new(hrp.Position.X, targetCFrame.Position.Y, hrp.Position.Z) - targetCFrame.Position).Magnitude > 6 and tick() < timeout and char:FindFirstChild("HumanoidRootPart") do
         task.wait(0.05)
     end
@@ -519,7 +519,7 @@ local function flySmoothlyTo(targetCFrame)
         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         local surfacePos = targetCFrame + Vector3.new(0, 6, 0)
         hrp.CFrame = surfacePos
-        task.wait(0.15)
+        task.wait(0.3)
         
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -538,6 +538,14 @@ end
 -- ================= LOGIC AUTO SELL =================
 local isAutoSellRunning = false
 
+local function simulateGamePadButton(keyCode, holdTime)
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+        task.wait(holdTime or 0.05)
+        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+    end)
+end
+
 AutoSellBtn.MouseButton1Click:Connect(function()
     isAutoSellRunning = not isAutoSellRunning
     
@@ -551,31 +559,14 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                 while totalSeconds > 0 and isAutoSellRunning do
                     local mins = math.floor(totalSeconds / 60)
                     local secs = totalSeconds % 60
-                    StatusLabel.Text = string.format("⏳ Auto Sell: %02d:%02d", mins, secs)
+                    StatusLabel.Text = string.format("⏳ Auto Sell: %02d:%02d\n\n", mins, secs)
                     task.wait(1)
                     totalSeconds = totalSeconds - 1
                 end
                 
                 if not isAutoSellRunning then break end
                 
-                StatusLabel.Text = "🖱️ Nhấn giữa màn hình 3 lần..."
-                pcall(function()
-                    local vpSize = workspace.CurrentCamera.ViewportSize
-                    local midX = vpSize.X / 2
-                    local midY = vpSize.Y / 2
-                    local insetY = GuiService:GetGuiInset().Y
-                    
-                    for i = 1, 3 do
-                        if not isAutoSellRunning then break end
-                        VirtualInputManager:SendMouseButtonEvent(midX, midY + insetY, 0, true, game, 0)
-                        task.wait(0.02)
-                        VirtualInputManager:SendMouseButtonEvent(midX, midY + insetY, 0, false, game, 0)
-                        task.wait(0.1)
-                    end
-                end)
-                task.wait(0.3)
-
-                StatusLabel.Text = "🛑 Tạm dừng Auto đi bán cá..."
+                StatusLabel.Text = "🛑 Tạm dừng Auto đi bán cá...\n\n"
                 if isRunning then
                     stopAutoMaster()
                 end
@@ -585,9 +576,9 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                 local char = lp.Character
                 if char and char:FindFirstChild("HumanoidRootPart") then
                     local originalCFrame = char.HumanoidRootPart.CFrame
-                    StatusLabel.Text = "📍 Đã lưu vị trí câu."
+                    StatusLabel.Text = "📍 Đã lưu vị trí câu.\n\n"
                     
-                    StatusLabel.Text = "🧭 Tìm NPC bán cá..."
+                    StatusLabel.Text = "🧭 Tìm NPC bán cá...\n\n"
                     local targetNpcPart = nil
                     local shortestDist = math.huge
                     
@@ -612,13 +603,13 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     end
                     
                     if targetNpcPart then
-                        StatusLabel.Text = "🕳️ Đang bay tới NPC..."
+                        StatusLabel.Text = "🕳️ Đang bay tới NPC...\n\n"
                         local targetPos = targetNpcPart.Position + Vector3.new(0, 3, 5)
                         
                         local arrivedAtNpc = flySmoothlyTo(CFrame.new(targetPos))
                         
                         if arrivedAtNpc then
-                            StatusLabel.Text = "✅ Đã tới vị trí bán cá!"
+                            StatusLabel.Text = "✅ Đã tới vị trí bán cá!\n\n"
                             task.wait(0.3)
                             
                             pcall(function()
@@ -643,72 +634,86 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                 end
                             end)
                             
-                            StatusLabel.Text = "⏳ Đợi hội thoại..."
-                            task.wait(1.0)
+                            -- Đợi khung hội thoại hiện lên và reset focus tránh game tự chọn Option001
+                            StatusLabel.Text = "⏳ Đợi hội thoại & Nhấn Button A (x2)...\n\n"
+                            task.wait(1.2)
+                            GuiService.SelectedObject = nil 
+
+                            -- Nhấn 2 lần nút ButtonA sau khi talk
+                            simulateGamePadButton(Enum.KeyCode.ButtonA, 0.08)
+                            task.wait(0.3)
+                            simulateGamePadButton(Enum.KeyCode.ButtonA, 0.08)
+                            task.wait(0.5)
                             
-                            local function clickButtonByName(btnName)
-                                local clicked = false
+                            -- Hàm chọn option chính xác tuyệt đối
+                            local function selectOptionGamePadOnly(btnName)
                                 pcall(function()
+                                    local foundButton = nil
                                     for _, gui in ipairs(PlayerGui:GetChildren()) do
                                         if gui:IsA("ScreenGui") then
                                             for _, desc in ipairs(gui:GetDescendants()) do
                                                 if desc.Name == btnName and desc:IsA("TextButton") and desc.Visible then
-                                                    local absPos = desc.AbsolutePosition
-                                                    local absSize = desc.AbsoluteSize
-                                                    local inset = GuiService:GetGuiInset()
-                                                    local finalX = absPos.X + (absSize.X / 2)
-                                                    local finalY = absPos.Y + (absSize.Y / 2) + inset.Y
-                                                    
-                                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, true, game, 0)
-                                                    task.wait(0.02)
-                                                    VirtualInputManager:SendMouseButtonEvent(finalX, finalY, 0, false, game, 0)
-                                                    clicked = true
+                                                    foundButton = desc
+                                                    break
                                                 end
                                             end
                                         end
+                                        if foundButton then break end
                                     end
+                                    
+                                    if foundButton then
+                                        GuiService.SelectedObject = foundButton
+                                        task.wait(0.05)
+                                        for _, conn in ipairs(getconnections(foundButton.MouseButton1Click) or {}) do conn:Fire() end
+                                        for _, conn in ipairs(getconnections(foundButton.Activated) or {}) do conn:Fire() end
+                                    end
+                                    simulateGamePadButton(Enum.KeyCode.ButtonA, 0.08)
                                 end)
-                                return clicked
                             end
                             
-                            StatusLabel.Text = "🛒 Nhấn Option002 (1)..."
-                            clickButtonByName("Option002")
-                            task.wait(1.0)
+                            -- Thực hiện đúng thứ tự yêu cầu: Option002 -> Option001 -> Option002 -> Option001
+                            StatusLabel.Text = "🛒 1. Chọn Option002...\n\n"
+                            selectOptionGamePadOnly("Option002")
+                            task.wait(3.0)
                             
-                            StatusLabel.Text = "🛒 Nhấn Option001..."
-                            clickButtonByName("Option001")
-                            task.wait(1.0)
+                            StatusLabel.Text = "🛒 2. Chọn Option001...\n\n"
+                            selectOptionGamePadOnly("Option001")
+                            task.wait(3.0)
                             
-                            StatusLabel.Text = "🛒 Nhấn Option002 (2)..."
-                            clickButtonByName("Option002")
+                            StatusLabel.Text = "🛒 3. Chọn Option002...\n\n"
+                            selectOptionGamePadOnly("Option002")
+                            task.wait(3.0)
+                            
+                            StatusLabel.Text = "🛒 4. Chọn Option001...\n\n"
+                            selectOptionGamePadOnly("Option001")
                             task.wait(0.5)
                         else
-                            StatusLabel.Text = "⚠️ Không thể tới NPC!"
+                            StatusLabel.Text = "⚠️ Không thể tới NPC!\n\n"
                             task.wait(1)
                         end
                         
-                        StatusLabel.Text = "🕳️ Đang bay về vị trí cũ..."
+                        StatusLabel.Text = "🕳️ Đang bay về vị trí cũ...\n\n"
                         local arrivedAtOldPos = flySmoothlyTo(originalCFrame)
                         
                         if arrivedAtOldPos then
-                            StatusLabel.Text = "✅ Đã về lại vị trí cũ!"
+                            StatusLabel.Text = "✅ Đã về lại vị trí cũ!\n\n"
                         else
                             if char and char:FindFirstChild("HumanoidRootPart") then
                                 char.HumanoidRootPart.CFrame = originalCFrame
                             end
-                            StatusLabel.Text = "✨ Đã khôi phục vị trí."
+                            StatusLabel.Text = "✨ Đã khôi phục vị trí.\n\n"
                         end
                         
                         task.wait(0.3)
                         
                     else
-                        StatusLabel.Text = "⚠️ Không thấy NPC!"
+                        StatusLabel.Text = "⚠️ Không thấy NPC!\n\n"
                         task.wait(1)
                     end
                 end
                 
                 if isAutoSellRunning then
-                    StatusLabel.Text = "🚀 Bật lại auto câu..."
+                    StatusLabel.Text = "🚀 Bật lại auto câu...\n\n"
                     task.wait(0.5)
                     if isAutoSellRunning then
                         startAutoMaster()
@@ -721,6 +726,6 @@ AutoSellBtn.MouseButton1Click:Connect(function()
     else
         AutoSellBtn.Text = "📦 Auto Sell: TẮT"
         AutoSellBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 40)
-        StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
+        StatusLabel.Text = "⚡ Trạng thái: Đang tắt\n\n"
     end
 end)
