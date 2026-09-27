@@ -1,1 +1,36 @@
+-- Đảm bảo game đã tải xong
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+task.spawn(function()
+    pcall(function()
+        -- ⚠️ THAY THẾ ĐƯỜNG DẪN NÀY BẰNG ĐƯỜNG DẪN CỦA NÚT MỚI BẠN MUỐN BẤM
+        local targetButton = playerGui:WaitForChild("Tên_ScreenGui_Hoặc_Menu")
+            :WaitForChild("Tên_Khung_Chứa")
+            :WaitForChild("Tên_Nút_Bấm") -- Ví dụ: TextButton hoặc ImageButton
+        
+        if targetButton then
+            -- Kích hoạt sự kiện bấm
+            for _, conn in pairs(getconnections(targetButton.Activated)) do
+                conn:Fire()
+            end
+            for _, conn in pairs(getconnections(targetButton.MouseButton1Click)) do
+                conn:Fire()
+            end
+            if firesignal then
+                pcall(function() firesignal(targetButton.Activated) end)
+                pcall(function() firesignal(targetButton.MouseButton1Click) end)
+            end
+            
+            print("Đã tự động bấm nút mới thành công!")
+        else
+            warn("Không tìm thấy đường dẫn của nút mới!")
+        end
+    end)
+end)
 
