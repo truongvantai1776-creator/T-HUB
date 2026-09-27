@@ -185,7 +185,7 @@ StatusLabel.Parent = MainFrame
 -- ================= UI NHẬP PHÚT VÀ GIÂY TỰ BÁN CÁ =================
 local TimeInputFrame = Instance.new("Frame")
 TimeInputFrame.Size = UDim2.new(0, 190, 0, 115)
-TimeInputFrame.Position = UDim2.new(1, -210, 0, 215) -- Đặt bảng phụ ngay dưới bảng chính
+TimeInputFrame.Position = UDim2.new(1, -210, 0, 215)
 TimeInputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TimeInputFrame.Visible = false
 TimeInputFrame.Active = true
@@ -460,7 +460,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ================= HÀM BAY XUYÊN ĐẤT (TỐC ĐỘ ĐÃ TĂNG LÊN HƠN MỘT TÍ) =================
+-- ================= HÀM BAY XUYÊN ĐẤT (TỐC ĐỘ 10 + TỰ ĐỘNG NHẤN NHẢY SAU MỖI 1S) =================
 local function flySmoothlyTo(targetCFrame)
     local lp = Players.LocalPlayer
     local char = lp.Character
@@ -470,9 +470,10 @@ local function flySmoothlyTo(targetCFrame)
     local humanoid = char.Humanoid
     
     humanoid.PlatformStand = true
-    local speed = 22 -- Đã tăng tốc độ bay lên hơn một tí (từ 12 lên 22)
+    local speed = 10 -- Tốc độ bay
     local runServiceConnection
     local noclipConnection
+    local jumpTask
     
     noclipConnection = RunService.Stepped:Connect(function()
         if char then
@@ -507,9 +508,26 @@ local function flySmoothlyTo(targetCFrame)
         end
     end)
     
-    local timeout = tick() + 25
+    -- Tự động nhấn nút nhảy (Space) sau mỗi 1 giây trong suốt quá trình bay
+    jumpTask = task.spawn(function()
+        while true do
+            task.wait(1.0)
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                task.wait(0.05)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+            end)
+        end
+    end)
+    
+    local timeout = tick() + 35
     while (Vector3.new(hrp.Position.X, targetCFrame.Position.Y, hrp.Position.Z) - targetCFrame.Position).Magnitude > 6 and tick() < timeout and char:FindFirstChild("HumanoidRootPart") do
         task.wait(0.05)
+    end
+    
+    -- Hủy tiến trình nhảy khi đã bay xong
+    if jumpTask then
+        task.cancel(jumpTask)
     end
     
     if runServiceConnection then runServiceConnection:Disconnect() end
@@ -533,6 +551,25 @@ local function flySmoothlyTo(targetCFrame)
     
     local finalDist = (hrp.Position - targetCFrame.Position).Magnitude
     return finalDist <= 12
+end
+
+-- Hàm kiểm tra xem nút FishingActionButton có đang tồn tại trên màn hình hay không
+local function isFishingButtonPresent()
+    local found = false
+    pcall(function()
+        for _, gui in ipairs(PlayerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                for _, desc in ipairs(gui:GetDescendants()) do
+                    if desc.Name == "FishingActionButton" and desc.Visible then
+                        found = true
+                        break
+                    end
+                end
+            end
+            if found then break end
+        end
+    end)
+    return found
 end
 
 -- ================= LOGIC AUTO SELL =================
@@ -566,12 +603,34 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                 
                 if not isAutoSellRunning then break end
                 
-                StatusLabel.Text = "🛑 Tạm dừng Auto đi bán cá...\n\n"
+                -- Kiểm tra khi hết giờ: Nếu đang câu cá (nút FishingActionButton còn hiển thị), đợi đến khi nút biến mất
+                StatusLabel.Text = "⏳ Đợi hoàn thành câu cá...\n\n"
+                while isAutoSellRunning and isFishingButtonPresent() do
+                    task.wait(0.2)
+                end
+                
+                if not isAutoSellRunning then break end
+                
+                -- Khi nút biến mất, thực hiện nhấn màn hình 3 lần liên tiếp theo yêu cầu
+                StatusLabel.Text = "⏳ Nhấn màn hình 3 lần...\n\n"
+                pcall(function()
+                    local x, y = getRandomScreenCenterPosition()
+                    for i = 1, 3 do
+                        if not isAutoSellRunning then break end
+                        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+                        task.wait(0.05) -- Click xuống rất nhanh
+                        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+                        task.wait(0.15) -- Nghỉ ngắn giữa các lần nhấn
+                    end
+                end)
+                
                 if isRunning then
                     stopAutoMaster()
                 end
                 
+                StatusLabel.Text = "🛑 Đang chuẩn bị đi bán cá...\n\n"
                 task.wait(0.3)
+                
                 local lp = Players.LocalPlayer
                 local char = lp.Character
                 if char and char:FindFirstChild("HumanoidRootPart") then
@@ -634,12 +693,13 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                 end
                             end)
                             
-                            -- Đợi khung hội thoại hiện lên và reset focus tránh game tự chọn Option001
-                            StatusLabel.Text = "⏳ Đợi hội thoại & Nhấn Button A (x2)...\n\n"
-                            task.wait(1.2)
+                            -- Đợi khung hội thoại hiện lên, sau đó chờ 5 giây theo yêu cầu
+                            StatusLabel.Text = "⏳ Đợi khung hội thoại & Chờ 5s...\n\n"
+                            task.wait(5.0)
                             GuiService.SelectedObject = nil 
 
-                            -- Nhấn 2 lần nút ButtonA sau khi talk
+                            -- Nhấn 2 lần nút ButtonA sau khi đã qua thời gian chờ 5s
+                            StatusLabel.Text = "⏳ Nhấn Button A (x2)...\n\n"
                             simulateGamePadButton(Enum.KeyCode.ButtonA, 0.08)
                             task.wait(0.3)
                             simulateGamePadButton(Enum.KeyCode.ButtonA, 0.08)
