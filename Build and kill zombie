@@ -880,7 +880,7 @@ task.spawn(function()
                     if bossPart and bossPart.Parent then
                         local currentRoot, moveModel = GetRootPartToMove()
                         if currentRoot then
-                            circleAngle = circleAngle + 0.08 
+                            circleAngle = circleAngle + 0.2 
                             local radius = 28 
                             local offsetX = math.cos(circleAngle) * radius
                             local offsetZ = math.sin(circleAngle) * radius
