@@ -9,6 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 _G.AutoFarmActive = false
 _G.AutoRollActive = false 
 _G.EspMobsActive = false
+_G.AutoBossActive = false
 
 -- Giao diện nút bấm
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -21,10 +22,10 @@ screenGui.Name = "AutoFarmGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Khung chứa các nút chức năng
+-- Khung chứa các nút chức năng (Mở rộng chiều cao để chứa nút Auto Boss)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 180, 0, 275)
+mainFrame.Size = UDim2.new(0, 180, 0, 330)
 mainFrame.Position = UDim2.new(0, 40, 0, 40)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.2
@@ -146,7 +147,7 @@ end)
 -- Dòng chữ "được tạo bởi T HUB" ở dưới menu
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(0, 160, 0, 20)
-creditLabel.Position = UDim2.new(0, 10, 0, 250)
+creditLabel.Position = UDim2.new(0, 10, 0, 305)
 creditLabel.BackgroundTransparency = 1
 creditLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 creditLabel.TextSize = 11
@@ -173,7 +174,7 @@ local function PressKey(keyCode)
     end)
 end
 
--- Hàm thực thi chuỗi: Nhấn F -> Đợi 1s -> Nhấn F -> Đợi 1s -> Nhấn F
+-- Hàm thực thi chuỗi: Nhấn F -> Đợi 1s -> Nhấn F -> Đợi 1s -> Nhấn F (Giữ nguyên bản gốc)
 local function RunFarmKeySequence()
     while _G.AutoFarmActive do
         for i = 1, 3 do
@@ -190,7 +191,7 @@ end
 -- Nút Auto Farm
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Name = "ToggleBtn"
-toggleBtn.Size = UDim2.new(0, 160, 0, 45)
+toggleBtn.Size = UDim2.new(0, 160, 0, 40)
 toggleBtn.Position = UDim2.new(0, 10, 0, 10)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -222,9 +223,8 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Theo dõi sự kiện Chết, Hồi sinh và Bị dịch chuyển xa đột ngột để chạy lại chuỗi phím F
+-- Theo dõi sự kiện Chết, Hồi sinh và Bị dịch chuyển xa đột ngột để chạy lại chuỗi phím F (Giữ nguyên bản gốc)
 local lastPosition = nil
-local isCheckingTeleport = false
 
 local function MonitorTeleportAndDeath(character)
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
@@ -280,8 +280,8 @@ end)
 -- Nút Auto Lever Roll (Bay đến Lever)
 local toggleRollBtn = Instance.new("TextButton")
 toggleRollBtn.Name = "ToggleRollBtn"
-toggleRollBtn.Size = UDim2.new(0, 160, 0, 45)
-toggleRollBtn.Position = UDim2.new(0, 10, 0, 65)
+toggleRollBtn.Size = UDim2.new(0, 160, 0, 40)
+toggleRollBtn.Position = UDim2.new(0, 10, 0, 55)
 toggleRollBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 toggleRollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleRollBtn.TextSize = 13
@@ -319,8 +319,8 @@ end)
 -- Nút ESP Mobs
 local toggleEspBtn = Instance.new("TextButton")
 toggleEspBtn.Name = "ToggleEspBtn"
-toggleEspBtn.Size = UDim2.new(0, 160, 0, 45)
-toggleEspBtn.Position = UDim2.new(0, 10, 0, 120)
+toggleEspBtn.Size = UDim2.new(0, 160, 0, 40)
+toggleEspBtn.Position = UDim2.new(0, 10, 0, 100)
 toggleEspBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 toggleEspBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleEspBtn.TextSize = 15
@@ -343,7 +343,34 @@ toggleEspBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Hàm tìm model có tên là "Basic" trong Workspace
+-- Nút Auto Boss (Thêm mới)
+local toggleBossBtn = Instance.new("TextButton")
+toggleBossBtn.Name = "ToggleBossBtn"
+toggleBossBtn.Size = UDim2.new(0, 160, 0, 40)
+toggleBossBtn.Position = UDim2.new(0, 10, 0, 145)
+toggleBossBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleBossBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBossBtn.TextSize = 15
+toggleBossBtn.Font = Enum.Font.SourceSansBold
+toggleBossBtn.Text = "Auto Boss: OFF"
+toggleBossBtn.Parent = mainFrame
+
+local uiCornerBoss = Instance.new("UICorner")
+uiCornerBoss.CornerRadius = UDim.new(0, 8)
+uiCornerBoss.Parent = toggleBossBtn
+
+toggleBossBtn.MouseButton1Click:Connect(function()
+    _G.AutoBossActive = not _G.AutoBossActive
+    if _G.AutoBossActive then
+        toggleBossBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggleBossBtn.Text = "Auto Boss: ON"
+    else
+        toggleBossBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleBossBtn.Text = "Auto Boss: OFF"
+    end
+end)
+
+-- Hàm tìm model có tên là "Basic" trong Workspace (Giữ nguyên bản gốc)
 function GetBasicTarget()
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("Model") and string.lower(v.Name) == "basic" then
@@ -356,7 +383,40 @@ function GetBasicTarget()
     return nil
 end
 
--- Hàm kiểm tra tối giản cho ESP Mobs
+-- Hàm tìm Boss Zeus
+function GetZeusBossTarget()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if (v:IsA("Model") or v:IsA("BasePart")) and string.find(string.lower(v.Name), "zeusboss") then
+            local targetPart = nil
+            if v:IsA("Model") then
+                targetPart = v.PrimaryPart or v:FindFirstChild("HumanoidRootPart") or v:FindFirstChildWhichIsA("BasePart")
+            elseif v:IsA("BasePart") then
+                targetPart = v
+            end
+            if targetPart then
+                local humanoid = v:IsA("Model") and v:FindFirstChildOfClass("Humanoid") or nil
+                if not humanoid or humanoid.Health > 0 then
+                    return targetPart
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Hàm tìm nút Battle linh hoạt bằng cách quét PlayerGui
+function FindBattleButton()
+    for _, gui in pairs(playerGui:GetDescendants()) do
+        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and string.lower(gui.Name) == "battle" then
+            if gui.Visible and gui.AbsoluteSize.X > 0 then
+                return gui
+            end
+        end
+    end
+    return nil
+end
+
+-- Hàm kiểm tra tối giản cho ESP Mobs (Giữ nguyên bản gốc)
 function IsValidMob(model)
     if not model:IsA("Model") then return false end
     if model == LocalPlayer.Character then return false end
@@ -373,7 +433,7 @@ function IsValidMob(model)
     return true
 end
 
--- Hàm tìm part Lever tiếp theo
+-- Hàm tìm part Lever tiếp theo (Giữ nguyên bản gốc)
 function GetNextLeverPart(lastPart)
     local partsList = {}
     local playerName = string.lower(LocalPlayer.Name)
@@ -458,10 +518,9 @@ function GetNextLeverPart(lastPart)
     return nil
 end
 
--- Hàm tự động kích hoạt tất cả nút ở gần ngoại trừ nút chứa chữ "Select"
+-- Hàm tự động kích hoạt tất cả nút ở gần ngoại trừ nút chứa chữ "Select" (Giữ nguyên bản gốc)
 function TriggerLeverAction(targetPart)
     pcall(function()
-        -- 1. Xử lý toàn bộ ProximityPrompt ở gần mục tiêu, bỏ qua nếu chứa chữ "select"
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("ProximityPrompt") then
                 local parent = obj.Parent
@@ -478,7 +537,6 @@ function TriggerLeverAction(targetPart)
             end
         end
 
-        -- 2. Xử lý RemoteEvent liên quan, bỏ qua nếu tên chứa chữ "select"
         for _, descendant in pairs(ReplicatedStorage:GetDescendants()) do
             if descendant:IsA("RemoteEvent") then
                 local name = string.lower(descendant.Name)
@@ -513,7 +571,7 @@ function GetRootPartToMove()
     return rootPart, character
 end
 
--- Hàm di chuyển bám sát mặt đất liên tục mượt mà
+-- Hàm di chuyển bám sát mặt đất liên tục mượt mà (Giữ nguyên bản gốc)
 function SmoothFlyToTarget(targetPart)
     if not targetPart or not targetPart.Parent then return end
     
@@ -614,7 +672,60 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Vòng lặp chính xử lý Auto Farm liên tục không ngừng nghỉ bám sát mục tiêu và mặt đất
+-- Vòng lặp chính xử lý Auto Boss riêng biệt, giữ nguyên trọn vẹn vòng lặp Auto Farm và Auto Lever Roll ban đầu
+task.spawn(function()
+    local circleAngle = 0
+    while true do
+        -- 1. Xử lý Auto Boss (Độc lập, không ảnh hưởng các tính năng khác)
+        if _G.AutoBossActive then
+            pcall(function()
+                local targetButton = FindBattleButton()
+                local bossPart = GetZeusBossTarget()
+                
+                if targetButton then
+                    for _, conn in pairs(getconnections(targetButton.Activated)) do conn:Fire() end
+                    for _, conn in pairs(getconnections(targetButton.MouseButton1Click)) do conn:Fire() end
+                    if firesignal then
+                        pcall(function() firesignal(targetButton.Activated) end)
+                        pcall(function() firesignal(targetButton.MouseButton1Click) end)
+                    end
+                end
+                
+                if bossPart and bossPart.Parent then
+                    local currentRoot, moveModel = GetRootPartToMove()
+                    if currentRoot then
+                        circleAngle = circleAngle + 0.08 
+                        local radius = 25 
+                        local offsetX = math.cos(circleAngle) * radius
+                        local offsetZ = math.sin(circleAngle) * radius
+                        
+                        local bossPos = bossPart.Position
+                        local desiredPos = bossPos + Vector3.new(offsetX, 5, offsetZ)
+                        
+                        local distance = (desiredPos - currentRoot.Position).Magnitude
+                        if distance > 1 then
+                            local speed = 25 
+                            local timeTaken = distance / speed
+                            local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                            local tween
+                            
+                            if moveModel:IsA("Model") and moveModel.PrimaryPart then
+                                tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
+                            else
+                                tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
+                            end
+                            tween:Play()
+                            task.wait(math.min(timeTaken, 0.1))
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.05)
+    end
+end)
+
+-- Vòng lặp chính xử lý Auto Farm và Auto Lever Roll (Giữ nguyên 100% logic gốc của bạn)
 task.spawn(function()
     local lastVisitedPart = nil
     while true do
