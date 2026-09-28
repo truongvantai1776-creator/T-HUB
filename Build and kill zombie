@@ -10,8 +10,13 @@ _G.AutoFarmActive = false
 _G.AutoRollActive = false 
 _G.EspMobsActive = false
 _G.AutoBossActive = false
+_G.AntiAfkActive = false
+_G.SelectedAutoFarmTarget = "Basic" -- Mặc định là Basic
 
--- Giao diện nút bấm
+-- Biến lưu trạng thái Auto Roll trước khi chết
+local rollWasActiveBeforeDeath = false
+
+-- Giao diện nút bấm (Mở rộng chiều cao khung chính)
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 if playerGui:FindFirstChild("AutoFarmGui") then
     playerGui.AutoFarmGui:Destroy()
@@ -22,10 +27,9 @@ screenGui.Name = "AutoFarmGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Khung chứa các nút chức năng (Mở rộng chiều cao để chứa nút Auto Boss)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 180, 0, 330)
+mainFrame.Size = UDim2.new(0, 180, 0, 380)
 mainFrame.Position = UDim2.new(0, 40, 0, 40)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.2
@@ -36,7 +40,6 @@ local mainFrameCorner = Instance.new("UICorner")
 mainFrameCorner.CornerRadius = UDim.new(0, 10)
 mainFrameCorner.Parent = mainFrame
 
--- Viền hiệu ứng rực rỡ (UIStroke cho MainFrame)
 local mainStroke = Instance.new("UIStroke")
 mainStroke.Thickness = 2
 mainStroke.Parent = mainFrame
@@ -76,7 +79,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Nút mở/tắt UI (Chữ T) có thể kéo thả di chuyển linh hoạt
+-- Nút mở/tắt UI (Chữ T)
 local toggleUiBtn = Instance.new("TextButton")
 toggleUiBtn.Name = "ToggleUiBtn"
 toggleUiBtn.Size = UDim2.new(0, 45, 0, 45)
@@ -96,7 +99,6 @@ local toggleStroke = Instance.new("UIStroke")
 toggleStroke.Thickness = 2
 toggleStroke.Parent = toggleUiBtn
 
--- Kéo thả cho nút Toggle (Chữ T)
 local tDragging, tDragInput, tDragStart, tStartPos
 toggleUiBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -136,7 +138,6 @@ toggleUiBtn.MouseButton1Click:Connect(function()
     mainFrame.Visible = uiVisible
 end)
 
--- Hiệu ứng đổi màu rực rỡ (RGB Color Cycle) cho viền và chữ T HUB
 RunService.RenderStepped:Connect(function()
     local hue = (tick() % 5) / 5
     local rainbowColor = Color3.fromHSV(hue, 1, 1)
@@ -144,10 +145,9 @@ RunService.RenderStepped:Connect(function()
     toggleStroke.Color = rainbowColor
 end)
 
--- Dòng chữ "được tạo bởi T HUB" ở dưới menu
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(0, 160, 0, 20)
-creditLabel.Position = UDim2.new(0, 10, 0, 305)
+creditLabel.Position = UDim2.new(0, 10, 0, 355)
 creditLabel.BackgroundTransparency = 1
 creditLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 creditLabel.TextSize = 11
@@ -155,7 +155,6 @@ creditLabel.Font = Enum.Font.SourceSansItalic
 creditLabel.Text = "được tạo bởi T HUB"
 creditLabel.Parent = mainFrame
 
--- Hiệu ứng màu sắc cho chữ T HUB chạy liên tục
 task.spawn(function()
     while true do
         for i = 0, 1, 0.01 do
@@ -165,7 +164,6 @@ task.spawn(function()
     end
 end)
 
--- Hàm giả lập nhấn phím
 local function PressKey(keyCode)
     pcall(function()
         VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
@@ -174,7 +172,38 @@ local function PressKey(keyCode)
     end)
 end
 
--- Hàm thực thi chuỗi: Nhấn F -> Đợi 1s -> Nhấn F -> Đợi 1s -> Nhấn F (Giữ nguyên bản gốc)
+-- Vòng lặp tự động giữ nút W khi Auto Farm bật (nhịp 3s giữ, 1s nghỉ)
+task.spawn(function()
+    while true do
+        if _G.AutoFarmActive then
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+            end)
+            
+            local elapsed = 0
+            while elapsed < 3 and _G.AutoFarmActive do
+                task.wait(0.1)
+                elapsed = elapsed + 0.1
+            end
+            
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+            end)
+            
+            local restTime = 0
+            while restTime < 1 and _G.AutoFarmActive do
+                task.wait(0.1)
+                restTime = restTime + 1
+            end
+        else
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+            end)
+            task.wait(0.2)
+        end
+    end
+end)
+
 local function RunFarmKeySequence()
     while _G.AutoFarmActive do
         for i = 1, 3 do
@@ -191,11 +220,11 @@ end
 -- Nút Auto Farm
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Name = "ToggleBtn"
-toggleBtn.Size = UDim2.new(0, 160, 0, 40)
+toggleBtn.Size = UDim2.new(0, 120, 0, 40)
 toggleBtn.Position = UDim2.new(0, 10, 0, 10)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 15
+toggleBtn.TextSize = 13
 toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.Text = "Auto Farm: OFF"
 toggleBtn.Parent = mainFrame
@@ -203,6 +232,81 @@ toggleBtn.Parent = mainFrame
 local uiCorner1 = Instance.new("UICorner")
 uiCorner1.CornerRadius = UDim.new(0, 8)
 uiCorner1.Parent = toggleBtn
+
+-- Nút dấu + cạnh Auto Farm để mở menu chọn mục tiêu
+local plusBtn = Instance.new("TextButton")
+plusBtn.Name = "PlusBtn"
+plusBtn.Size = UDim2.new(0, 35, 0, 40)
+plusBtn.Position = UDim2.new(0, 135, 0, 10)
+plusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+plusBtn.TextSize = 18
+plusBtn.Font = Enum.Font.SourceSansBold
+plusBtn.Text = "+"
+plusBtn.Parent = mainFrame
+
+local plusCorner = Instance.new("UICorner")
+plusCorner.CornerRadius = UDim.new(0, 8)
+plusCorner.Parent = plusBtn
+
+-- Khung chứa danh sách lựa chọn (SubMenu)
+local subMenuFrame = Instance.new("Frame")
+subMenuFrame.Name = "SubMenuFrame"
+subMenuFrame.Size = UDim2.new(0, 140, 0, 210)
+subMenuFrame.Position = UDim2.new(1, 5, 0, 0)
+subMenuFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+subMenuFrame.BackgroundTransparency = 0.1
+subMenuFrame.BorderSizePixel = 0
+subMenuFrame.Visible = false
+subMenuFrame.Parent = plusBtn
+
+local subMenuCorner = Instance.new("UICorner")
+subMenuCorner.CornerRadius = UDim.new(0, 8)
+subMenuCorner.Parent = subMenuFrame
+
+plusBtn.MouseButton1Click:Connect(function()
+    subMenuFrame.Visible = not subMenuFrame.Visible
+end)
+
+local buttonNames = {
+    {DisplayName = "Basic", TargetName = "Basic"},
+    {DisplayName = "City", TargetName = "Worker"},
+    {DisplayName = "River", TargetName = "TribeLeader"},
+    {DisplayName = "Mining", TargetName = "Crystal"},
+    {DisplayName = "Aqua", TargetName = "Moss"}
+}
+
+local optionButtons = {}
+
+for i, info in ipairs(buttonNames) do
+    local optBtn = Instance.new("TextButton")
+    optBtn.Size = UDim2.new(0, 120, 0, 32)
+    optBtn.Position = UDim2.new(0, 10, 0, 8 + (i - 1) * 38)
+    optBtn.BackgroundColor3 = (_G.SelectedAutoFarmTarget == info.TargetName) and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(80, 80, 80)
+    optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    optBtn.TextSize = 13
+    optBtn.Font = Enum.Font.SourceSansBold
+    optBtn.Text = info.DisplayName
+    optBtn.Parent = subMenuFrame
+
+    local optCorner = Instance.new("UICorner")
+    optCorner.CornerRadius = UDim.new(0, 6)
+    optCorner.Parent = optBtn
+
+    optionButtons[info.TargetName] = optBtn
+
+    optBtn.MouseButton1Click:Connect(function()
+        _G.SelectedAutoFarmTarget = info.TargetName
+        for name, btn in pairs(optionButtons) do
+            if name == _G.SelectedAutoFarmTarget then
+                btn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            else
+                btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            end
+        end
+        subMenuFrame.Visible = false
+    end)
+end
 
 toggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmActive = not _G.AutoFarmActive
@@ -223,7 +327,6 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Theo dõi sự kiện Chết, Hồi sinh và Bị dịch chuyển xa đột ngột để chạy lại chuỗi phím F (Giữ nguyên bản gốc)
 local lastPosition = nil
 
 local function MonitorTeleportAndDeath(character)
@@ -236,6 +339,10 @@ local function MonitorTeleportAndDeath(character)
 
     if humanoid then
         humanoid.Died:Connect(function()
+            if _G.AutoRollActive then
+                rollWasActiveBeforeDeath = true
+            end
+
             if _G.AutoFarmActive then
                 task.spawn(function()
                     LocalPlayer.CharacterAdded:Wait()
@@ -251,33 +358,26 @@ end
 
 LocalPlayer.CharacterAdded:Connect(function(character)
     MonitorTeleportAndDeath(character)
+    
+    if rollWasActiveBeforeDeath then
+        task.spawn(function()
+            task.wait(1) 
+            _G.AutoRollActive = true
+            local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
+            if rollBtnUI then
+                rollBtnUI.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+                rollBtnUI.Text = "Auto Lever Roll: ON"
+            end
+            rollWasActiveBeforeDeath = false
+        end)
+    end
 end)
 
 if LocalPlayer.Character then
     MonitorTeleportAndDeath(LocalPlayer.Character)
 end
 
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if _G.AutoFarmActive and LocalPlayer.Character then
-            local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            
-            if rootPart and humanoid and humanoid.Health > 0 then
-                if lastPosition then
-                    local distanceMoved = (rootPart.Position - lastPosition).Magnitude
-                    if distanceMoved > 150 then
-                        task.spawn(RunFarmKeySequence)
-                    end
-                end
-                lastPosition = rootPart.Position
-            end
-        end
-    end
-end)
-
--- Nút Auto Lever Roll (Bay đến Lever)
+-- Nút Auto Lever Roll
 local toggleRollBtn = Instance.new("TextButton")
 toggleRollBtn.Name = "ToggleRollBtn"
 toggleRollBtn.Size = UDim2.new(0, 160, 0, 40)
@@ -296,6 +396,13 @@ uiCorner2.Parent = toggleRollBtn
 toggleRollBtn.MouseButton1Click:Connect(function()
     _G.AutoRollActive = not _G.AutoRollActive
     if _G.AutoRollActive then
+        _G.AutoBossActive = false
+        local bossBtnUI = mainFrame:FindFirstChild("ToggleBossBtn")
+        if bossBtnUI then
+            bossBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            bossBtnUI.Text = "Auto Boss: OFF"
+        end
+
         _G.AutoFarmActive = false 
         local farmBtnUI = mainFrame:FindFirstChild("ToggleBtn")
         if farmBtnUI then
@@ -305,12 +412,17 @@ toggleRollBtn.MouseButton1Click:Connect(function()
         toggleRollBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
         toggleRollBtn.Text = "Auto Lever Roll: ON"
         
-        pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
-            end
+        rollWasActiveBeforeDeath = true
+        task.spawn(function()
+            task.wait(0.2)
+            pcall(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                    LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
+                end
+            end)
         end)
     else
+        rollWasActiveBeforeDeath = false
         toggleRollBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         toggleRollBtn.Text = "Auto Lever Roll: OFF"
     end
@@ -343,7 +455,7 @@ toggleEspBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Nút Auto Boss (Thêm mới)
+-- Nút Auto Boss
 local toggleBossBtn = Instance.new("TextButton")
 toggleBossBtn.Name = "ToggleBossBtn"
 toggleBossBtn.Size = UDim2.new(0, 160, 0, 40)
@@ -362,6 +474,14 @@ uiCornerBoss.Parent = toggleBossBtn
 toggleBossBtn.MouseButton1Click:Connect(function()
     _G.AutoBossActive = not _G.AutoBossActive
     if _G.AutoBossActive then
+        _G.AutoRollActive = false
+        rollWasActiveBeforeDeath = false
+        local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
+        if rollBtnUI then
+            rollBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            rollBtnUI.Text = "Auto Lever Roll: OFF"
+        end
+
         toggleBossBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
         toggleBossBtn.Text = "Auto Boss: ON"
     else
@@ -370,10 +490,65 @@ toggleBossBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Hàm tìm model có tên là "Basic" trong Workspace (Giữ nguyên bản gốc)
-function GetBasicTarget()
+-- Nút Anti AFK
+local toggleAntiAfkBtn = Instance.new("TextButton")
+toggleAntiAfkBtn.Name = "ToggleAntiAfkBtn"
+toggleAntiAfkBtn.Size = UDim2.new(0, 160, 0, 40)
+toggleAntiAfkBtn.Position = UDim2.new(0, 10, 0, 190)
+toggleAntiAfkBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleAntiAfkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleAntiAfkBtn.TextSize = 15
+toggleAntiAfkBtn.Font = Enum.Font.SourceSansBold
+toggleAntiAfkBtn.Text = "Anti AFK: OFF"
+toggleAntiAfkBtn.Parent = mainFrame
+
+local uiCornerAntiAfk = Instance.new("UICorner")
+uiCornerAntiAfk.CornerRadius = UDim.new(0, 8)
+uiCornerAntiAfk.Parent = toggleAntiAfkBtn
+
+toggleAntiAfkBtn.MouseButton1Click:Connect(function()
+    _G.AntiAfkActive = not _G.AntiAfkActive
+    if _G.AntiAfkActive then
+        toggleAntiAfkBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggleAntiAfkBtn.Text = "Anti AFK: ON"
+    else
+        toggleAntiAfkBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleAntiAfkBtn.Text = "Anti AFK: OFF"
+    end
+end)
+
+-- Vòng lặp Anti AFK
+task.spawn(function()
+    while true do
+        if _G.AntiAfkActive then
+            local waitTime = 0
+            while waitTime < 900 and _G.AntiAfkActive do
+                task.wait(1)
+                waitTime = waitTime + 1
+            end
+            
+            if _G.AntiAfkActive then
+                for i = 1, 5 do
+                    if not _G.AntiAfkActive then break end
+                    pcall(function()
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
+                        task.wait(1)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
+                    end)
+                    if i < 5 then
+                        task.wait(0.5)
+                    end
+                end
+            end
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+function GetSelectedAutoFarmTargetPart()
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Model") and string.lower(v.Name) == "basic" then
+        if v:IsA("Model") and string.lower(v.Name) == string.lower(_G.SelectedAutoFarmTarget) then
             local targetPart = v.PrimaryPart or v:FindFirstChildWhichIsA("BasePart")
             if targetPart then
                 return targetPart
@@ -383,7 +558,6 @@ function GetBasicTarget()
     return nil
 end
 
--- Hàm tìm Boss Zeus
 function GetZeusBossTarget()
     for _, v in pairs(workspace:GetDescendants()) do
         if (v:IsA("Model") or v:IsA("BasePart")) and string.find(string.lower(v.Name), "zeusboss") then
@@ -404,7 +578,6 @@ function GetZeusBossTarget()
     return nil
 end
 
--- Hàm tìm nút Battle linh hoạt bằng cách quét PlayerGui
 function FindBattleButton()
     for _, gui in pairs(playerGui:GetDescendants()) do
         if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and string.lower(gui.Name) == "battle" then
@@ -416,7 +589,6 @@ function FindBattleButton()
     return nil
 end
 
--- Hàm kiểm tra tối giản cho ESP Mobs (Giữ nguyên bản gốc)
 function IsValidMob(model)
     if not model:IsA("Model") then return false end
     if model == LocalPlayer.Character then return false end
@@ -433,7 +605,6 @@ function IsValidMob(model)
     return true
 end
 
--- Hàm tìm part Lever tiếp theo (Giữ nguyên bản gốc)
 function GetNextLeverPart(lastPart)
     local partsList = {}
     local playerName = string.lower(LocalPlayer.Name)
@@ -518,7 +689,6 @@ function GetNextLeverPart(lastPart)
     return nil
 end
 
--- Hàm tự động kích hoạt tất cả nút ở gần ngoại trừ nút chứa chữ "Select" (Giữ nguyên bản gốc)
 function TriggerLeverAction(targetPart)
     pcall(function()
         for _, obj in pairs(workspace:GetDescendants()) do
@@ -571,7 +741,6 @@ function GetRootPartToMove()
     return rootPart, character
 end
 
--- Hàm di chuyển bám sát mặt đất liên tục mượt mà (Giữ nguyên bản gốc)
 function SmoothFlyToTarget(targetPart)
     if not targetPart or not targetPart.Parent then return end
     
@@ -618,6 +787,7 @@ function SmoothFlyToTarget(targetPart)
     if connection then connection:Disconnect() end
 end
 
+-- Vòng lặp xử lý ESP Mobs
 RunService.RenderStepped:Connect(function()
     for _, v in pairs(workspace:GetDescendants()) do
         if IsValidMob(v) then
@@ -672,69 +842,147 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Vòng lặp chính xử lý Auto Boss riêng biệt, giữ nguyên trọn vẹn vòng lặp Auto Farm và Auto Lever Roll ban đầu
+-- Vòng lặp xử lý Auto Boss
 task.spawn(function()
     local circleAngle = 0
+    local rollWasOnBeforeBattle = false
+    local bossHandlingActive = false
+    
     while true do
-        -- 1. Xử lý Auto Boss (Độc lập, không ảnh hưởng các tính năng khác)
         if _G.AutoBossActive then
             pcall(function()
                 local targetButton = FindBattleButton()
                 local bossPart = GetZeusBossTarget()
                 
-                if targetButton then
-                    for _, conn in pairs(getconnections(targetButton.Activated)) do conn:Fire() end
-                    for _, conn in pairs(getconnections(targetButton.MouseButton1Click)) do conn:Fire() end
-                    if firesignal then
-                        pcall(function() firesignal(targetButton.Activated) end)
-                        pcall(function() firesignal(targetButton.MouseButton1Click) end)
-                    end
-                end
-                
-                if bossPart and bossPart.Parent then
-                    local currentRoot, moveModel = GetRootPartToMove()
-                    if currentRoot then
-                        circleAngle = circleAngle + 0.08 
-                        local radius = 28 
-                        local offsetX = math.cos(circleAngle) * radius
-                        local offsetZ = math.sin(circleAngle) * radius
-                        
-                        local bossPos = bossPart.Position
-                        local desiredPos = bossPos + Vector3.new(offsetX, 5, offsetZ)
-                        
-                        local distance = (desiredPos - currentRoot.Position).Magnitude
-                        if distance > 1 then
-                            local speed = 25 
-                            local timeTaken = distance / speed
-                            local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                            local tween
-                            
-                            if moveModel:IsA("Model") and moveModel.PrimaryPart then
-                                tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
-                            else
-                                tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
+                if targetButton or bossPart then
+                    if targetButton and not bossHandlingActive then
+                        bossHandlingActive = true
+                        if _G.AutoRollActive then
+                            rollWasOnBeforeBattle = true
+                            _G.AutoRollActive = false
+                            local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
+                            if rollBtnUI then
+                                rollBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                                rollBtnUI.Text = "Auto Lever Roll: OFF"
                             end
-                            tween:Play()
-                            task.wait(math.min(timeTaken, 0.1))
                         end
+                    end
+                    
+                    if targetButton then
+                        for _, conn in pairs(getconnections(targetButton.Activated)) do conn:Fire() end
+                        for _, conn in pairs(getconnections(targetButton.MouseButton1Click)) do conn:Fire() end
+                        if firesignal then
+                            pcall(function() firesignal(targetButton.Activated) end)
+                            pcall(function() firesignal(targetButton.MouseButton1Click) end)
+                        end
+                    end
+                    
+                    if bossPart and bossPart.Parent then
+                        local currentRoot, moveModel = GetRootPartToMove()
+                        if currentRoot then
+                            circleAngle = circleAngle + 0.08 
+                            local radius = 28 
+                            local offsetX = math.cos(circleAngle) * radius
+                            local offsetZ = math.sin(circleAngle) * radius
+                            
+                            local bossPos = bossPart.Position
+                            local desiredPos = bossPos + Vector3.new(offsetX, 5, offsetZ)
+                            
+                            local distance = (desiredPos - currentRoot.Position).Magnitude
+                            if distance > 1 then
+                                local speed = 25 
+                                local timeTaken = distance / speed
+                                local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                                local tween
+                                
+                                if moveModel:IsA("Model") and moveModel.PrimaryPart then
+                                    tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
+                                else
+                                    tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
+                                end
+                                tween:Play()
+                                task.wait(math.min(timeTaken, 0.1))
+                            end
+                        end
+                    end
+                else
+                    if bossHandlingActive then
+                        bossHandlingActive = false
+                        if rollWasOnBeforeBattle then
+                            task.wait(2)
+                            if _G.AutoBossActive then
+                                _G.AutoRollActive = true
+                                local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
+                                if rollBtnUI then
+                                    rollBtnUI.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+                                    rollBtnUI.Text = "Auto Lever Roll: ON"
+                                end
+                            end
+                            rollWasOnBeforeBattle = false
+                        end
+                    elseif _G.AutoRollActive then
+                        task.wait(0.2)
                     end
                 end
             end)
+        else
+            bossHandlingActive = false
+            rollWasOnBeforeBattle = false
         end
         task.wait(0.05)
     end
 end)
 
--- Vòng lặp chính xử lý Auto Farm và Auto Lever Roll (Giữ nguyên 100% logic gốc của bạn)
+-- Vòng lặp chính xử lý Auto Farm, Giữ nút W bay thẳng bám sát đất, và Auto Lever Roll
 task.spawn(function()
     local lastVisitedPart = nil
     while true do
         if _G.AutoFarmActive then
-            local targetPart = GetBasicTarget()
-            if targetPart then
-                SmoothFlyToTarget(targetPart)
+            -- Kiểm tra nếu người chơi đang GIỮ nút W
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                local currentRoot, moveModel = GetRootPartToMove()
+                if currentRoot then
+                    -- Lặp liên tục bay thẳng về phía trước và bám sát mặt đất cho đến khi tìm thấy quái hoặc nhả nút W
+                    while UserInputService:IsKeyDown(Enum.KeyCode.W) and _G.AutoFarmActive do
+                        local targetPart = GetSelectedAutoFarmTargetPart()
+                        -- Nếu tìm thấy quái mới thì thoát khỏi chế độ bay thẳng để chuyển sang mục tiêu quái
+                        if targetPart then
+                            break
+                        end
+
+                        pcall(function()
+                            local lookVector = currentRoot.CFrame.LookVector
+                            local forwardPos = currentRoot.Position + (Vector3.new(lookVector.X, 0, lookVector.Z).Unit * 5)
+                            
+                            local raycastParams = RaycastParams.new()
+                            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+                            
+                            local groundRay = workspace:Raycast(forwardPos + Vector3.new(0, 50, 0), Vector3.new(0, -100, 0), raycastParams)
+                            local targetY = forwardPos.Y
+                            if groundRay then
+                                targetY = groundRay.Position.Y + 3 -- Giữ bám sát mặt đất 3 studs
+                            end
+                            
+                            local nextPos = Vector3.new(forwardPos.X, targetY, forwardPos.Z)
+                            local newCFrame = CFrame.new(nextPos, nextPos + Vector3.new(lookVector.X, 0, lookVector.Z))
+                            
+                            if moveModel:IsA("Model") and moveModel.PrimaryPart then
+                                moveModel:SetPrimaryPartCFrame(newCFrame)
+                            else
+                                currentRoot.CFrame = newCFrame
+                            end
+                        end)
+                        RunService.RenderStepped:Wait()
+                    end
+                end
             else
-                task.wait(0.1)
+                local targetPart = GetSelectedAutoFarmTargetPart()
+                if targetPart then
+                    SmoothFlyToTarget(targetPart)
+                else
+                    task.wait(0.1)
+                end
             end
         elseif _G.AutoRollActive then
             local character = LocalPlayer.Character
