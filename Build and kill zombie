@@ -11,12 +11,13 @@ _G.AutoRollActive = false
 _G.EspMobsActive = false
 _G.AutoBossActive = false
 _G.AntiAfkActive = false
-_G.SelectedAutoFarmTarget = "Basic" -- Mặc định là Basic
+_G.SelectedAutoFarmTarget = "Basic" 
+_G.InfiniteFlyActive = false 
+_G.LockedLookVector = nil 
 
--- Biến lưu trạng thái Auto Roll trước khi chết
-local rollWasActiveBeforeDeath = false
+_G.BasicFarmSpeed = 80  
+_G.InfiniteFlySpeed = 80 
 
--- Giao diện nút bấm (Mở rộng chiều cao khung chính)
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 if playerGui:FindFirstChild("AutoFarmGui") then
     playerGui.AutoFarmGui:Destroy()
@@ -29,7 +30,7 @@ screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 180, 0, 380)
+mainFrame.Size = UDim2.new(0, 160, 0, 310)
 mainFrame.Position = UDim2.new(0, 40, 0, 40)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.2
@@ -37,14 +38,13 @@ mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
 local mainFrameCorner = Instance.new("UICorner")
-mainFrameCorner.CornerRadius = UDim.new(0, 10)
+mainFrameCorner.CornerRadius = UDim.new(0, 8)
 mainFrameCorner.Parent = mainFrame
 
 local mainStroke = Instance.new("UIStroke")
 mainStroke.Thickness = 2
 mainStroke.Parent = mainFrame
 
--- Thêm tính năng kéo thả (Draggable UI) cho MainFrame
 local dragging, dragInput, dragStart, startPos
 
 mainFrame.InputBegan:Connect(function(input)
@@ -79,20 +79,19 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Nút mở/tắt UI (Chữ T)
 local toggleUiBtn = Instance.new("TextButton")
 toggleUiBtn.Name = "ToggleUiBtn"
-toggleUiBtn.Size = UDim2.new(0, 45, 0, 45)
+toggleUiBtn.Size = UDim2.new(0, 35, 0, 35)
 toggleUiBtn.Position = UDim2.new(0, 40, 0, 0)
 toggleUiBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 toggleUiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleUiBtn.TextSize = 20
+toggleUiBtn.TextSize = 16
 toggleUiBtn.Font = Enum.Font.SourceSansBold
 toggleUiBtn.Text = "T"
 toggleUiBtn.Parent = screenGui
 
 local uiCornerToggle = Instance.new("UICorner")
-uiCornerToggle.CornerRadius = UDim.new(0, 10)
+uiCornerToggle.CornerRadius = UDim.new(0, 8)
 uiCornerToggle.Parent = toggleUiBtn
 
 local toggleStroke = Instance.new("UIStroke")
@@ -146,11 +145,11 @@ RunService.RenderStepped:Connect(function()
 end)
 
 local creditLabel = Instance.new("TextLabel")
-creditLabel.Size = UDim2.new(0, 160, 0, 20)
-creditLabel.Position = UDim2.new(0, 10, 0, 355)
+creditLabel.Size = UDim2.new(0, 140, 0, 15)
+creditLabel.Position = UDim2.new(0, 10, 0, 290)
 creditLabel.BackgroundTransparency = 1
 creditLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-creditLabel.TextSize = 11
+creditLabel.TextSize = 10
 creditLabel.Font = Enum.Font.SourceSansItalic
 creditLabel.Text = "được tạo bởi T HUB"
 creditLabel.Parent = mainFrame
@@ -164,95 +163,39 @@ task.spawn(function()
     end
 end)
 
-local function PressKey(keyCode)
-    pcall(function()
-        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-        task.wait(0.05)
-        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
-    end)
-end
-
--- Vòng lặp tự động giữ nút W khi Auto Farm bật (nhịp 3s giữ, 1s nghỉ)
-task.spawn(function()
-    while true do
-        if _G.AutoFarmActive then
-            pcall(function()
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
-            end)
-            
-            local elapsed = 0
-            while elapsed < 3 and _G.AutoFarmActive do
-                task.wait(0.1)
-                elapsed = elapsed + 0.1
-            end
-            
-            pcall(function()
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-            end)
-            
-            local restTime = 0
-            while restTime < 1 and _G.AutoFarmActive do
-                task.wait(0.1)
-                restTime = restTime + 1
-            end
-        else
-            pcall(function()
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-            end)
-            task.wait(0.2)
-        end
-    end
-end)
-
-local function RunFarmKeySequence()
-    while _G.AutoFarmActive do
-        for i = 1, 3 do
-            if not _G.AutoFarmActive then break end
-            PressKey(Enum.KeyCode.F)
-            if i < 3 then
-                task.wait(1)
-            end
-        end
-        break 
-    end
-end
-
--- Nút Auto Farm
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Name = "ToggleBtn"
-toggleBtn.Size = UDim2.new(0, 120, 0, 40)
-toggleBtn.Position = UDim2.new(0, 10, 0, 10)
+toggleBtn.Size = UDim2.new(0, 100, 0, 32)
+toggleBtn.Position = UDim2.new(0, 8, 0, 8)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 13
+toggleBtn.TextSize = 11
 toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.Text = "Auto Farm: OFF"
 toggleBtn.Parent = mainFrame
 
 local uiCorner1 = Instance.new("UICorner")
-uiCorner1.CornerRadius = UDim.new(0, 8)
+uiCorner1.CornerRadius = UDim.new(0, 6)
 uiCorner1.Parent = toggleBtn
 
--- Nút dấu + cạnh Auto Farm để mở menu chọn mục tiêu
 local plusBtn = Instance.new("TextButton")
 plusBtn.Name = "PlusBtn"
-plusBtn.Size = UDim2.new(0, 35, 0, 40)
-plusBtn.Position = UDim2.new(0, 135, 0, 10)
+plusBtn.Size = UDim2.new(0, 32, 0, 32)
+plusBtn.Position = UDim2.new(0, 112, 0, 8)
 plusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-plusBtn.TextSize = 18
+plusBtn.TextSize = 16
 plusBtn.Font = Enum.Font.SourceSansBold
 plusBtn.Text = "+"
 plusBtn.Parent = mainFrame
 
 local plusCorner = Instance.new("UICorner")
-plusCorner.CornerRadius = UDim.new(0, 8)
+plusCorner.CornerRadius = UDim.new(0, 6)
 plusCorner.Parent = plusBtn
 
--- Khung chứa danh sách lựa chọn (SubMenu)
 local subMenuFrame = Instance.new("Frame")
 subMenuFrame.Name = "SubMenuFrame"
-subMenuFrame.Size = UDim2.new(0, 140, 0, 210)
+subMenuFrame.Size = UDim2.new(0, 140, 0, 195)
 subMenuFrame.Position = UDim2.new(1, 5, 0, 0)
 subMenuFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 subMenuFrame.BackgroundTransparency = 0.1
@@ -261,56 +204,171 @@ subMenuFrame.Visible = false
 subMenuFrame.Parent = plusBtn
 
 local subMenuCorner = Instance.new("UICorner")
-subMenuCorner.CornerRadius = UDim.new(0, 8)
+subMenuCorner.CornerRadius = UDim.new(0, 6)
 subMenuCorner.Parent = subMenuFrame
 
 plusBtn.MouseButton1Click:Connect(function()
     subMenuFrame.Visible = not subMenuFrame.Visible
 end)
 
-local buttonNames = {
-    {DisplayName = "Basic", TargetName = "Basic"},
-    {DisplayName = "City", TargetName = "Worker"},
-    {DisplayName = "River", TargetName = "TribeLeader"},
-    {DisplayName = "Mining", TargetName = "Crystal"},
-    {DisplayName = "Aqua", TargetName = "Moss"}
-}
-
 local optionButtons = {}
+local farmWasActiveBeforeModeChange = false
 
-for i, info in ipairs(buttonNames) do
-    local optBtn = Instance.new("TextButton")
-    optBtn.Size = UDim2.new(0, 120, 0, 32)
-    optBtn.Position = UDim2.new(0, 10, 0, 8 + (i - 1) * 38)
-    optBtn.BackgroundColor3 = (_G.SelectedAutoFarmTarget == info.TargetName) and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(80, 80, 80)
-    optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    optBtn.TextSize = 13
-    optBtn.Font = Enum.Font.SourceSansBold
-    optBtn.Text = info.DisplayName
-    optBtn.Parent = subMenuFrame
+local function HandleModeSwitch(targetMode)
+    if _G.AutoFarmActive then
+        farmWasActiveBeforeModeChange = true
+        _G.AutoFarmActive = false
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleBtn.Text = "Auto Farm: OFF"
+    else
+        farmWasActiveBeforeModeChange = false
+    end
 
-    local optCorner = Instance.new("UICorner")
-    optCorner.CornerRadius = UDim.new(0, 6)
-    optCorner.Parent = optBtn
+    if targetMode == "Basic" then
+        _G.SelectedAutoFarmTarget = "Basic"
+        _G.InfiniteFlyActive = false
+        _G.LockedLookVector = nil
+        if optionButtons["Basic"] then optionButtons["Basic"].BackgroundColor3 = Color3.fromRGB(50, 200, 50) end
+        if optionButtons["Infinite"] then optionButtons["Infinite"].BackgroundColor3 = Color3.fromRGB(80, 80, 80) end
+    elseif targetMode == "Infinite" then
+        _G.SelectedAutoFarmTarget = "Infinite"
+        _G.InfiniteFlyActive = true
+        _G.LockedLookVector = nil
+        if optionButtons["Infinite"] then optionButtons["Infinite"].BackgroundColor3 = Color3.fromRGB(50, 200, 50) end
+        if optionButtons["Basic"] then optionButtons["Basic"].BackgroundColor3 = Color3.fromRGB(80, 80, 80) end
+    end
+    
+    subMenuFrame.Visible = false
 
-    optionButtons[info.TargetName] = optBtn
-
-    optBtn.MouseButton1Click:Connect(function()
-        _G.SelectedAutoFarmTarget = info.TargetName
-        for name, btn in pairs(optionButtons) do
-            if name == _G.SelectedAutoFarmTarget then
-                btn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-            else
-                btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    task.spawn(function()
+        pcall(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
             end
-        end
-        subMenuFrame.Visible = false
+        end)
     end)
 end
+
+local basicBtn = Instance.new("TextButton")
+basicBtn.Size = UDim2.new(0, 124, 0, 24)
+basicBtn.Position = UDim2.new(0, 8, 0, 8)
+basicBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+basicBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+basicBtn.TextSize = 11
+basicBtn.Font = Enum.Font.SourceSansBold
+basicBtn.Text = "Basic Mode"
+basicBtn.Parent = subMenuFrame
+
+local basicCorner = Instance.new("UICorner")
+basicCorner.CornerRadius = UDim.new(0, 4)
+basicCorner.Parent = basicBtn
+optionButtons["Basic"] = basicBtn
+
+basicBtn.MouseButton1Click:Connect(function()
+    HandleModeSwitch("Basic")
+end)
+
+local basicSpeedLabel = Instance.new("TextLabel")
+basicSpeedLabel.Size = UDim2.new(0, 124, 0, 12)
+basicSpeedLabel.Position = UDim2.new(0, 8, 0, 36)
+basicSpeedLabel.BackgroundTransparency = 1
+basicSpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+basicSpeedLabel.TextSize = 9
+basicSpeedLabel.Font = Enum.Font.SourceSans
+basicSpeedLabel.Text = "Basic Speed:"
+basicSpeedLabel.Parent = subMenuFrame
+
+local basicSpeedBox = Instance.new("TextBox")
+basicSpeedBox.Size = UDim2.new(0, 124, 0, 20)
+basicSpeedBox.Position = UDim2.new(0, 8, 0, 50)
+basicSpeedBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+basicSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+basicSpeedBox.TextSize = 11
+basicSpeedBox.Font = Enum.Font.SourceSansBold
+basicSpeedBox.Text = tostring(_G.BasicFarmSpeed)
+basicSpeedBox.Parent = subMenuFrame
+
+local basicBoxCorner = Instance.new("UICorner")
+basicBoxCorner.CornerRadius = UDim.new(0, 4)
+basicBoxCorner.Parent = basicSpeedBox
+
+basicSpeedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local val = tonumber(basicSpeedBox.Text)
+        if val then
+            _G.BasicFarmSpeed = val
+        end
+        basicSpeedBox.Text = tostring(_G.BasicFarmSpeed)
+    end
+end)
+
+local infiniteBtn = Instance.new("TextButton")
+infiniteBtn.Size = UDim2.new(0, 124, 0, 24)
+infiniteBtn.Position = UDim2.new(0, 8, 0, 80)
+infiniteBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+infiniteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+infiniteBtn.TextSize = 11
+infiniteBtn.Font = Enum.Font.SourceSansBold
+infiniteBtn.Text = "Infinite Mode (∞)"
+infiniteBtn.Parent = subMenuFrame
+
+local infiniteCorner = Instance.new("UICorner")
+infiniteCorner.CornerRadius = UDim.new(0, 4)
+infiniteCorner.Parent = infiniteBtn
+optionButtons["Infinite"] = infiniteBtn
+
+infiniteBtn.MouseButton1Click:Connect(function()
+    HandleModeSwitch("Infinite")
+end)
+
+local infSpeedLabel = Instance.new("TextLabel")
+infSpeedLabel.Size = UDim2.new(0, 124, 0, 12)
+infSpeedLabel.Position = UDim2.new(0, 8, 0, 108)
+infSpeedLabel.BackgroundTransparency = 1
+infSpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+infSpeedLabel.TextSize = 9
+infSpeedLabel.Font = Enum.Font.SourceSans
+infSpeedLabel.Text = "Infinite Speed:"
+infSpeedLabel.Parent = subMenuFrame
+
+local infSpeedBox = Instance.new("TextBox")
+infSpeedBox.Size = UDim2.new(0, 124, 0, 20)
+infSpeedBox.Position = UDim2.new(0, 8, 0, 122)
+infSpeedBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+infSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+infSpeedBox.TextSize = 11
+infSpeedBox.Font = Enum.Font.SourceSansBold
+infSpeedBox.Text = tostring(_G.InfiniteFlySpeed)
+infSpeedBox.Parent = subMenuFrame
+
+local infBoxCorner = Instance.new("UICorner")
+infBoxCorner.CornerRadius = UDim.new(0, 4)
+infBoxCorner.Parent = infSpeedBox
+
+infSpeedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local val = tonumber(infSpeedBox.Text)
+        if val then
+            _G.InfiniteFlySpeed = val
+        end
+        infSpeedBox.Text = tostring(_G.InfiniteFlySpeed)
+    end
+end)
+
+local speedHintLabel = Instance.new("TextLabel")
+speedHintLabel.Size = UDim2.new(0, 124, 0, 15)
+speedHintLabel.Position = UDim2.new(0, 8, 0, 150)
+speedHintLabel.BackgroundTransparency = 1
+speedHintLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+speedHintLabel.TextSize = 8
+speedHintLabel.Font = Enum.Font.SourceSansItalic
+speedHintLabel.Text = "(Enter number & press Enter)"
+speedHintLabel.Parent = subMenuFrame
 
 toggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmActive = not _G.AutoFarmActive
     if _G.AutoFarmActive then
+        _G.LockedLookVector = nil 
         _G.AutoRollActive = false 
         local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
         if rollBtnUI then
@@ -319,15 +377,15 @@ toggleBtn.MouseButton1Click:Connect(function()
         end
         toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
         toggleBtn.Text = "Auto Farm: ON"
-        
-        task.spawn(RunFarmKeySequence)
     else
+        _G.LockedLookVector = nil
         toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         toggleBtn.Text = "Auto Farm: OFF"
     end
 end)
 
 local lastPosition = nil
+local rollWasActiveBeforeDeath = false
 
 local function MonitorTeleportAndDeath(character)
     local rootPart = character:WaitForChild("HumanoidRootPart", 5)
@@ -341,16 +399,6 @@ local function MonitorTeleportAndDeath(character)
         humanoid.Died:Connect(function()
             if _G.AutoRollActive then
                 rollWasActiveBeforeDeath = true
-            end
-
-            if _G.AutoFarmActive then
-                task.spawn(function()
-                    LocalPlayer.CharacterAdded:Wait()
-                    task.wait(0.5)
-                    if _G.AutoFarmActive then
-                        RunFarmKeySequence()
-                    end
-                end)
             end
         end)
     end
@@ -371,28 +419,42 @@ LocalPlayer.CharacterAdded:Connect(function(character)
             rollWasActiveBeforeDeath = false
         end)
     end
+
+    if farmWasActiveBeforeModeChange then
+        task.spawn(function()
+            task.wait(1.5)
+            _G.AutoFarmActive = true
+            _G.LockedLookVector = nil
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            toggleBtn.Text = "Auto Farm: ON"
+            farmWasActiveBeforeModeChange = false
+        end)
+    end
 end)
 
 if LocalPlayer.Character then
     MonitorTeleportAndDeath(LocalPlayer.Character)
 end
 
--- Nút Auto Lever Roll
-local toggleRollBtn = Instance.new("TextButton")
-toggleRollBtn.Name = "ToggleRollBtn"
-toggleRollBtn.Size = UDim2.new(0, 160, 0, 40)
-toggleRollBtn.Position = UDim2.new(0, 10, 0, 55)
-toggleRollBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-toggleRollBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleRollBtn.TextSize = 13
-toggleRollBtn.Font = Enum.Font.SourceSansBold
-toggleRollBtn.Text = "Auto Lever Roll: OFF"
-toggleRollBtn.Parent = mainFrame
+local function CreateSubButton(name, text, yPos)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(0, 144, 0, 30)
+    btn.Position = UDim2.new(0, 8, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Text = text .. ": OFF"
+    btn.Parent = mainFrame
 
-local uiCorner2 = Instance.new("UICorner")
-uiCorner2.CornerRadius = UDim.new(0, 8)
-uiCorner2.Parent = toggleRollBtn
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
 
+local toggleRollBtn = CreateSubButton("ToggleRollBtn", "Auto Lever Roll", 46)
 toggleRollBtn.MouseButton1Click:Connect(function()
     _G.AutoRollActive = not _G.AutoRollActive
     if _G.AutoRollActive then
@@ -428,22 +490,7 @@ toggleRollBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Nút ESP Mobs
-local toggleEspBtn = Instance.new("TextButton")
-toggleEspBtn.Name = "ToggleEspBtn"
-toggleEspBtn.Size = UDim2.new(0, 160, 0, 40)
-toggleEspBtn.Position = UDim2.new(0, 10, 0, 100)
-toggleEspBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-toggleEspBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleEspBtn.TextSize = 15
-toggleEspBtn.Font = Enum.Font.SourceSansBold
-toggleEspBtn.Text = "ESP Mobs: OFF"
-toggleEspBtn.Parent = mainFrame
-
-local uiCorner3 = Instance.new("UICorner")
-uiCorner3.CornerRadius = UDim.new(0, 8)
-uiCorner3.Parent = toggleEspBtn
-
+local toggleEspBtn = CreateSubButton("ToggleEspBtn", "ESP Mobs", 82)
 toggleEspBtn.MouseButton1Click:Connect(function()
     _G.EspMobsActive = not _G.EspMobsActive
     if _G.EspMobsActive then
@@ -455,22 +502,7 @@ toggleEspBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Nút Auto Boss
-local toggleBossBtn = Instance.new("TextButton")
-toggleBossBtn.Name = "ToggleBossBtn"
-toggleBossBtn.Size = UDim2.new(0, 160, 0, 40)
-toggleBossBtn.Position = UDim2.new(0, 10, 0, 145)
-toggleBossBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-toggleBossBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBossBtn.TextSize = 15
-toggleBossBtn.Font = Enum.Font.SourceSansBold
-toggleBossBtn.Text = "Auto Boss: OFF"
-toggleBossBtn.Parent = mainFrame
-
-local uiCornerBoss = Instance.new("UICorner")
-uiCornerBoss.CornerRadius = UDim.new(0, 8)
-uiCornerBoss.Parent = toggleBossBtn
-
+local toggleBossBtn = CreateSubButton("ToggleBossBtn", "Auto Boss", 118)
 toggleBossBtn.MouseButton1Click:Connect(function()
     _G.AutoBossActive = not _G.AutoBossActive
     if _G.AutoBossActive then
@@ -490,22 +522,7 @@ toggleBossBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Nút Anti AFK
-local toggleAntiAfkBtn = Instance.new("TextButton")
-toggleAntiAfkBtn.Name = "ToggleAntiAfkBtn"
-toggleAntiAfkBtn.Size = UDim2.new(0, 160, 0, 40)
-toggleAntiAfkBtn.Position = UDim2.new(0, 10, 0, 190)
-toggleAntiAfkBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-toggleAntiAfkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleAntiAfkBtn.TextSize = 15
-toggleAntiAfkBtn.Font = Enum.Font.SourceSansBold
-toggleAntiAfkBtn.Text = "Anti AFK: OFF"
-toggleAntiAfkBtn.Parent = mainFrame
-
-local uiCornerAntiAfk = Instance.new("UICorner")
-uiCornerAntiAfk.CornerRadius = UDim.new(0, 8)
-uiCornerAntiAfk.Parent = toggleAntiAfkBtn
-
+local toggleAntiAfkBtn = CreateSubButton("ToggleAntiAfkBtn", "Anti AFK", 154)
 toggleAntiAfkBtn.MouseButton1Click:Connect(function()
     _G.AntiAfkActive = not _G.AntiAfkActive
     if _G.AntiAfkActive then
@@ -517,7 +534,6 @@ toggleAntiAfkBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Vòng lặp Anti AFK
 task.spawn(function()
     while true do
         if _G.AntiAfkActive then
@@ -578,11 +594,26 @@ function GetZeusBossTarget()
     return nil
 end
 
-function FindBattleButton()
+-- ==========================================
+-- 1. HÀM CHECK TRẠNG THÁI HIỂN THỊ NÚT BATTLE (Dùng cho hành động phụ trợ)
+-- ==========================================
+function CheckBattleButtonVisible()
     for _, gui in pairs(playerGui:GetDescendants()) do
         if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and string.lower(gui.Name) == "battle" then
-            if gui.Visible and gui.AbsoluteSize.X > 0 then
-                return gui
+            if gui.Visible and gui.AbsoluteSize.X > 0 and gui.AbsoluteSize.Y > 0 then
+                local isParentVisible = true
+                local parent = gui.Parent
+                while parent and parent ~= playerGui do
+                    if parent:IsA("GuiObject") and parent.Visible == false then
+                        isParentVisible = false
+                        break
+                    end
+                    parent = parent.Parent
+                end
+                
+                if isParentVisible then
+                    return gui
+                end
             end
         end
     end
@@ -603,121 +634,6 @@ function IsValidMob(model)
     end
 
     return true
-end
-
-function GetNextLeverPart(lastPart)
-    local partsList = {}
-    local playerName = string.lower(LocalPlayer.Name)
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("PrimaryPart")
-    if not rootPart then return nil end
-    
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            if string.find(obj.Name, "Lever") then
-                local ownedByOther = false
-                local ancestor = obj
-                
-                while ancestor and ancestor ~= workspace do
-                    local ancestorName = string.lower(ancestor.Name)
-                    for _, p in pairs(Players:GetPlayers()) do
-                        if p ~= LocalPlayer and string.find(ancestorName, string.lower(p.Name)) then
-                            ownedByOther = true
-                            break
-                        end
-                    end
-                    if ownedByOther then break end
-                    
-                    if ancestor:IsA("Model") or ancestor:IsA("Folder") then
-                        for _, child in pairs(ancestor:GetChildren()) do
-                            local childName = string.lower(child.Name)
-                            if childName == "owner" or childName == "player" or childName == "playername" then
-                                if child:IsA("StringValue") then
-                                    local val = string.lower(child.Value)
-                                    if val ~= "" and val ~= playerName then
-                                        ownedByOther = true
-                                    end
-                                end
-                            elseif childName == "userid" then
-                                if child:IsA("IntValue") then
-                                    if child.Value ~= 0 and child.Value ~= LocalPlayer.UserId then
-                                        ownedByOther = true
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    ancestor = ancestor.Parent
-                end
-                
-                if not ownedByOther then
-                    local targetPart = nil
-                    if obj:IsA("Model") then
-                        targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-                    elseif obj:IsA("BasePart") then
-                        targetPart = obj
-                    end
-                    
-                    if targetPart then
-                        local isLastVisited = false
-                        if lastPart and (targetPart == lastPart or (targetPart.Position - lastPart.Position).Magnitude < 5) then
-                            isLastVisited = true
-                        end
-                        
-                        if not isLastVisited then
-                            local success, dist = pcall(function()
-                                return (targetPart.Position - rootPart.Position).Magnitude
-                            end)
-                            if success and dist > 3 then
-                                table.insert(partsList, {part = targetPart, distance = dist})
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    table.sort(partsList, function(a, b)
-        return a.distance < b.distance
-    end)
-    
-    if #partsList > 0 then
-        return partsList[1].part
-    end
-    return nil
-end
-
-function TriggerLeverAction(targetPart)
-    pcall(function()
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("ProximityPrompt") then
-                local parent = obj.Parent
-                if parent and (parent == targetPart or parent:IsDescendantOf(targetPart) or (parent:IsA("BasePart") and (parent.Position - targetPart.Position).Magnitude <= 10)) then
-                    local actionText = obj.ActionText or ""
-                    local objectText = obj.ObjectText or ""
-                    local combinedText = string.lower(actionText .. " " .. objectText .. " " .. obj.Name)
-                    
-                    if not string.find(combinedText, "select") then
-                        obj.HoldDuration = 0
-                        fireproximityprompt(obj)
-                    end
-                end
-            end
-        end
-
-        for _, descendant in pairs(ReplicatedStorage:GetDescendants()) do
-            if descendant:IsA("RemoteEvent") then
-                local name = string.lower(descendant.Name)
-                if not string.find(name, "select") then
-                    if string.find(name, "roll") or string.find(name, "lever") or string.find(name, "interact") then
-                        descendant:FireServer(targetPart)
-                    end
-                end
-            end
-        end
-    end)
 end
 
 function GetRootPartToMove()
@@ -741,53 +657,6 @@ function GetRootPartToMove()
     return rootPart, character
 end
 
-function SmoothFlyToTarget(targetPart)
-    if not targetPart or not targetPart.Parent then return end
-    
-    local currentRoot, moveModel = GetRootPartToMove()
-    if not currentRoot then return end
-
-    local targetPos = targetPart.Position
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-    
-    local groundRay = workspace:Raycast(targetPos + Vector3.new(0, 50, 0), Vector3.new(0, -100, 0), raycastParams)
-    if groundRay then
-        targetPos = groundRay.Position + Vector3.new(0, 3, 0)
-    else
-        targetPos = targetPos + Vector3.new(0, 3, 0)
-    end
-
-    local distance = (targetPos - currentRoot.Position).Magnitude
-    local speed = 60 
-    local timeTaken = math.clamp(distance / speed, 0.1, 3)
-
-    local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-    local tween
-
-    if moveModel:IsA("Model") and moveModel.PrimaryPart then
-        tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
-    else
-        tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(targetPos)})
-    end
-
-    tween:Play()
-    
-    local connection
-    connection = RunService.RenderStepped:Connect(function()
-        if not _G.AutoRollActive and not _G.AutoFarmActive then
-            tween:Cancel()
-            if connection then connection:Disconnect() end
-        end
-    end)
-
-    tween.Completed:Wait()
-    if connection then connection:Disconnect() end
-end
-
--- Vòng lặp xử lý ESP Mobs
 RunService.RenderStepped:Connect(function()
     for _, v in pairs(workspace:GetDescendants()) do
         if IsValidMob(v) then
@@ -842,176 +711,281 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Vòng lặp xử lý Auto Boss
+-- ==========================================
+-- 2. HÀM TỰ ĐỘNG SỬ DỤNG NÚT BATTLE (Tự động fire trực tiếp ngay cả khi bị ẩn)
+-- ==========================================
 task.spawn(function()
+    while true do
+        if _G.AutoBossActive then
+            pcall(function()
+                for _, gui in pairs(playerGui:GetDescendants()) do
+                    if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and string.lower(gui.Name) == "battle" then
+                        pcall(function()
+                            for _, conn in pairs(getconnections(gui.Activated)) do conn:Fire() end
+                            for _, conn in pairs(getconnections(gui.MouseButton1Click)) do conn:Fire() end
+                            if firesignal then
+                                pcall(function() firesignal(gui.Activated) end)
+                                pcall(function() firesignal(gui.MouseButton1Click) end)
+                            end
+                        end)
+                    end
+                end
+            end)
+        end
+        task.wait(0.2)
+    end
+end)
+
+-- ==========================================
+-- 3. HÀM XỬ LÝ HÀNH ĐỘNG PHỤ TRỢ (Chỉ chạy khi hàm Check xác nhận có nút hiển thị)
+-- ==========================================
+task.spawn(function()
+    local isHandlingAction = false
     local circleAngle = 0
-    local rollWasOnBeforeBattle = false
-    local bossHandlingActive = false
     
     while true do
         if _G.AutoBossActive then
             pcall(function()
-                local targetButton = FindBattleButton()
+                local visibleButton = CheckBattleButtonVisible()
                 local bossPart = GetZeusBossTarget()
                 
-                if targetButton or bossPart then
-                    if targetButton and not bossHandlingActive then
-                        bossHandlingActive = true
-                        if _G.AutoRollActive then
-                            rollWasOnBeforeBattle = true
-                            _G.AutoRollActive = false
-                            local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
-                            if rollBtnUI then
-                                rollBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-                                rollBtnUI.Text = "Auto Lever Roll: OFF"
-                            end
+                -- Chỉ thực hiện các hành động phụ trợ (Reset, tắt Auto Farm) khi hàm check trả về nút hiển thị
+                if visibleButton and not isHandlingAction then
+                    isHandlingAction = true
+                    
+                    -- Reset nhân vật
+                    pcall(function()
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
+                        end
+                    end)
+                    
+                    -- Hủy / Tắt Auto Farm tạm thời
+                    if _G.AutoFarmActive then
+                        _G.AutoFarmActive = false
+                        _G.LockedLookVector = nil
+                        local farmBtnUI = mainFrame:FindFirstChild("ToggleBtn")
+                        if farmBtnUI then
+                            farmBtnUI.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                            farmBtnUI.Text = "Auto Farm: OFF"
                         end
                     end
                     
-                    if targetButton then
-                        for _, conn in pairs(getconnections(targetButton.Activated)) do conn:Fire() end
-                        for _, conn in pairs(getconnections(targetButton.MouseButton1Click)) do conn:Fire() end
-                        if firesignal then
-                            pcall(function() firesignal(targetButton.Activated) end)
-                            pcall(function() firesignal(targetButton.MouseButton1Click) end)
+                    task.spawn(function()
+                        task.wait(60)
+                        while GetZeusBossTarget() ~= nil do
+                            task.wait(3)
                         end
-                    end
-                    
-                    if bossPart and bossPart.Parent then
-                        local currentRoot, moveModel = GetRootPartToMove()
-                        if currentRoot then
-                            circleAngle = circleAngle + 0.3 
-                            local radius = 33 
-                            local offsetX = math.cos(circleAngle) * radius
-                            local offsetZ = math.sin(circleAngle) * radius
-                            
-                            local bossPos = bossPart.Position
-                            local desiredPos = bossPos + Vector3.new(offsetX, 5, offsetZ)
-                            
-                            local distance = (desiredPos - currentRoot.Position).Magnitude
-                            if distance > 1 then
-                                local speed = 25 
-                                local timeTaken = distance / speed
-                                local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                                local tween
-                                
-                                if moveModel:IsA("Model") and moveModel.PrimaryPart then
-                                    tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
-                                else
-                                    tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
-                                end
-                                tween:Play()
-                                task.wait(math.min(timeTaken, 0.1))
+                        task.wait(15)
+                        
+                        if _G.AutoBossActive then
+                            _G.AutoFarmActive = true
+                            _G.LockedLookVector = nil
+                            local updatedFarmBtnUI = mainFrame:FindFirstChild("ToggleBtn")
+                            if updatedFarmBtnUI then
+                                updatedFarmBtnUI.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+                                updatedFarmBtnUI.Text = "Auto Farm: ON"
                             end
                         end
-                    end
-                else
-                    if bossHandlingActive then
-                        bossHandlingActive = false
-                        if rollWasOnBeforeBattle then
-                            task.wait(2)
-                            if _G.AutoBossActive then
-                                _G.AutoRollActive = true
-                                local rollBtnUI = mainFrame:FindFirstChild("ToggleRollBtn")
-                                if rollBtnUI then
-                                    rollBtnUI.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-                                    rollBtnUI.Text = "Auto Lever Roll: ON"
-                                end
+                        isHandlingAction = false
+                    end)
+                end
+                
+                -- Logic bay lượn vòng tròn quanh boss
+                if bossPart and bossPart.Parent then
+                    local currentRoot, moveModel = GetRootPartToMove()
+                    if currentRoot then
+                        circleAngle = circleAngle + 0.15 
+                        local radius = 25 
+                        local offsetX = math.cos(circleAngle) * radius
+                        local offsetZ = math.sin(circleAngle) * radius
+                        
+                        local bossPos = bossPart.Position
+                        local desiredPos = bossPos + Vector3.new(offsetX, 4, offsetZ)
+                        
+                        local distance = (desiredPos - currentRoot.Position).Magnitude
+                        if distance > 2 then
+                            local speed = 40 
+                            local timeTaken = math.clamp(distance / speed, 0.05, 0.3)
+                            local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                            local tween
+                            
+                            if moveModel:IsA("Model") and moveModel.PrimaryPart then
+                                tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
+                            else
+                                tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(desiredPos, bossPos)})
                             end
-                            rollWasOnBeforeBattle = false
+                            tween:Play()
                         end
-                    elseif _G.AutoRollActive then
-                        task.wait(0.2)
                     end
                 end
             end)
-        else
-            bossHandlingActive = false
-            rollWasOnBeforeBattle = false
         end
-        task.wait(0.05)
+        task.wait(0.1)
     end
 end)
 
--- Vòng lặp chính xử lý Auto Farm, Giữ nút W bay thẳng bám sát đất, và Auto Lever Roll
 task.spawn(function()
-    local lastVisitedPart = nil
     while true do
         if _G.AutoFarmActive then
-            -- Kiểm tra nếu người chơi đang GIỮ nút W
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                local currentRoot, moveModel = GetRootPartToMove()
-                if currentRoot then
-                    -- Lặp liên tục bay thẳng về phía trước và bám sát mặt đất cho đến khi tìm thấy quái hoặc nhả nút W
-                    while UserInputService:IsKeyDown(Enum.KeyCode.W) and _G.AutoFarmActive do
-                        local targetPart = GetSelectedAutoFarmTargetPart()
-                        -- Nếu tìm thấy quái mới thì thoát khỏi chế độ bay thẳng để chuyển sang mục tiêu quái
-                        if targetPart then
-                            break
-                        end
-
-                        pcall(function()
-                            local lookVector = currentRoot.CFrame.LookVector
-                            local forwardPos = currentRoot.Position + (Vector3.new(lookVector.X, 0, lookVector.Z).Unit * 5)
-                            
-                            local raycastParams = RaycastParams.new()
-                            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-                            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-                            
-                            local groundRay = workspace:Raycast(forwardPos + Vector3.new(0, 50, 0), Vector3.new(0, -100, 0), raycastParams)
-                            local targetY = forwardPos.Y
-                            if groundRay then
-                                targetY = groundRay.Position.Y + 3 -- Giữ bám sát mặt đất 3 studs
-                            end
-                            
-                            local nextPos = Vector3.new(forwardPos.X, targetY, forwardPos.Z)
-                            local newCFrame = CFrame.new(nextPos, nextPos + Vector3.new(lookVector.X, 0, lookVector.Z))
-                            
-                            if moveModel:IsA("Model") and moveModel.PrimaryPart then
-                                moveModel:SetPrimaryPartCFrame(newCFrame)
-                            else
-                                currentRoot.CFrame = newCFrame
-                            end
-                        end)
-                        RunService.RenderStepped:Wait()
-                    end
-                end
-            else
-                local targetPart = GetSelectedAutoFarmTargetPart()
-                if targetPart then
-                    SmoothFlyToTarget(targetPart)
-                else
-                    task.wait(0.1)
-                end
-            end
-        elseif _G.AutoRollActive then
             local character = LocalPlayer.Character
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
             
-            if not character or not humanoid or humanoid.Health <= 0 or not rootPart then
-                lastVisitedPart = nil
-                task.wait(1)
-                continue
-            end
+            local isInVehicle = humanoid and humanoid.SeatPart ~= nil
             
-            local nextPart = GetNextLeverPart(lastVisitedPart)
-            
-            if not nextPart and lastVisitedPart then
-                nextPart = lastVisitedPart
-            end
-            
-            if nextPart then
-                SmoothFlyToTarget(nextPart)
-                task.wait(0.1)
-                TriggerLeverAction(nextPart)
-                
-                lastVisitedPart = nextPart
+            if not isInVehicle then
+                pcall(function()
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+                end)
                 task.wait(0.2)
             else
-                lastVisitedPart = nil
+                local currentRoot, moveModel = GetRootPartToMove()
+                
+                if currentRoot then
+                    if _G.InfiniteFlyActive then
+                        pcall(function()
+                            local raycastParams = RaycastParams.new()
+                            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, moveModel}
+                            
+                            if not _G.LockedLookVector then
+                                local lookVector = currentRoot.CFrame.LookVector
+                                local fixedVector = Vector3.new(lookVector.X, 0, lookVector.Z)
+                                if fixedVector.Magnitude > 0 then
+                                    _G.LockedLookVector = fixedVector.Unit
+                                else
+                                    _G.LockedLookVector = Vector3.new(0, 0, -1)
+                                end
+                            end
+                            local fixedLookVector = _G.LockedLookVector
+                            
+                            local travelDistance = 500 
+                            local flySpeed = _G.InfiniteFlySpeed 
+                            local totalTime = travelDistance / flySpeed 
+                            
+                            local startTime = tick()
+                            local startPos = currentRoot.Position
+                            
+                            local connection
+                            connection = RunService.RenderStepped:Connect(function()
+                                if not _G.AutoFarmActive or not _G.InfiniteFlyActive then
+                                    if connection then connection:Disconnect() end
+                                    return
+                                end
+                                
+                                if moveModel and moveModel:IsA("Model") then
+                                    for _, part in pairs(moveModel:GetDescendants()) do
+                                        if part:IsA("BasePart") then
+                                            part.CanCollide = false
+                                            part.AssemblyLinearVelocity = Vector3.zero
+                                            part.AssemblyAngularVelocity = Vector3.zero
+                                        end
+                                    end
+                                end
+                                if LocalPlayer.Character then
+                                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                                        if part:IsA("BasePart") then
+                                            part.CanCollide = false
+                                            part.AssemblyLinearVelocity = Vector3.zero
+                                            part.AssemblyAngularVelocity = Vector3.zero
+                                        end
+                                    end
+                                end
+                                
+                                local elapsed = tick() - startTime
+                                local alpha = math.clamp(elapsed / totalTime, 0, 1)
+                                local currentTravelPos = startPos + (fixedLookVector * travelDistance * alpha)
+                                
+                                local groundRay = workspace:Raycast(currentTravelPos + Vector3.new(0, 50, 0), Vector3.new(0, -100, 0), raycastParams)
+                                local groundY = groundRay and (groundRay.Position.Y + 3) or currentTravelPos.Y
+                                
+                                local finalPos = Vector3.new(currentTravelPos.X, groundY, currentTravelPos.Z)
+                                local finalCFrame = CFrame.lookAt(finalPos, finalPos + fixedLookVector)
+                                
+                                if moveModel:IsA("Model") then
+                                    moveModel:PivotTo(finalCFrame)
+                                else
+                                    currentRoot.CFrame = finalCFrame
+                                end
+                                
+                                if alpha >= 1 then
+                                    if connection then connection:Disconnect() end
+                                end
+                            end)
+                            
+                            task.wait(totalTime)
+                            if connection then connection:Disconnect() end
+                        end)
+                    else
+                        local targetPart = GetSelectedAutoFarmTargetPart()
+                        if targetPart then
+                            pcall(function()
+                                local targetPos = targetPart.Position
+                                local raycastParams = RaycastParams.new()
+                                raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                                raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, moveModel}
+                                
+                                local groundRay = workspace:Raycast(targetPos + Vector3.new(0, 50, 0), Vector3.new(0, -100, 0), raycastParams)
+                                if groundRay then
+                                    targetPos = groundRay.Position + Vector3.new(0, 3, 0)
+                                else
+                                    targetPos = targetPos + Vector3.new(0, 3, 0)
+                                end
+
+                                local distance = (targetPos - currentRoot.Position).Magnitude
+                                local speed = _G.BasicFarmSpeed 
+                                local timeTaken = math.clamp(distance / speed, 0.1, 5)
+
+                                local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                                local tween
+
+                                if moveModel:IsA("Model") and moveModel.PrimaryPart then
+                                    tween = TweenService:Create(moveModel.PrimaryPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                                else
+                                    tween = TweenService:Create(currentRoot, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                                end
+
+                                tween:Play()
+                                
+                                local wTask = task.spawn(function()
+                                    while tween.PlaybackState == Enum.PlaybackState.Playing and _G.AutoFarmActive do
+                                        pcall(function()
+                                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+                                            task.wait(0.02)
+                                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+                                            task.wait(0.02)
+                                        end)
+                                    end
+                                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+                                end)
+
+                                tween.Completed:Wait()
+                                pcall(function() task.cancel(wTask) end)
+                                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+                                task.wait(0.2)
+                            end)
+                        else
+                            task.wait(0.5)
+                        end
+                    end
+                end
+            end
+        else
+            if _G.AutoRollActive then
+                local character = LocalPlayer.Character
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                
+                if not character or not humanoid or humanoid.Health <= 0 or not rootPart then
+                    task.wait(1)
+                    continue
+                end
+            else
+                task.wait(0.1)
             end
         end
-        task.wait(0.05)
+        task.wait(0.001)
     end
 end)
