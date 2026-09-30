@@ -96,7 +96,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 -- // Hàm tải script chính sau khi vượt qua Key System
 local function LoadMainScript()
     print("Đúng key! Đang mở script chính...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201101873"))()
 end
 
 -- // Kiểm tra trạng thái lưu 24h qua file trong workspace của executor
