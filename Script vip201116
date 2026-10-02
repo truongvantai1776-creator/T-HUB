@@ -1767,7 +1767,7 @@ local function CreateToggleableGameButton(titleText, scriptUrl)
 	end)
 end
 
-CreateToggleableGameButton("Run A Ways", "https://raw.githubusercontent.com/Bac0nHck/Scripts/refs/heads/main/RUNAWAYS.lua")
+CreateToggleableGameButton("Run A Ways", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Runaways")
 CreateToggleableGameButton("ANIME ARENA", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana")
 CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
 CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
