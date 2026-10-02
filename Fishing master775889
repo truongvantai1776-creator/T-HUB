@@ -1061,12 +1061,12 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     end
                     
                     if targetNpcPart then
-                        StatusLabel.Text = "🚶 Đang đi tới NPC..."
+                        StatusLabel.Text = " Đang đi tới NPC..."
                         local targetPos = targetNpcPart.Position + Vector3.new(0, 0, 3)
                         local arrivedAtNpc = walkSmartlyTo(CFrame.new(targetPos))
                         
                         if arrivedAtNpc then
-                            StatusLabel.Text = "✅ Đã đến NPC, chờ 5s tương tác..."
+                            StatusLabel.Text = "✅ Đã đến NPC, chờ 5s cho mỗi tương tác..."
                             task.wait(5.0) 
                             
                             pcall(function()
@@ -1149,7 +1149,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
             end
         end)
     else
-        AutoSellBtn.Text = "📦 Tự động bán (50/50): TẮT"
+        AutoSellBtn.Text = "📦 Tự động bán khi full balo: TẮT"
         AutoSellBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 40)
         StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
     end
