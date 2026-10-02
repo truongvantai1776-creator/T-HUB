@@ -1,4 +1,4 @@
--- ================= SCRIPT FISHING MASTER (TỐC ĐỘ CỰC NHANH - SIÊU MƯỢT + AUTO EQUIP ROD SAU KHI LOCK) =================
+-- ================= SCRIPT FISHING MASTER (ĐỢI 5S CHO MỌI HÀNH ĐỘNG TIẾP THEO) =================
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -57,14 +57,12 @@ local function equipRodFromBackpack()
         local humanoid = char and char:FindFirstChildOfClass("Humanoid")
         if not humanoid then return end
         
-        -- Kiểm tra xem đã cầm cần chưa
         for _, child in ipairs(char:GetChildren()) do
             if child:IsA("Tool") and string.find(string.lower(child.Name), "rod") then
-                return -- Đã cầm rồi thì thôi
+                return 
             end
         end
         
-        -- Tìm trong Backpack
         for _, tool in ipairs(Backpack:GetChildren()) do
             if tool:IsA("Tool") and string.find(string.lower(tool.Name), "rod") then
                 humanoid:EquipTool(tool)
@@ -75,7 +73,6 @@ local function equipRodFromBackpack()
     end)
 end
 
--- Chấm đỏ trực quan kiểm tra vị trí click
 local clickDot = Instance.new("Frame")
 clickDot.Name = "ClickDot"
 clickDot.Size = UDim2.new(0, 10, 0, 10)
@@ -651,7 +648,6 @@ task.spawn(function()
 				pressKey(Enum.KeyCode.Two)
 				pressKey(Enum.KeyCode.One)
 				
-				-- ⏳ Đợi 3 giây sau khi lock xong rồi tự động trang bị lại vật phẩm chứa chữ rod trong backpack
 				task.wait(3.0)
 				equipRodFromBackpack()
 
@@ -847,7 +843,6 @@ local function startAutoMaster()
             end
             if not isRunning then break end
             
-            -- CHUẨN TỐC ĐỘ SIÊU NHANH
             StatusLabel.Text = "⚡ Spam Click & Skill Siêu Tốc..."
             pcall(function()
                 if not isRunning then return end
@@ -954,7 +949,7 @@ local function simulateGamePadButton(keyCode, holdTime)
     end)
 end
 
--- Tự động bán (50/50)
+-- Tự động bán (50/50) với logic đợi 5s cho mọi hành động sau khi nhấn E
 local isAutoSellRunning = false
 
 AutoSellBtn.MouseButton1Click:Connect(function()
@@ -1061,13 +1056,13 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     end
                     
                     if targetNpcPart then
-                        StatusLabel.Text = " Đang đi tới NPC..."
+                        StatusLabel.Text = "🚶 Đang đi tới NPC..."
                         local targetPos = targetNpcPart.Position + Vector3.new(0, 0, 3)
                         local arrivedAtNpc = walkSmartlyTo(CFrame.new(targetPos))
                         
                         if arrivedAtNpc then
-                            StatusLabel.Text = "✅ Đã đến NPC, chờ 5s cho mỗi tương tác..."
-                            task.wait(5.0) 
+                            StatusLabel.Text = "✅ Đã đến NPC, tương tác..."
+                            task.wait(1.0) 
                             
                             pcall(function()
                                 for _, obj in ipairs(workspace:GetDescendants()) do
@@ -1086,19 +1081,24 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                 end
                             end)
                             
-                            task.wait(0.4)
+                            task.wait(0.5)
                             GuiService.SelectedObject = nil 
 
                             simulateGamePadButton(Enum.KeyCode.ButtonA, 0.05)
-                            task.wait(5.0) 
+                            pressKey(Enum.KeyCode.E)
                             
-                            local function selectOptionGamePadOnly(btnName)
+                            -- ĐỢI 5 GIÂY SAU KHI NHẤN E ĐẦU TIÊN
+                            StatusLabel.Text = "⏳ Đang đợi hội thoại 1 (5s)..."
+                            task.wait(5.0)
+                            
+                            -- Hàm chọn option linh hoạt và áp dụng đợi 5s sau mỗi thao tác chọn
+                            local function selectOptionWithWait(btnName)
                                 pcall(function()
                                     local foundButton = nil
                                     for _, gui in ipairs(PlayerGui:GetChildren()) do
                                         if gui:IsA("ScreenGui") then
                                             for _, desc in ipairs(gui:GetDescendants()) do
-                                                if desc.Name == btnName and desc:IsA("TextButton") and desc.Visible then
+                                                if desc:IsA("TextButton") and desc.Visible and (desc.Name == btnName or string.find(string.lower(desc.Name), string.lower(btnName))) then
                                                     foundButton = desc
                                                     break
                                                 end
@@ -1113,17 +1113,18 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                         for _, conn in ipairs(getconnections(foundButton.Activated) or {}) do conn:Fire() end
                                     end
                                     simulateGamePadButton(Enum.KeyCode.ButtonA, 0.05)
+                                    pressKey(Enum.KeyCode.E)
                                 end)
+                                
+                                -- ĐỢI 5 GIÂY CHO HÀNH ĐỘNG TIẾP THEO
+                                StatusLabel.Text = "⏳ Đang đợi hành động tiếp theo (5s)..."
+                                task.wait(5.0)
                             end
                             
-                            selectOptionGamePadOnly("Option002")
-                            task.wait(5.0) 
-                            selectOptionGamePadOnly("Option001")
-                            task.wait(5.0) 
-                            selectOptionGamePadOnly("Option002")
-                            task.wait(5.0) 
-                            selectOptionGamePadOnly("Option001")
-                            task.wait(5.0) 
+                            selectOptionWithWait("Option002")
+                            selectOptionWithWait("Option001")
+                            selectOptionWithWait("Option002")
+                            selectOptionWithWait("Option001")
                         else
                             StatusLabel.Text = "⚠ Không tới được NPC!"
                             task.wait(0.5)
@@ -1141,7 +1142,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                 if isAutoSellRunning then
                     StatusLabel.Text = "🎣 Đang cầm lại cần câu..."
                     task.wait(0.5)
-                    equipRodFromBackpack() -- Tự động trang bị cần sau khi về
+                    equipRodFromBackpack() 
                     task.wait(0.5)
                     if isAutoSellRunning then startAutoMaster() end
                 end
@@ -1149,7 +1150,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
             end
         end)
     else
-        AutoSellBtn.Text = "📦 Tự động bán khi full balo: TẮT"
+        AutoSellBtn.Text = "📦 Tự động bán (50/50): TẮT"
         AutoSellBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 40)
         StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
     end
