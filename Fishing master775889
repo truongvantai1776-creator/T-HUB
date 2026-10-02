@@ -1,4 +1,4 @@
--- ================= SCRIPT FISHING MASTER (ĐỢI 5S CHO MỌI HÀNH ĐỘNG TIẾP THEO) =================
+-- ================= SCRIPT FISHING MASTER (ĐÃ TỐI ƯU GIẢM LAG) =================
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -92,7 +92,7 @@ local function showClickDot(x, y)
 		clickDot.Position = UDim2.new(0, x, 0, y)
 		clickDot.Visible = true
 		task.spawn(function()
-			task.wait(0.02)
+			task.wait(0.05)
 			if clickDot then clickDot.Visible = false end
 		end)
 	end)
@@ -110,7 +110,7 @@ local function applyGoldAndBlackSweep(uiGradient)
                 ColorSequenceKeypoint.new(math.clamp(offset + 0.1, 0, 1), Color3.fromRGB(255, 215, 0)),
                 ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))
             })
-            RunService.RenderStepped:Wait()
+            task.wait(0.1) -- Giảm tải bằng cách cho UIGradient chạy chậm hơn thay vì từng khung hình
         end
     end)
 end
@@ -139,36 +139,33 @@ local function processCharacterTag(character)
     end
 end
 
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player.Character then
-                local char = player.Character
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    pcall(function()
-                        humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-                        humanoid.HealthDisplayType = Enum.HealthDisplayType.AlwaysOff
-                    end)
-                end
-                for _, desc in ipairs(char:GetDescendants()) do
-                    if desc:IsA("BillboardGui") or desc:IsA("SurfaceGui") then
-                        desc.Enabled = false
-                    elseif desc:IsA("TextLabel") or desc:IsA("TextBox") or desc:IsA("TextButton") then
-                        desc.Visible = false
+-- Tối ưu hóa vòng lặp ẩn/hiện Nametag định kỳ thay vì chạy 100% Heartbeat
+task.spawn(function()
+    while true do
+        pcall(function()
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character then
+                    local char = player.Character
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        pcall(function()
+                            humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+                            humanoid.HealthDisplayType = Enum.HealthDisplayType.AlwaysOff
+                        end)
                     end
                 end
             end
-        end
-        if LocalPlayer.Character then
-            processCharacterTag(LocalPlayer.Character)
-        end
-    end)
+            if LocalPlayer.Character then
+                processCharacterTag(LocalPlayer.Character)
+            end
+        end)
+        task.wait(1.0) -- Kiểm tra mỗi 1 giây thay vì mỗi khung hình
+    end
 end)
 
 LocalPlayer.CharacterAdded:Connect(function(char)
     char:WaitForChild("HumanoidRootPart", 5)
-    task.wait(0.1)
+    task.wait(0.5)
     processCharacterTag(char)
 end)
 if LocalPlayer.Character then
@@ -205,7 +202,7 @@ local function showCenterWarning(text, duration)
         WarningLabel.Text = text
         WarningLabel.Visible = true
         task.spawn(function()
-            task.wait(duration or 0.5)
+            task.wait(duration or 0.8)
             if WarningLabel then WarningLabel.Visible = false end
         end)
     end)
@@ -603,14 +600,14 @@ task.spawn(function()
 				local modal = PlayerGui:FindFirstChild("SatchelModal")
 				if not modal or not modal.Enabled then
 					isLockingActiveNow = false
-					task.wait(0.05)
+					task.wait(0.2)
 					return
 				end
 				
 				local lockButton = findPreciseLockButton()
 				if not lockButton then
 					isLockingActiveNow = false
-					task.wait(0.05)
+					task.wait(0.2)
 					return
 				end
 				
@@ -625,7 +622,7 @@ task.spawn(function()
 				
 				if not hasUnlockedFish then
 					isLockingActiveNow = false
-					task.wait(0.05)
+					task.wait(0.2)
 					return
 				end
 				
@@ -656,7 +653,7 @@ task.spawn(function()
 				isLockingActiveNow = false
 			end
 		end)
-		task.wait(0.01)
+		task.wait(0.2) -- Tăng thời gian nghỉ để giảm tải CPU đáng kể
 	end
 end)
 
@@ -813,7 +810,7 @@ local function walkSmartlyTo(targetCFrame)
     end)
     
     while not arrived and connection and connection.Connected do
-        task.wait(0.01)
+        task.wait(0.05)
     end
     if connection then connection:Disconnect() end
     if char and char:FindFirstChild("Humanoid") then
@@ -839,11 +836,11 @@ local function startAutoMaster()
         while isRunning do
             if not hasEquippedRod() then
                 StatusLabel.Text = "⏳ Đang đợi cầm cần..."
-                while isRunning and not hasEquippedRod() do task.wait(0.01) end
+                while isRunning and not hasEquippedRod() do task.wait(0.2) end
             end
             if not isRunning then break end
             
-            StatusLabel.Text = "⚡ Spam Click & Skill Siêu Tốc..."
+            StatusLabel.Text = "⚡ Spam Click & Skill (Mượt)..."
             pcall(function()
                 if not isRunning then return end
                 
@@ -853,23 +850,23 @@ local function startAutoMaster()
                 local startTime = tick()
                 while tick() - startTime < 0.2 and isRunning and hasEquippedRod() do 
                     spamSkillKeys()
-                    task.wait(0.01)
+                    task.wait(0.05) -- Tăng thời gian nghỉ giữa các skill để game không bị nghẽn lệnh (giảm lag)
                 end
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
                 
                 if not isRunning then return end
                 
-                for i = 1, 15 do
+                for i = 1, 10 do -- Giảm số lần lặp click dư thừa xuống 10 lần cho nhẹ máy
                     if not isRunning or not hasEquippedRod() then break end
                     local rx, ry = getRandomScreenCenterPosition()
                     showClickDot(rx, ry)
                     VirtualInputManager:SendMouseButtonEvent(rx, ry, 0, true, game, 0)
                     spamSkillKeys()
                     VirtualInputManager:SendMouseButtonEvent(rx, ry, 0, false, game, 0)
-                    task.wait(0.01) 
+                    task.wait(0.03) 
                 end
             end)
-            task.wait(0.01)
+            task.wait(0.05)
         end
     end)
 end
@@ -899,7 +896,7 @@ ToggleMasterBtn.MouseButton1Click:Connect(function()
             StatusLabel.Text = "🚶 Đang đi bộ tới điểm câu..."
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 walkSmartlyTo(savedAutoCFrame)
-                task.wait(0.01)
+                task.wait(0.1)
             end
             startAutoMaster()
         end)
@@ -944,12 +941,12 @@ end
 local function simulateGamePadButton(keyCode, holdTime)
     pcall(function()
         VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-        task.wait(holdTime or 0.01)
+        task.wait(holdTime or 0.05)
         VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
     end)
 end
 
--- Tự động bán (50/50) với logic đợi 5s cho mọi hành động sau khi nhấn E
+-- Tự động bán (50/50) tối ưu không lag
 local isAutoSellRunning = false
 
 AutoSellBtn.MouseButton1Click:Connect(function()
@@ -969,22 +966,18 @@ AutoSellBtn.MouseButton1Click:Connect(function()
         
         task.spawn(function()
             while isAutoSellRunning do
-                StatusLabel.Text = "📦 Đang check kho (đợi 50/50)..."
+                StatusLabel.Text = "📦 Đang check kho..."
                 while isAutoSellRunning do
                     local cur, max = getFishCapacity()
                     StatusLabel.Text = string.format("📦 Kho cá: %d/%d", cur, max)
                     if cur >= max and max > 0 then break end
-                    task.wait(0.5)
+                    task.wait(1.0) -- Kiểm tra kho thưa hơn để đỡ ngốn tài nguyên
                 end
                 
                 if not isAutoSellRunning then break end
                 
-                StatusLabel.Text = "📦 Kho đầy! Đợi 2s ổn định..."
-                local countdown = 2
-                while countdown > 0 and isAutoSellRunning do
-                    task.wait(1)
-                    countdown = countdown - 1
-                end
+                StatusLabel.Text = "📦 Kho đầy! Đợi ổn định..."
+                task.wait(2.0)
                 
                 if not isAutoSellRunning then break end
                 
@@ -994,8 +987,8 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     local fishingActive = isFishingButtonPresent()
                     local hasRod = hasEquippedRod()
                     local elapsedWait = tick() - waitCheckStart
-                    if (not fishingActive and not hasRod) or (elapsedWait > 2) then break end
-                    task.wait(0.1)
+                    if (not fishingActive and not hasRod) or (elapsedWait > 3) then break end
+                    task.wait(0.2)
                 end
                 
                 if not isAutoSellRunning then break end
@@ -1005,7 +998,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     StatusLabel.Text = "⏳ Đợi Auto Lock khóa nốt..."
                     local lockWaitStart = tick()
                     while isAutoSellRunning and AutoLockRunning and isLockingActiveNow and (tick() - lockWaitStart < 2) do
-                        task.wait(0.1)
+                        task.wait(0.2)
                     end
                 end
                 
@@ -1021,18 +1014,18 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     for i = 1, 2 do
                         if not isAutoSellRunning then break end
                         VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-                        task.wait(0.02)
+                        task.wait(0.05)
                         VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-                        task.wait(0.02)
+                        task.wait(0.05)
                     end
-                    task.wait(0.1)
+                    task.wait(0.2)
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                    task.wait(0.02)
+                    task.wait(0.05)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
                 end)
                 
                 StatusLabel.Text = "🛑 Đang đi bán cá..."
-                task.wait(0.1)
+                task.wait(0.2)
                 
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("HumanoidRootPart") then
@@ -1087,11 +1080,9 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                             simulateGamePadButton(Enum.KeyCode.ButtonA, 0.05)
                             pressKey(Enum.KeyCode.E)
                             
-                            -- ĐỢI 5 GIÂY SAU KHI NHẤN E ĐẦU TIÊN
                             StatusLabel.Text = "⏳ Đang đợi hội thoại 1 (5s)..."
                             task.wait(5.0)
                             
-                            -- Hàm chọn option linh hoạt và áp dụng đợi 5s sau mỗi thao tác chọn
                             local function selectOptionWithWait(btnName)
                                 pcall(function()
                                     local foundButton = nil
@@ -1116,7 +1107,6 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                     pressKey(Enum.KeyCode.E)
                                 end)
                                 
-                                -- ĐỢI 5 GIÂY CHO HÀNH ĐỘNG TIẾP THEO
                                 StatusLabel.Text = "⏳ Đang đợi hành động tiếp theo (5s)..."
                                 task.wait(5.0)
                             end
@@ -1127,7 +1117,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                             selectOptionWithWait("Option001")
                         else
                             StatusLabel.Text = "⚠ Không tới được NPC!"
-                            task.wait(0.5)
+                            task.wait(1.0)
                         end
                         
                         StatusLabel.Text = "🚶 Đang đi bộ về điểm set..."
@@ -1135,7 +1125,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                         StatusLabel.Text = "✅ Đã về điểm câu!"
                     else
                         StatusLabel.Text = "⚠ Không thấy NPC!"
-                        task.wait(1)
+                        task.wait(1.0)
                     end
                 end
                 
@@ -1146,7 +1136,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     task.wait(0.5)
                     if isAutoSellRunning then startAutoMaster() end
                 end
-                task.wait(0.5)
+                task.wait(1.0)
             end
         end)
     else
