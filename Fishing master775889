@@ -1,4 +1,4 @@
--- ================= SCRIPT FISHING MASTER (ĐÃ TỐI ƯU GIẢM LAG) =================
+-- ================= SCRIPT FISHING MASTER (ĐÃ CẬP NHẬT THEO YÊU CẦU) =================
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -21,9 +21,6 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "RobloxFishingMasterV18"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = CoreGui
-
-local boxWidthSize = 120  
-local boxHeightSize = 60 
 
 local savedAutoCFrame = nil
 
@@ -49,6 +46,95 @@ local AutoLockRunning = false
 local isLockingActiveNow = false 
 local persistentFishCache = {}
 local AutoLockSettingFrame
+
+-- ================= QUẢN LÝ TRẠNG THÁI REEL COUNTER GUI (BẬT/TẮT THEO AUTO CÂU) =================
+-- Lưu trữ thông tin gốc để khôi phục lại khi tắt auto
+local originalReelButtonData = {}
+
+local function centerEnlargeAndDeepTransparent(button)
+    if button and not originalReelButtonData[button] then
+        pcall(function()
+            -- Lưu lại dữ liệu gốc trước khi thay đổi
+            originalReelButtonData[button] = {
+                AnchorPoint = button.AnchorPoint,
+                Position = button.Position,
+                Size = button.Size,
+                BackgroundTransparency = button.BackgroundTransparency,
+                TextTransparency = button:IsA("TextButton") and button.TextTransparency or nil,
+                ImageTransparency = button:IsA("ImageButton") and button.ImageTransparency or nil
+            }
+            
+            -- Phóng to, đưa ra giữa và ẩn đi
+            button.AnchorPoint = Vector2.new(0.5, 0.5)
+            button.Position = UDim2.new(0.5, 0, 0.5, 0)
+            button.Size = UDim2.new(
+                button.Size.X.Scale * 1000, 
+                button.Size.X.Offset * 1000, 
+                button.Size.Y.Scale * 1000, 
+                button.Size.Y.Offset * 1000
+            )
+            button.BackgroundTransparency = 1
+            if button:IsA("TextButton") then
+                button.TextTransparency = 1
+            elseif button:IsA("ImageButton") then
+                button.ImageTransparency = 1
+            end
+            
+            for _, descendant in ipairs(button:GetDescendants()) do
+                pcall(function()
+                    if descendant:IsA("GuiObject") then
+                        descendant.BackgroundTransparency = 1
+                    end
+                    if descendant:IsA("TextLabel") or descendant:IsA("TextBox") or descendant:IsA("TextButton") then
+                        descendant.TextTransparency = 1
+                    end
+                    if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+                        descendant.ImageTransparency = 1
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+local function restoreReelButtons()
+    pcall(function()
+        local reelGui = PlayerGui:FindFirstChild("ReelCounterGui")
+        if reelGui then
+            for _, btnName in ipairs({"Left", "Right", "Up"}) do
+                local btn = reelGui:FindFirstChild(btnName)
+                if btn and originalReelButtonData[btn] then
+                    local data = originalReelButtonData[btn]
+                    btn.AnchorPoint = data.AnchorPoint
+                    btn.Position = data.Position
+                    btn.Size = data.Size
+                    btn.BackgroundTransparency = data.BackgroundTransparency
+                    if btn:IsA("TextButton") and data.TextTransparency then
+                        btn.TextTransparency = data.TextTransparency
+                    elseif btn:IsA("ImageButton") and data.ImageTransparency then
+                        btn.ImageTransparency = data.ImageTransparency
+                    end
+                end
+            end
+        end
+        originalReelButtonData = {}
+    end)
+end
+
+local function applyReelModifications()
+    pcall(function()
+        local reelGui = PlayerGui:WaitForChild("ReelCounterGui", 2)
+        if reelGui then
+            local btnLeft = reelGui:WaitForChild("Left", 2)
+            local btnRight = reelGui:WaitForChild("Right", 2)
+            local btnUp = reelGui:WaitForChild("Up", 2)
+            
+            if btnLeft then centerEnlargeAndDeepTransparent(btnLeft) end
+            if btnRight then centerEnlargeAndDeepTransparent(btnRight) end
+            if btnUp then centerEnlargeAndDeepTransparent(btnUp) end
+        end
+    end)
+end
 
 -- Hàm tự động trang bị cần câu có chứa chữ "rod" trong Backpack
 local function equipRodFromBackpack()
@@ -110,7 +196,7 @@ local function applyGoldAndBlackSweep(uiGradient)
                 ColorSequenceKeypoint.new(math.clamp(offset + 0.1, 0, 1), Color3.fromRGB(255, 215, 0)),
                 ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))
             })
-            task.wait(0.1) -- Giảm tải bằng cách cho UIGradient chạy chậm hơn thay vì từng khung hình
+            task.wait(0.1)
         end
     end)
 end
@@ -139,7 +225,6 @@ local function processCharacterTag(character)
     end
 end
 
--- Tối ưu hóa vòng lặp ẩn/hiện Nametag định kỳ thay vì chạy 100% Heartbeat
 task.spawn(function()
     while true do
         pcall(function()
@@ -159,7 +244,7 @@ task.spawn(function()
                 processCharacterTag(LocalPlayer.Character)
             end
         end)
-        task.wait(1.0) -- Kiểm tra mỗi 1 giây thay vì mỗi khung hình
+        task.wait(1.0)
     end
 end)
 
@@ -280,6 +365,7 @@ CloseBtn.MouseButton1Click:Connect(function()
         LocalPlayer.Character.Humanoid.WalkSpeed = 16
         LocalPlayer.Character.Humanoid.JumpPower = 50
     end
+    restoreReelButtons()
     Camera.CameraType = Enum.CameraType.Custom
     ScreenGui:Destroy()
     WarningGui:Destroy()
@@ -653,7 +739,7 @@ task.spawn(function()
 				isLockingActiveNow = false
 			end
 		end)
-		task.wait(0.2) -- Tăng thời gian nghỉ để giảm tải CPU đáng kể
+		task.wait(0.2)
 	end
 end)
 
@@ -677,10 +763,11 @@ ToggleAutoLockBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
-local function getRandomScreenCenterPosition()
+-- Lấy tọa độ chính giữa màn hình (Không random nữa)
+local function getScreenCenterPosition()
     local vpSize = workspace.CurrentCamera.ViewportSize
     local inset = GuiService:GetGuiInset()
-    return (vpSize.X / 2) + 50 + math.random(-boxWidthSize, boxWidthSize), (vpSize.Y / 2) - 50 + math.random(-boxHeightSize, boxHeightSize) + inset.Y
+    return (vpSize.X / 2), (vpSize.Y / 2) + inset.Y
 end
 
 local function spamSkillKeys()
@@ -826,6 +913,9 @@ local function startAutoMaster()
     ToggleMasterBtn.Text = "🛑 TẮT AUTO"
     ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
     
+    -- KHI BẬT AUTO CÂU: Phóng to và ẩn 3 nút Reel
+    applyReelModifications()
+    
     if savedAutoCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character.HumanoidRootPart.CFrame = savedAutoCFrame
     end
@@ -840,25 +930,26 @@ local function startAutoMaster()
             end
             if not isRunning then break end
             
-            StatusLabel.Text = "⚡ Spam Click & Skill (Mượt)..."
+            StatusLabel.Text = "⚡ Giữ & Click (Chính giữa)..."
             pcall(function()
                 if not isRunning then return end
                 
-                local x, y = getRandomScreenCenterPosition()
+                -- Giữ và click cố định tại chính giữa màn hình (Không random)
+                local x, y = getScreenCenterPosition()
                 showClickDot(x, y)
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
                 local startTime = tick()
                 while tick() - startTime < 0.2 and isRunning and hasEquippedRod() do 
                     spamSkillKeys()
-                    task.wait(0.05) -- Tăng thời gian nghỉ giữa các skill để game không bị nghẽn lệnh (giảm lag)
+                    task.wait(0.05)
                 end
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
                 
                 if not isRunning then return end
                 
-                for i = 1, 10 do -- Giảm số lần lặp click dư thừa xuống 10 lần cho nhẹ máy
+                for i = 1, 10 do
                     if not isRunning or not hasEquippedRod() then break end
-                    local rx, ry = getRandomScreenCenterPosition()
+                    local rx, ry = getScreenCenterPosition()
                     showClickDot(rx, ry)
                     VirtualInputManager:SendMouseButtonEvent(rx, ry, 0, true, game, 0)
                     spamSkillKeys()
@@ -877,6 +968,9 @@ local function stopAutoMaster()
     ToggleMasterBtn.Text = "auto câu + skill"
     ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
     StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
+    
+    -- KHI TẮT AUTO CÂU: Khôi phục lại 3 nút Reel như ban đầu
+    restoreReelButtons()
     disableCameraLock()
 end
 
@@ -946,7 +1040,6 @@ local function simulateGamePadButton(keyCode, holdTime)
     end)
 end
 
--- Tự động bán (50/50) tối ưu không lag
 local isAutoSellRunning = false
 
 AutoSellBtn.MouseButton1Click:Connect(function()
@@ -971,7 +1064,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                     local cur, max = getFishCapacity()
                     StatusLabel.Text = string.format("📦 Kho cá: %d/%d", cur, max)
                     if cur >= max and max > 0 then break end
-                    task.wait(1.0) -- Kiểm tra kho thưa hơn để đỡ ngốn tài nguyên
+                    task.wait(1.0)
                 end
                 
                 if not isAutoSellRunning then break end
@@ -1006,11 +1099,7 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                 
                 StatusLabel.Text = "⏳ Cất cần..."
                 pcall(function()
-                    local vpSize = workspace.CurrentCamera.ViewportSize
-                    local inset = GuiService:GetGuiInset()
-                    local centerX = vpSize.X / 2
-                    local centerY = (vpSize.Y / 2) + inset.Y
-
+                    local centerX, centerY = getScreenCenterPosition()
                     for i = 1, 2 do
                         if not isAutoSellRunning then break end
                         VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
