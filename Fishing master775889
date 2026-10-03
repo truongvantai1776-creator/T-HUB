@@ -207,6 +207,15 @@ local function showClickDot(x, y)
 	end)
 end
 
+-- ================= HÀM GIẢ LẬP NHẤN PHÍM SPACE TRÊN PC =================
+local function simulateSpaceJump()
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+    end)
+end
+
 -- ================= TỰ ĐỘNG CHẠY NAMETAG "T HUB VIP" =================
 local function applyGoldAndBlackSweep(uiGradient)
     task.spawn(function()
@@ -489,6 +498,7 @@ local function walkSmartlyTo(targetCFrame, customSpeed)
     local checkStuckTimer = tick()
     local isBackingUp = false
     local backupTimer = 0
+    local lastJumpTick = 0
 
     local connection
     connection = RunService.RenderStepped:Connect(function(dt)
@@ -497,6 +507,14 @@ local function walkSmartlyTo(targetCFrame, customSpeed)
             return
         end
         humanoid.WalkSpeed = travelSpeed
+        
+        -- Tự động nhấn phím Space giả lập trên PC mỗi 0.6 giây để chắc chắn nhân vật nhảy qua chướng ngại vật
+        if tick() - lastJumpTick >= 0.6 then
+            simulateSpaceJump()
+            lastJumpTick = tick()
+        end
+        humanoid.Jump = true
+        
         local currentPos = hrp.Position
         local targetXZ = Vector3.new(finalTargetPos.X, currentPos.Y, finalTargetPos.Z)
         local distance = (targetXZ - currentPos).Magnitude
@@ -511,12 +529,13 @@ local function walkSmartlyTo(targetCFrame, customSpeed)
         if isBackingUp then
             backupTimer = backupTimer - dt
             humanoid.Jump = true
+            simulateSpaceJump()
             humanoid:Move(-hrp.CFrame.LookVector)
             if backupTimer <= 0 then isBackingUp = false; avoidDirection = avoidDirection * -1 end
             return
         end
 
-        if tick() - checkStuckTimer >= 10 then
+        if tick() - checkStuckTimer >= 5 then
             if (currentPos - lastCheckPos).Magnitude < 1.5 then
                 isBackingUp = true
                 backupTimer = 2.0
@@ -531,9 +550,10 @@ local function walkSmartlyTo(targetCFrame, customSpeed)
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
         raycastParams.FilterDescendantsInstances = {char}
         
-        local frontRay = workspace:Raycast(currentPos + Vector3.new(0, 1, 0), baseMoveDir * 36, raycastParams)
+        local frontRay = workspace:Raycast(currentPos + Vector3.new(0, 1, 0), baseMoveDir * 15, raycastParams)
         if frontRay then
             humanoid.Jump = true
+            simulateSpaceJump()
             if avoidTimer > 0 then
                 avoidTimer = avoidTimer - dt
             else
@@ -812,27 +832,22 @@ IslandsTab:Button({
     end
 })
 
--- ================= TAB MỚI: FIX LAG (THEO YÊU CẦU) =================
+-- ================= TAB MỚI: FIX LAG =================
 local FixLagTab = Window:Tab({
     Title = "Fix Lag",
     Icon = "activity",
 })
 
--- Biến lưu trạng thái tối ưu
 local originalPartsData = {}
 local originalLightingData = {GlobalShadows = game:GetService("Lighting").GlobalShadows, FogEnd = game:GetService("Lighting").FogEnd}
 local originalSoundVolumes = {}
 
--- 1. Nút Tối ưu Map & Part
-local mapOptimized = false
 FixLagTab:Toggle({
     Title = "Tối Ưu Map & Part",
     Default = false,
     Callback = function(state)
-        mapOptimized = state
         local lighting = game:GetService("Lighting")
-        
-        if mapOptimized then
+        if state then
             for _, part in ipairs(workspace:GetDescendants()) do
                 if part:IsA("BasePart") then
                     originalPartsData[part] = {
@@ -867,17 +882,14 @@ FixLagTab:Toggle({
     end
 })
 
--- 2. Nút Xóa Hiệu Ứng & Skill
-local effectClearing = false
 local effectConnection
 FixLagTab:Toggle({
     Title = "Xóa Hiệu Ứng & Skill",
     Default = false,
     Callback = function(state)
-        effectClearing = state
-        if effectClearing then
+        if state then
             effectConnection = workspace.DescendantAdded:Connect(function(child)
-                if effectClearing and (child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Smoke") or child:IsA("Sparkles") or child:IsA("Beam") or child:IsA("Trail") or child:IsA("Highlight") or child:IsA("Explosion")) then
+                if child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Smoke") or child:IsA("Sparkles") or child:IsA("Beam") or child:IsA("Trail") or child:IsA("Highlight") or child:IsA("Explosion") then
                     pcall(function() child:Destroy() end)
                 end
             end)
@@ -894,17 +906,13 @@ FixLagTab:Toggle({
     end
 })
 
--- 3. Nút Xóa Hoạt Ảnh Nhân Vật
-local animClearing = false
 local animLoopConnection
 FixLagTab:Toggle({
     Title = "Xóa Hoạt Ảnh Nhân Vật",
     Default = false,
     Callback = function(state)
-        animClearing = state
-        if animClearing then
-            animLoopConnection = game:GetService("RunService").Stepped:Connect(function()
-                if not animClearing then return end
+        if state then
+            animLoopConnection = RunService.Stepped:Connect(function()
                 for _, char in ipairs(workspace:GetChildren()) do
                     if char:IsA("Model") then
                         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -912,10 +920,7 @@ FixLagTab:Toggle({
                             local animator = humanoid:FindFirstChildOfClass("Animator")
                             if animator then
                                 for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                                    pcall(function()
-                                        track:Stop(0)
-                                        track:AdjustSpeed(0)
-                                    end)
+                                    pcall(function() track:Stop(0); track:AdjustSpeed(0) end)
                                 end
                             end
                         end
@@ -924,24 +929,18 @@ FixLagTab:Toggle({
             end)
             WindUI:Notify({ Title = "T HUB", Content = "Đã BẬT Xóa Hoạt Ảnh Nhân Vật", Duration = 2 })
         else
-            if animLoopConnection then
-                animLoopConnection:Disconnect()
-                animLoopConnection = nil
-            end
+            if animLoopConnection then animLoopConnection:Disconnect(); animLoopConnection = nil end
             WindUI:Notify({ Title = "T HUB", Content = "Đã TẮT Xóa Hoạt Ảnh Nhân Vật", Duration = 2 })
         end
     end
 })
 
--- 4. Nút Fix Lag Âm Thanh
-local soundMuted = false
 local soundConnection
 FixLagTab:Toggle({
     Title = "Fix Lag Âm Thanh",
     Default = false,
     Callback = function(state)
-        soundMuted = state
-        if soundMuted then
+        if state then
             for _, descendant in ipairs(game:GetDescendants()) do
                 if descendant:IsA("Sound") then
                     originalSoundVolumes[descendant] = descendant.Volume
@@ -949,9 +948,8 @@ FixLagTab:Toggle({
                     descendant:Stop()
                 end
             end
-            
             soundConnection = game.DescendantAdded:Connect(function(child)
-                if soundMuted and child:IsA("Sound") then
+                if child:IsA("Sound") then
                     originalSoundVolumes[child] = child.Volume
                     child.Volume = 0
                     child:Stop()
@@ -959,15 +957,9 @@ FixLagTab:Toggle({
             end)
             WindUI:Notify({ Title = "T HUB", Content = "Đã BẬT Fix Lag Âm Thanh", Duration = 2 })
         else
-            if soundConnection then
-                soundConnection:Disconnect()
-                soundConnection = nil
-            end
-            
+            if soundConnection then soundConnection:Disconnect(); soundConnection = nil end
             for sound, vol in pairs(originalSoundVolumes) do
-                if sound and sound.Parent then
-                    sound.Volume = vol
-                end
+                if sound and sound.Parent then sound.Volume = vol end
             end
             originalSoundVolumes = {}
             WindUI:Notify({ Title = "T HUB", Content = "Đã TẮT Fix Lag Âm Thanh", Duration = 2 })
@@ -975,7 +967,6 @@ FixLagTab:Toggle({
     end
 })
 
--- Cảnh báo được thêm bên dưới các nút trong mục Fix Lag
 FixLagTab:Paragraph({
     Title = "⚠️ Cảnh Báo",
     Desc = "cảnh báo : khi bật có thể sẽ bị lỗi trong quá trình afk để farm tài nguyên , đây chỉ là phán đoán thôi và tỉ lệ thấp xãy ra biến cố",
@@ -991,14 +982,9 @@ AutoLockTab:Toggle({
     Title = "Bật Auto Lock",
     Default = false,
     Callback = function(state)
-        if state then
-            AutoLockRunning = true
-            WindUI:Notify({ Title = "T HUB", Content = "Đã BẬT Auto Lock cá!", Duration = 3 })
-        else
-            AutoLockRunning = false
-            isLockingActiveNow = false
-            WindUI:Notify({ Title = "T HUB", Content = "Đã TẮT Auto Lock cá!", Duration = 3 })
-        end
+        AutoLockRunning = state
+        if not state then isLockingActiveNow = false end
+        WindUI:Notify({ Title = "T HUB", Content = state and "Đã BẬT Auto Lock cá!" or "Đã TẮT Auto Lock cá!", Duration = 3 })
     end
 })
 
