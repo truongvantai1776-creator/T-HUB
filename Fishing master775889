@@ -55,7 +55,7 @@ local savedAutoCFrame = nil
 local sellMoveMode = "Đi bộ thông minh"
 local isAutoFishingEnabledByUser = false
 
--- ================= BẢNG HIỂN THỊ THỜI GIAN ĐẾM NGƯỢC =================
+-- ================= BẢNG HIỂN THỊ THỜI GIAN ĐẾM NGƯỜC =================
 local TimerGui = Instance.new("ScreenGui", CoreGui)
 TimerGui.Name = "FishingSellTimerGui"
 TimerGui.ResetOnSpawn = false
@@ -197,7 +197,7 @@ local function showClickDot(x, y)
 	end)
 end
 
--- ================= HỆ THỐNG DI CHUYỂN PATHFINDING BẢN ĐỒ CAO CẤP (QUÉT TẦM XA & CHỐNG LẮC) =================
+-- ================= HỆ THỐNG DI CHUYỂN PATHFINDING BẢN ĐỒ CAO CẤP =================
 
 local function tweenMoveTo(targetPos, speed)
     pcall(function()
@@ -238,7 +238,6 @@ local function tweenMoveTo(targetPos, speed)
     end)
 end
 
--- Di chuyển thông minh kết hợp PathfindingService (Quét toàn bộ Map Part)
 local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
@@ -252,7 +251,6 @@ local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
     
     humanoid.WalkSpeed = 24
     
-    -- Tạo cấu hình Pathfinding tối ưu cho Map
     local path = PathfindingService:CreatePath({
         AgentRadius = 2.5,
         AgentHeight = 5.0,
@@ -277,7 +275,7 @@ local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
 
             local elapsed = tick() - startTime
             if elapsed >= maxDuration then
-                humanoid.Health = 0 -- Reset nếu hết giờ
+                humanoid.Health = 0
                 return false
             end
 
@@ -286,15 +284,12 @@ local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
                 showTimerText(string.format("%s: %ds", statusPrefix, remaining))
             end
 
-            -- Yêu cầu di chuyển đến điểm mốc Waypoint
             humanoid:MoveTo(waypoint.Position)
 
-            -- UUTIÊN ĐỘ CAO & BẬC THANG: Tự động nhảy nếu điểm tiếp theo cao hơn hoặc có sự kiện Jump
             if waypoint.Action == Enum.PathWaypointAction.Jump or (waypoint.Position.Y - hrp.Position.Y > 1.8) then
                 humanoid.Jump = true
             end
 
-            -- Chờ nhân vật tới điểm mốc Waypoint (Kiểm tra kẹt)
             local wpReached = false
             local wpStart = tick()
             local lastPos = hrp.Position
@@ -302,13 +297,11 @@ local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
             while tick() - wpStart < 2.5 do
                 local currentDist = (hrp.Position - waypoint.Position) * Vector3.new(1, 0, 1)
                 
-                -- Đã tiến sát Waypoint
                 if currentDist.Magnitude <= 3.5 then
                     wpReached = true
                     break
                 end
 
-                -- Kiểm tra kẹt tại chỗ quá 0.8 giây -> Nhảy lên thử vượt gờ
                 if tick() - wpStart > 0.8 and (hrp.Position - lastPos).Magnitude < 0.5 then
                     humanoid.Jump = true
                     humanoid:MoveTo(waypoint.Position)
@@ -318,17 +311,14 @@ local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
                 task.wait(0.05)
             end
 
-            -- Nếu bị kẹt không thể tới Waypoint này -> Quét lại toàn bản đồ từ vị trí hiện tại
             if not wpReached then
                 return navigateSmartlyPathfinding(targetPos, maxDuration - (tick() - startTime), statusPrefix)
             end
         end
 
-        -- Kiểm tra khoảng cách cuối cùng
         local finalDist = (hrp.Position - targetPos).Magnitude
         return finalDist <= 8.0
     else
-        -- Trường hợp không tìm thấy đường đi qua Pathfinding (Ví dụ mục tiêu lơ lửng trên không), tự động bước tới trực tiếp
         humanoid:MoveTo(targetPos)
         if targetPos.Y - hrp.Position.Y > 2.0 then humanoid.Jump = true end
         task.wait(1.0)
@@ -429,7 +419,7 @@ end
 
 -- ================= CÁC TAB T HUB =================
 local HomeTab = Window:Tab({ Title = "Trang Chủ", Icon = "image" })
-HomeTab:Paragraph({ Title = "✨ Chào mừng đến với T HUB", Desc = "Hệ thống Farm & Island đã được nâng cấp tối ưu nhất." })
+HomeTab:Paragraph({ Title = "✨ Chào mừng đến với T HUB", Desc = "Hệ thống Farm, Auto Open UI & Island đã được nâng cấp tối ưu nhất." })
 
 local ServerTab = Window:Tab({ Title = "Thông Tin Server", Icon = "server" })
 local ServerParagraph = ServerTab:Paragraph({ Title = "⚡ T HUB - Trạng thái hệ thống", Desc = "Đang tải dữ liệu..." })
@@ -730,12 +720,12 @@ autoSellToggleRef = FishingTab:Toggle({
                         end
                     end
                     
-                    -- ================= ĐÃ TỚI NPC: ĐỨNG ĐỢI 10S RỒI QUAY VỀ =================
+                    -- ================= ĐÃ TỚI NPC: ĐỨNG ĐỢI 5S RỒI QUAY VỀ =================
                     if reachedNpc and isAutoSellRunning then
                         triggerDirectSellAll()
                         
-                        -- Đứng đợi 10s đếm ngược tại NPC
-                        for i = 10, 1, -1 do
+                        -- Đã đổi từ 10s xuống 5s đếm ngược tại NPC
+                        for i = 5, 1, -1 do
                             if not isAutoSellRunning then break end
                             showTimerText(string.format("⏳ Đang ở chỗ NPC - Chờ bán: %ds", i))
                             triggerDirectSellAll()
@@ -862,6 +852,105 @@ do
 	end)
 end
 
+-- ================= TAB MỞ UI (TÍCH HỢP MỚI) =================
+local OpenUITab = Window:Tab({ Title = "Mở Ui", Icon = "layout-grid" })
+
+OpenUITab:Paragraph({ Title = "Quick Open UI", Desc = "Chọn giao diện mong muốn trong danh sách bên dưới và nhấn 'Mở UI' để khởi chạy nhanh." })
+
+local availableUiList = {"Skill market"}
+local selectedUiOption = "Skill market"
+
+-- Hàm quét danh sách các UI hiện có trong PlayerGui
+local function scanAvailableUIs()
+    local scannedList = {"Skill market"}
+    pcall(function()
+        local gachaGui = PlayerGui:FindFirstChild("Gacha")
+        if gachaGui then
+            for _, child in ipairs(gachaGui:GetChildren()) do
+                if child:IsA("GuiObject") and child:FindFirstChild("Actions") then
+                    if child.Name ~= "Background" and child.Name ~= "Close" then
+                        table.insert(scannedList, child.Name)
+                    end
+                end
+            end
+        end
+    end)
+    return scannedList
+end
+
+availableUiList = scanAvailableUIs()
+
+-- Dropdown Khung chọn UI cần mở
+local uiDropdown = OpenUITab:Dropdown({
+    Title = "Chọn UI cần mở",
+    Values = availableUiList,
+    Value = availableUiList[1] or "Skill market",
+    Callback = function(option)
+        selectedUiOption = option
+    end
+})
+
+-- Hàm kích hoạt mở UI theo lựa chọn
+local function executeOpenUI(targetName)
+    pcall(function()
+        if targetName == "Skill market" then
+            local premiumSkillGui = PlayerGui:FindFirstChild("PremiumSkill")
+            if premiumSkillGui then
+                if premiumSkillGui:IsA("ScreenGui") and not premiumSkillGui.Enabled then
+                    premiumSkillGui.Enabled = true
+                end
+                local frame = premiumSkillGui:FindFirstChild("Frame")
+                if frame and frame:IsA("GuiObject") then
+                    frame.Visible = true
+                end
+                WindUI:Notify({ Title = "T HUB", Content = "Đã mở Skill market!", Duration = 2 })
+            else
+                WindUI:Notify({ Title = "Cảnh báo", Content = "Không tìm thấy PremiumSkill trong PlayerGui!", Duration = 3 })
+            end
+        else
+            local gachaGui = PlayerGui:FindFirstChild("Gacha")
+            if gachaGui then
+                if gachaGui:IsA("ScreenGui") and not gachaGui.Enabled then
+                    gachaGui.Enabled = true
+                end
+                local targetObj = gachaGui:FindFirstChild(targetName)
+                if targetObj and targetObj:IsA("GuiObject") then
+                    targetObj.Visible = true
+                    WindUI:Notify({ Title = "T HUB", Content = "Đã mở " .. targetName, Duration = 2 })
+                else
+                    WindUI:Notify({ Title = "Cảnh báo", Content = "Không tìm thấy giao diện " .. targetName, Duration = 3 })
+                end
+            end
+        end
+    end)
+end
+
+-- Nút bấm Mở Ui ngay bên dưới khung chọn
+OpenUITab:Button({
+    Title = "Mở UI",
+    Callback = function()
+        if selectedUiOption and selectedUiOption ~= "" then
+            executeOpenUI(selectedUiOption)
+        else
+            WindUI:Notify({ Title = "Cảnh báo", Content = "Vui lòng chọn một UI từ danh sách!", Duration = 2 })
+        end
+    end
+})
+
+-- Nút cập nhật danh sách UI
+OpenUITab:Button({
+    Title = "Tải lại danh sách UI",
+    Callback = function()
+        availableUiList = scanAvailableUIs()
+        pcall(function()
+            if uiDropdown and uiDropdown.SetValues then
+                uiDropdown:SetValues(availableUiList)
+            end
+        end)
+        WindUI:Notify({ Title = "T HUB", Content = "Đã làm mới danh sách UI!", Duration = 2 })
+    end
+})
+
 -- ================= TAB ISLANDS =================
 local IslandsTab = Window:Tab({ Title = "Islands", Icon = "map" })
 
@@ -945,7 +1034,7 @@ local originalLightingData = {GlobalShadows = game:GetService("Lighting").Global
 local originalSoundVolumes = {}
 
 FixLagTab:Toggle({
-    Title = "⚡ Tối Ưu Map & Part",
+    Title = "Tối Ưu Map & Part",
     Value = false,
     Callback = function(state)
         local lighting = game:GetService("Lighting")
@@ -975,7 +1064,7 @@ FixLagTab:Toggle({
 
 local effectConnection
 FixLagTab:Toggle({
-    Title = "🧹 Xóa Hiệu Ứng & Skill",
+    Title = "Xóa Hiệu Ứng & Skill",
     Value = false,
     Callback = function(state)
         if state then
@@ -991,7 +1080,7 @@ FixLagTab:Toggle({
 
 local animLoopConnection
 FixLagTab:Toggle({
-    Title = "🏃 Xóa Hoạt Ảnh Nhân Vật",
+    Title = "Xóa Hoạt Ảnh Nhân Vật",
     Value = false,
     Callback = function(state)
         if state then
@@ -1012,7 +1101,7 @@ FixLagTab:Toggle({
 
 local soundConnection
 FixLagTab:Toggle({
-    Title = "🔊 Fix Lag Âm Thanh",
+    Title = "Fix Lag Âm Thanh",
     Value = false,
     Callback = function(state)
         if state then
