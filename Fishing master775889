@@ -39,6 +39,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 local Stats = game:GetService("Stats")
 local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -53,6 +54,53 @@ ScreenGui.Parent = CoreGui
 local savedAutoCFrame = nil
 local sellMoveMode = "Đi bộ thông minh"
 local isAutoFishingEnabledByUser = false
+
+-- ================= BẢNG HIỂN THỊ THỜI GIAN ĐẾM NGƯỢC =================
+local TimerGui = Instance.new("ScreenGui", CoreGui)
+TimerGui.Name = "FishingSellTimerGui"
+TimerGui.ResetOnSpawn = false
+
+local TimerLabel = Instance.new("TextLabel", TimerGui)
+TimerLabel.Size = UDim2.new(0, 240, 0, 42)
+TimerLabel.AnchorPoint = Vector2.new(0.5, 0)
+TimerLabel.Position = UDim2.new(0.5, 0, 0.15, 0)
+TimerLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TimerLabel.BackgroundTransparency = 0.2
+TimerLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+TimerLabel.TextSize = 15
+TimerLabel.Font = Enum.Font.GothamBold
+TimerLabel.Visible = false
+Instance.new("UICorner", TimerLabel).CornerRadius = UDim.new(0, 8)
+local TimerStroke = Instance.new("UIStroke", TimerLabel)
+TimerStroke.Color = Color3.fromRGB(255, 170, 0)
+TimerStroke.Thickness = 1.5
+
+local function showTimerText(text)
+    pcall(function()
+        TimerLabel.Text = text
+        TimerLabel.Visible = true
+    end)
+end
+
+local function hideTimerText()
+    pcall(function()
+        TimerLabel.Visible = false
+    end)
+end
+
+-- ================= HÀM AUTO SELL TRỰC TIẾP QUA GETGC =================
+local function triggerDirectSellAll()
+    pcall(function()
+        for _, v in pairs(getgc(true)) do
+            if typeof(v) == "table" then
+                if rawget(v, "SellAll") and type(rawget(v, "SellAll")) == "function" then
+                    v.SellAll()
+                    break
+                end
+            end
+        end
+    end)
+end
 
 -- ================= HÀM XỬ LÝ REEL COUNTER GUI =================
 local originalButtonStates = {}
@@ -149,149 +197,167 @@ local function showClickDot(x, y)
 	end)
 end
 
--- ================= HỆ THỐNG DI CHUYỂN 1: DÀNH CHO AUTO SELL =================
+-- ================= HỆ THỐNG DI CHUYỂN PATHFINDING BẢN ĐỒ CAO CẤP (QUÉT TẦM XA & CHỐNG LẮC) =================
 
 local function tweenMoveTo(targetPos, speed)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    
-    local dist = (hrp.Position - targetPos).Magnitude
-    local duration = dist / (speed or 35)
-    
-    local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(100000, 100000, 100000)
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.Parent = hrp
-    
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos + Vector3.new(0, 3.5, 0))})
-    
-    local connection = RunService.Stepped:Connect(function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = char.HumanoidRootPart
+        
+        local dist = (hrp.Position - targetPos).Magnitude
+        local duration = dist / (speed or 35)
+        
+        local bv = Instance.new("BodyVelocity")
+        bv.MaxForce = Vector3.new(100000, 100000, 100000)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent = hrp
+        
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos + Vector3.new(0, 3.5, 0))})
+        
+        local connection = RunService.Stepped:Connect(function()
+            pcall(function()
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end)
+        end)
+        
+        tween:Play()
+        tween.Completed:Wait()
+        
+        if connection then connection:Disconnect() end
+        if bv then bv:Destroy() end
         for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide then
-                part.CanCollide = false
+            if part:IsA("BasePart") then part.CanCollide = true end
+        end
+        task.wait(0.1)
+    end)
+end
+
+-- Di chuyển thông minh kết hợp PathfindingService (Quét toàn bộ Map Part)
+local function navigateSmartlyPathfinding(targetPos, maxDuration, statusPrefix)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
+        return false
+    end
+
+    local hrp = char.HumanoidRootPart
+    local humanoid = char.Humanoid
+    
+    if humanoid.Health <= 0 then return false end
+    
+    humanoid.WalkSpeed = 24
+    
+    -- Tạo cấu hình Pathfinding tối ưu cho Map
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2.5,
+        AgentHeight = 5.0,
+        AgentCanJump = true,
+        AgentCanClimb = true,
+        WaypointSpacing = 4.0
+    })
+
+    local computeSuccess = pcall(function()
+        path:ComputeAsync(hrp.Position, targetPos)
+    end)
+
+    local startTime = tick()
+
+    if computeSuccess and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+
+        for i, waypoint in ipairs(waypoints) do
+            if not char or not char:FindFirstChild("HumanoidRootPart") or humanoid.Health <= 0 then
+                return false
+            end
+
+            local elapsed = tick() - startTime
+            if elapsed >= maxDuration then
+                humanoid.Health = 0 -- Reset nếu hết giờ
+                return false
+            end
+
+            local remaining = math.max(0, math.ceil(maxDuration - elapsed))
+            if statusPrefix then
+                showTimerText(string.format("%s: %ds", statusPrefix, remaining))
+            end
+
+            -- Yêu cầu di chuyển đến điểm mốc Waypoint
+            humanoid:MoveTo(waypoint.Position)
+
+            -- UUTIÊN ĐỘ CAO & BẬC THANG: Tự động nhảy nếu điểm tiếp theo cao hơn hoặc có sự kiện Jump
+            if waypoint.Action == Enum.PathWaypointAction.Jump or (waypoint.Position.Y - hrp.Position.Y > 1.8) then
+                humanoid.Jump = true
+            end
+
+            -- Chờ nhân vật tới điểm mốc Waypoint (Kiểm tra kẹt)
+            local wpReached = false
+            local wpStart = tick()
+            local lastPos = hrp.Position
+
+            while tick() - wpStart < 2.5 do
+                local currentDist = (hrp.Position - waypoint.Position) * Vector3.new(1, 0, 1)
+                
+                -- Đã tiến sát Waypoint
+                if currentDist.Magnitude <= 3.5 then
+                    wpReached = true
+                    break
+                end
+
+                -- Kiểm tra kẹt tại chỗ quá 0.8 giây -> Nhảy lên thử vượt gờ
+                if tick() - wpStart > 0.8 and (hrp.Position - lastPos).Magnitude < 0.5 then
+                    humanoid.Jump = true
+                    humanoid:MoveTo(waypoint.Position)
+                end
+
+                lastPos = hrp.Position
+                task.wait(0.05)
+            end
+
+            -- Nếu bị kẹt không thể tới Waypoint này -> Quét lại toàn bản đồ từ vị trí hiện tại
+            if not wpReached then
+                return navigateSmartlyPathfinding(targetPos, maxDuration - (tick() - startTime), statusPrefix)
             end
         end
-    end)
-    
-    tween:Play()
-    tween.Completed:Wait()
-    
-    connection:Disconnect()
-    bv:Destroy()
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then part.CanCollide = true end
+
+        -- Kiểm tra khoảng cách cuối cùng
+        local finalDist = (hrp.Position - targetPos).Magnitude
+        return finalDist <= 8.0
+    else
+        -- Trường hợp không tìm thấy đường đi qua Pathfinding (Ví dụ mục tiêu lơ lửng trên không), tự động bước tới trực tiếp
+        humanoid:MoveTo(targetPos)
+        if targetPos.Y - hrp.Position.Y > 2.0 then humanoid.Jump = true end
+        task.wait(1.0)
+        return (hrp.Position - targetPos).Magnitude <= 8.0
     end
-    task.wait(0.1)
 end
 
 local function walkSmartlyTo_Sell(targetCFrame)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return false end
+    showTimerText("⏳ Đang tìm đường tới NPC...")
+    local arrived = navigateSmartlyPathfinding(targetCFrame.Position, 60, "⏳ Đang tới NPC Sell")
+    hideTimerText()
     
-    local hrp = char.HumanoidRootPart
-    local humanoid = char.Humanoid
-    humanoid.WalkSpeed = 24
-    
-    local finalTargetPos = targetCFrame.Position
-    local startTime = tick()
-    local arrived = false
-    local avoidDirection = 1 
-    local avoidTimer = 0
-    local lastCheckPos = hrp.Position
-    local checkStuckTimer = tick()
-    local isBackingUp = false
-    local backupTimer = 0
-
-    local connection
-    connection = RunService.RenderStepped:Connect(function(dt)
-        if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
-            if connection then connection:Disconnect() end
-            return
-        end
-        
-        humanoid.WalkSpeed = 24
-        local currentPos = hrp.Position
-        local targetXZ = Vector3.new(finalTargetPos.X, currentPos.Y, finalTargetPos.Z)
-        local distance = (targetXZ - currentPos).Magnitude
-        
-        if distance < 2 then
-            humanoid:Move(Vector3.new(0, 0, 0))
-            arrived = true
-            if connection then connection:Disconnect() end
-            return
-        end
-
-        if (tick() - startTime) > 120 then
-            humanoid.Health = 0
-            arrived = true
-            if connection then connection:Disconnect() end
-            return
-        end
-
-        if isBackingUp then
-            backupTimer = backupTimer - dt
-            humanoid.Jump = true
-            humanoid:Move(-hrp.CFrame.LookVector)
-            if backupTimer <= 0 then 
-                isBackingUp = false
-                avoidDirection = avoidDirection * -1 
-            end
-            return
-        end
-
-        if tick() - checkStuckTimer >= 10 then
-            if (currentPos - lastCheckPos).Magnitude < 1.5 then
-                isBackingUp = true
-                backupTimer = 2.0
-                avoidDirection = avoidDirection * -1
-            end
-            lastCheckPos = currentPos
-            checkStuckTimer = tick()
-        end
-        
-        local baseMoveDir = (targetXZ - currentPos).Unit
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.FilterDescendantsInstances = {char}
-        
-        local frontRay = workspace:Raycast(currentPos + Vector3.new(0, 1, 0), baseMoveDir * 60, raycastParams)
-        if frontRay then
-            humanoid.Jump = true
-            if avoidTimer > 0 then
-                avoidTimer = avoidTimer - dt
-            else
-                avoidDirection = avoidDirection * -1
-                avoidTimer = 1.5
-            end
-            local angle = (avoidDirection == 1) and math.rad(65) or math.rad(-65)
-            humanoid:Move((CFrame.Angles(0, angle, 0) * Vector3.new(baseMoveDir.X, 0, baseMoveDir.Z)).Unit)
-        else
-            avoidTimer = 0
-            humanoid:Move(baseMoveDir)
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid:Move(Vector3.new(0, 0, 0))
+            char.Humanoid.WalkSpeed = 20
         end
     end)
     
-    while not arrived and connection and connection.Connected do
-        task.wait(0.05)
-    end
-    
-    if connection then connection:Disconnect() end
-    
-    if char and char:FindFirstChild("Humanoid") then
-        humanoid:Move(Vector3.new(0, 0, 0))
-        char.Humanoid.WalkSpeed = 20 
-    end
-    
-    return (hrp.Position - finalTargetPos).Magnitude <= 6
+    return arrived
 end
 
 local function movePlayerToTarget_Sell(targetPos, speed)
     if sellMoveMode == "Đi bộ thông minh" then 
-        walkSmartlyTo_Sell(CFrame.new(targetPos)) 
+        return walkSmartlyTo_Sell(CFrame.new(targetPos)) 
     else 
         tweenMoveTo(targetPos, speed or 35) 
+        return true
     end
 end
 
@@ -363,7 +429,7 @@ end
 
 -- ================= CÁC TAB T HUB =================
 local HomeTab = Window:Tab({ Title = "Trang Chủ", Icon = "image" })
-HomeTab:Paragraph({ Title = "✨ Chào mừng đến với T HUB", Desc = "Hệ thống Farm & Island đã được tách riêng để hoạt động mượt mà nhất." })
+HomeTab:Paragraph({ Title = "✨ Chào mừng đến với T HUB", Desc = "Hệ thống Farm & Island đã được nâng cấp tối ưu nhất." })
 
 local ServerTab = Window:Tab({ Title = "Thông Tin Server", Icon = "server" })
 local ServerParagraph = ServerTab:Paragraph({ Title = "⚡ T HUB - Trạng thái hệ thống", Desc = "Đang tải dữ liệu..." })
@@ -400,13 +466,15 @@ local cameraLockConnection = nil
 local function enableCameraLock()
     if cameraLockConnection then cameraLockConnection:Disconnect() end
     cameraLockConnection = RunService.RenderStepped:Connect(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-            char.Humanoid.WalkSpeed = 0; char.Humanoid.JumpPower = 0
-            if savedAutoCFrame then char.HumanoidRootPart.CFrame = savedAutoCFrame; char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0) end
-            local camPos = char.HumanoidRootPart.Position - (char.HumanoidRootPart.CFrame.LookVector * 6) + Vector3.new(0, 3, 0)
-            Camera.CFrame = CFrame.new(camPos, char.HumanoidRootPart.Position + Vector3.new(0, 1, 0))
-        end
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = 0; char.Humanoid.JumpPower = 0
+                if savedAutoCFrame then char.HumanoidRootPart.CFrame = savedAutoCFrame; char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0) end
+                local camPos = char.HumanoidRootPart.Position - (char.HumanoidRootPart.CFrame.LookVector * 6) + Vector3.new(0, 3, 0)
+                Camera.CFrame = CFrame.new(camPos, char.HumanoidRootPart.Position + Vector3.new(0, 1, 0))
+            end
+        end)
     end)
 end
 
@@ -588,6 +656,7 @@ autoSellToggleRef = FishingTab:Toggle({
             
             task.spawn(function()
                 while isAutoSellRunning do
+                    -- Chờ đến khi đầy túi cá (50/50)
                     while isAutoSellRunning do
                         local cur, max = getFishCapacity()
                         if cur >= max and max > 0 then break end
@@ -620,8 +689,19 @@ autoSellToggleRef = FishingTab:Toggle({
                     end)
                     task.wait(0.2)
                     
-                    local char = LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
+                    -- ================= VÒNG LẶP DI CHUYỂN ĐẾN NPC (TỰ THỬ LẠI KHI DIE) =================
+                    local reachedNpc = false
+                    
+                    while isAutoSellRunning and not reachedNpc do
+                        local char = LocalPlayer.Character
+                        if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
+                            showCenterWarning("⏳ Đang chờ hồi sinh...", 2)
+                            LocalPlayer.CharacterAdded:Wait()
+                            task.wait(2.5)
+                            char = LocalPlayer.Character
+                        end
+
+                        -- Tìm NPC bán cá
                         local targetNpcPart = nil; local shortestDist = math.huge
                         for _, obj in ipairs(workspace:GetDescendants()) do
                             local nameLower = string.lower(obj.Name)
@@ -636,42 +716,42 @@ autoSellToggleRef = FishingTab:Toggle({
                         
                         if targetNpcPart then
                             local targetPos = targetNpcPart.Position + Vector3.new(0, 0, 3)
-                            movePlayerToTarget_Sell(targetPos, 35); task.wait(1.0) 
-                            pcall(function()
-                                for _, prompt in ipairs(targetNpcPart.Parent:GetDescendants()) do if prompt:IsA("ProximityPrompt") then fireproximityprompt(prompt) end end
-                            end)
-                            task.wait(0.5); GuiService.SelectedObject = nil 
-                            globalPressKey(Enum.KeyCode.ButtonA); globalPressKey(Enum.KeyCode.E); task.wait(2.0)
+                            local successMove = movePlayerToTarget_Sell(targetPos, 35)
                             
-                            local function selectOptionSafe(btnName)
-                                pcall(function()
-                                    local foundButton = nil
-                                    for _, gui in ipairs(PlayerGui:GetChildren()) do
-                                        if gui:IsA("ScreenGui") then
-                                            for _, desc in ipairs(gui:GetDescendants()) do
-                                                if desc:IsA("TextButton") and desc.Visible and (desc.Name == btnName or string.find(string.lower(desc.Name), string.lower(btnName))) then
-                                                    foundButton = desc; break
-                                                end
-                                            end
-                                        end
-                                        if foundButton then break end
-                                    end
-                                    if foundButton then
-                                        GuiService.SelectedObject = foundButton; task.wait(0.05)
-                                        for _, conn in ipairs(getconnections(foundButton.MouseButton1Click) or {}) do conn:Fire() end
-                                        for _, conn in ipairs(getconnections(foundButton.Activated) or {}) do conn:Fire() end
-                                    end
-                                    globalPressKey(Enum.KeyCode.ButtonA); globalPressKey(Enum.KeyCode.E)
-                                end)
-                                task.wait(1.5)
+                            if successMove then
+                                reachedNpc = true
+                            else
+                                showCenterWarning("⚠️ Chưa tới NPC trong 1p! Đang chờ hồi sinh để đi lại...", 3)
+                                task.wait(3.0)
                             end
-                            
-                            selectOptionSafe("Option002"); selectOptionSafe("Option001")
-                            selectOptionSafe("Option002"); selectOptionSafe("Option001")
+                        else
+                            WindUI:Notify({ Title = "Lỗi", Content = "Không tìm thấy NPC Sell!", Duration = 3 })
+                            break
                         end
-                        movePlayerToTarget_Sell(savedAutoCFrame.Position, 35); char.HumanoidRootPart.CFrame = savedAutoCFrame
                     end
                     
+                    -- ================= ĐÃ TỚI NPC: ĐỨNG ĐỢI 10S RỒI QUAY VỀ =================
+                    if reachedNpc and isAutoSellRunning then
+                        triggerDirectSellAll()
+                        
+                        -- Đứng đợi 10s đếm ngược tại NPC
+                        for i = 10, 1, -1 do
+                            if not isAutoSellRunning then break end
+                            showTimerText(string.format("⏳ Đang ở chỗ NPC - Chờ bán: %ds", i))
+                            triggerDirectSellAll()
+                            task.wait(1.0)
+                        end
+                        hideTimerText()
+                        
+                        -- Di chuyển về lại điểm câu đã set
+                        showCenterWarning("🚶 Đang quay về điểm câu...", 2)
+                        movePlayerToTarget_Sell(savedAutoCFrame.Position, 35)
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = savedAutoCFrame
+                        end
+                    end
+                    
+                    -- Tiếp tục auto câu sau khi bán xong
                     if isAutoSellRunning then 
                         task.wait(0.5)
                         equipRodFromBackpack()
@@ -685,6 +765,7 @@ autoSellToggleRef = FishingTab:Toggle({
             end)
         else
             isAutoSellRunning = false
+            hideTimerText()
         end
     end
 })
@@ -781,7 +862,7 @@ do
 	end)
 end
 
--- ================= TAB ISLANDS (BẢN CHUẨN CỦA BẠN - VỪA NHẢY VỪA ĐI) =================
+-- ================= TAB ISLANDS =================
 local IslandsTab = Window:Tab({ Title = "Islands", Icon = "map" })
 
 local islandsList = {}
@@ -842,123 +923,21 @@ local travelSpeed = 30
 IslandsTab:Input({ Title = "Tốc độ di chuyển (10 - 40)", Value = "30", Callback = function(text) travelSpeed = math.clamp(tonumber(text) or 30, 10, 40) end })
 IslandsTab:Dropdown({ Title = "Chọn đảo cần đến", Values = islandNames, Value = islandNames[1] or "", Callback = function(option) for i, name in ipairs(islandNames) do if name == option then selectedIslandIndex = i; break end end end })
 
--- BÊ NGUYÊN HÀM CỦA BẠN VÀO ĐÂY DÀNH RIÊNG CHO ĐẢO
-local function walkSmartlyTo_Island(targetCFrame)
-    local successWalk = false
-    local originalWalkSpeed = 16
-
-    pcall(function()
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
-        local hrp = char.HumanoidRootPart
-        local humanoid = char.Humanoid
-        
-        originalWalkSpeed = humanoid.WalkSpeed
-        travelSpeed = math.clamp(tonumber(travelSpeed) or 30, 10, 40)
-        humanoid.WalkSpeed = travelSpeed
-        
-        local finalTargetPos = targetCFrame.Position
-        local startTime = tick()
-        local arrived = false
-        local avoidDirection = 1 
-        local avoidTimer = 0
-        local lastCheckPos = hrp.Position
-        local checkStuckTimer = tick()
-        local isBackingUp = false
-        local backupTimer = 0
-
-        local connection
-        connection = RunService.RenderStepped:Connect(function(dt)
-            pcall(function()
-                if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
-                    if connection then connection:Disconnect() end
-                    return
-                end
-                
-                humanoid.WalkSpeed = travelSpeed
-                humanoid.Jump = true
-                
-                local currentPos = hrp.Position
-                local targetXZ = Vector3.new(finalTargetPos.X, currentPos.Y, finalTargetPos.Z)
-                local distance = (targetXZ - currentPos).Magnitude
-                
-                if distance < 6.0 or (tick() - startTime) > 50 then
-                    humanoid:Move(Vector3.new(0, 0, 0))
-                    arrived = true
-                    if connection then connection:Disconnect() end
-                    return
-                end
-
-                if isBackingUp then
-                    backupTimer = backupTimer - dt
-                    humanoid.Jump = true
-                    humanoid:Move(-hrp.CFrame.LookVector)
-                    if backupTimer <= 0 then isBackingUp = false; avoidDirection = avoidDirection * -1 end
-                    return
-                end
-
-                if tick() - checkStuckTimer >= 5 then
-                    if (currentPos - lastCheckPos).Magnitude < 1.5 then
-                        isBackingUp = true
-                        backupTimer = 2.0
-                        avoidDirection = avoidDirection * -1
-                    end
-                    lastCheckPos = currentPos
-                    checkStuckTimer = tick()
-                end
-                
-                local baseMoveDir = (targetXZ - currentPos).Unit
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                raycastParams.FilterDescendantsInstances = {char}
-                
-                local frontRay = workspace:Raycast(currentPos + Vector3.new(0, 1, 0), baseMoveDir * 20, raycastParams)
-                if frontRay then
-                    if avoidTimer > 0 then
-                        avoidTimer = avoidTimer - dt
-                    else
-                        avoidDirection = avoidDirection * -1
-                        avoidTimer = 1.5
-                    end
-                    local angle = (avoidDirection == 1) and math.rad(65) or math.rad(-65)
-                    humanoid:Move((CFrame.Angles(0, angle, 0) * Vector3.new(baseMoveDir.X, 0, baseMoveDir.Z)).Unit)
-                else
-                    avoidTimer = 0
-                    humanoid:Move(baseMoveDir)
-                end
-            end)
-        end)
-        
-        while not arrived and connection and connection.Connected do
-            task.wait(0.05)
-        end
-        if connection then connection:Disconnect() end
-        
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid:Move(Vector3.new(0, 0, 0))
-            char.Humanoid.WalkSpeed = originalWalkSpeed
-        end
-        
-        successWalk = (hrp.Position - finalTargetPos).Magnitude <= 10.0
-    end)
-    return successWalk
-end
-
 IslandsTab:Button({
     Title = "Bắt đầu di chuyển đến đảo",
     Callback = function()
         local targetIsland = islandsList[selectedIslandIndex]
         if targetIsland then
-            WindUI:Notify({ Title = "T HUB", Content = "Đang di chuyển tới đảo: " .. targetIsland.name, Duration = 3 })
+            WindUI:Notify({ Title = "T HUB", Content = "Đang quét đường đi tới đảo: " .. targetIsland.name, Duration = 3 })
             task.spawn(function() 
-                walkSmartlyTo_Island(CFrame.new(targetIsland.pos))
+                navigateSmartlyPathfinding(targetIsland.pos, 120, "⏳ Đang tới Đảo")
                 WindUI:Notify({ Title = "T HUB", Content = "Đã đến đảo: " .. targetIsland.name, Duration = 3 }) 
             end)
         end
     end
 })
 
--- ================= TAB FIX LAG (TÍCH HỢP WINDUI) =================
+-- ================= TAB FIX LAG =================
 local FixLagTab = Window:Tab({ Title = "Fix Lag", Icon = "activity" })
 
 local originalPartsData = {}
