@@ -187,101 +187,6 @@ local function tweenMoveTo(targetPos, speed)
     task.wait(0.1)
 end
 
--- Hàm đi bộ thông minh (Né vật cản & chống kẹt tự động - Tốc độ kết thúc: 20)
-local function walkSmartlyTo(targetCFrame)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return false end
-    
-    local hrp = char.HumanoidRootPart
-    local humanoid = char.Humanoid
-    humanoid.WalkSpeed = 24
-    
-    local finalTargetPos = targetCFrame.Position
-    local startTime = tick()
-    local arrived = false
-    local avoidDirection = 1 
-    local avoidTimer = 0
-    local lastCheckPos = hrp.Position
-    local checkStuckTimer = tick()
-    local isBackingUp = false
-    local backupTimer = 0
-
-    local connection
-    connection = RunService.RenderStepped:Connect(function(dt)
-        if not char or not char:FindFirstChild("HumanoidRootPart") then
-            if connection then connection:Disconnect() end
-            return
-        end
-        
-        humanoid.WalkSpeed = 24
-        local currentPos = hrp.Position
-        local targetXZ = Vector3.new(finalTargetPos.X, currentPos.Y, finalTargetPos.Z)
-        local distance = (targetXZ - currentPos).Magnitude
-        
-        if distance < 2 or (tick() - startTime) > 60 then
-            humanoid:Move(Vector3.new(0, 0, 0))
-            arrived = true
-            if connection then connection:Disconnect() end
-            return
-        end
-
-        if isBackingUp then
-            backupTimer = backupTimer - dt
-            humanoid.Jump = true
-            humanoid:Move(-hrp.CFrame.LookVector)
-            if backupTimer <= 0 then 
-                isBackingUp = false
-                avoidDirection = avoidDirection * -1 
-            end
-            return
-        end
-
-        if tick() - checkStuckTimer >= 10 then
-            if (currentPos - lastCheckPos).Magnitude < 1.5 then
-                isBackingUp = true
-                backupTimer = 2.0
-                avoidDirection = avoidDirection * -1
-            end
-            lastCheckPos = currentPos
-            checkStuckTimer = tick()
-        end
-        
-        local baseMoveDir = (targetXZ - currentPos).Unit
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.FilterDescendantsInstances = {char}
-        
-        local frontRay = workspace:Raycast(currentPos + Vector3.new(0, 1, 0), baseMoveDir * 36, raycastParams)
-        if frontRay then
-            humanoid.Jump = true
-            if avoidTimer > 0 then
-                avoidTimer = avoidTimer - dt
-            else
-                avoidDirection = avoidDirection * -1
-                avoidTimer = 1.5
-            end
-            local angle = (avoidDirection == 1) and math.rad(65) or math.rad(-65)
-            humanoid:Move((CFrame.Angles(0, angle, 0) * Vector3.new(baseMoveDir.X, 0, baseMoveDir.Z)).Unit)
-        else
-            avoidTimer = 0
-            humanoid:Move(baseMoveDir)
-        end
-    end)
-    
-    while not arrived and connection and connection.Connected do
-        task.wait(0.05)
-    end
-    
-    if connection then connection:Disconnect() end
-    
-    if char and char:FindFirstChild("Humanoid") then
-        humanoid:Move(Vector3.new(0, 0, 0))
-        char.Humanoid.WalkSpeed = 20 
-    end
-    
-    return (hrp.Position - finalTargetPos).Magnitude <= 6
-end
-
 local function movePlayerToTarget(targetPos, speed)
     if sellMoveMode == "Đi bộ thông minh" then 
         walkSmartlyTo(CFrame.new(targetPos)) 
@@ -942,48 +847,210 @@ do
 	end)
 end
 
--- ================= TAB ISLANDS =================
+-- ================= TAB ISLANDS (ĐÃ THAY THẾ CHUẨN GIAO DIỆN WINDUI) =================
 local IslandsTab = Window:Tab({ Title = "Islands", Icon = "map" })
-local islandsList = {}; local selectedIslandIndex = 1
 
-local function scanExactIslands()
+local islandsList = {}
+local selectedIslandIndex = 1
+local travelSpeed = 30
+
+local function clampSpeed()
+    travelSpeed = math.clamp(tonumber(travelSpeed) or 30, 10, 40)
+end
+
+local function getIslandsOnce()
     local scanned = {}
     pcall(function()
         local worldFolder = workspace:FindFirstChild("World")
-        if worldFolder and worldFolder:FindFirstChild("Islands") then
-            for _, islandFolder in ipairs(worldFolder.Islands:GetChildren()) do
-                if islandFolder:IsA("Folder") or islandFolder:IsA("Model") then
-                    local targetPos = nil
-                    local spawnPoint = islandFolder:FindFirstChild("SpawnPoint", true)
-                    if spawnPoint then
-                        if spawnPoint:IsA("BasePart") then targetPos = spawnPoint.Position
-                        elseif spawnPoint:IsA("Model") then targetPos = spawnPoint:GetPivot().Position end
-                    end
-                    if not targetPos then
-                        for _, desc in ipairs(islandFolder:GetDescendants()) do if desc:IsA("BasePart") then targetPos = desc.Position; break end end
-                    end
-                    if targetPos then table.insert(scanned, {name = string.gsub(islandFolder.Name, "^island_", ""), pos = targetPos}) end
+        if worldFolder then
+            local islandsFolder = worldFolder:FindFirstChild("Islands")
+            if islandsFolder then
+                for _, islandFolder in ipairs(islandsFolder:GetChildren()) do
+                    pcall(function()
+                        if islandFolder:IsA("Folder") or islandFolder:IsA("Model") then
+                            local targetPos = nil
+                            local spawnPoint = islandFolder:FindFirstChild("SpawnPoint", true)
+                            if spawnPoint then
+                                if spawnPoint:IsA("BasePart") then
+                                    targetPos = spawnPoint.Position
+                                elseif spawnPoint:IsA("Model") then
+                                    targetPos = spawnPoint:GetPivot().Position
+                                end
+                            end
+                            
+                            if not targetPos then
+                                for _, desc in ipairs(islandFolder:GetDescendants()) do
+                                    if desc:IsA("BasePart") then
+                                        targetPos = desc.Position
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            if targetPos then
+                                local cleanName = string.gsub(islandFolder.Name, "^island_", "")
+                                table.insert(scanned, {name = cleanName, pos = targetPos})
+                            end
+                        end
+                    end)
                 end
             end
         end
     end)
-    islandsList = (#scanned > 0) and scanned or {{name = "Starter", pos = Vector3.new(0, 10, 0)}}
+    
+    if #scanned > 0 then
+        islandsList = scanned
+    else
+        islandsList = {{name = "Starter", pos = Vector3.new(0, 10, 0)}}
+    end
+    selectedIslandIndex = 1
 end
-scanExactIslands()
-local islandNames = {}
-for _, island in ipairs(islandsList) do table.insert(islandNames, island.name) end
 
-local currentSpeedValue = 30
-IslandsTab:Input({ Title = "Tốc độ di chuyển (Speed: 10 - 40)", Value = "30", Callback = function(text) currentSpeedValue = math.clamp(tonumber(text) or 30, 10, 40) end })
-IslandsTab:Dropdown({ Title = "Chọn đảo cần đến", Values = islandNames, Value = islandNames[1] or "", Callback = function(option) for i, name in ipairs(islandNames) do if name == option then selectedIslandIndex = i; break end end end })
+getIslandsOnce()
+
+local islandNames = {}
+for _, island in ipairs(islandsList) do
+    table.insert(islandNames, island.name)
+end
+
+IslandsTab:Input({
+    Title = "Tốc độ di chuyển (10 - 40)",
+    Value = tostring(travelSpeed),
+    Callback = function(text)
+        travelSpeed = tonumber(text) or 30
+        clampSpeed()
+    end
+})
+
+local islandDropdown = IslandsTab:Dropdown({
+    Title = "Chọn đảo cần đến",
+    Values = islandNames,
+    Value = islandNames[1] or "",
+    Callback = function(option)
+        for i, name in ipairs(islandNames) do
+            if name == option then
+                selectedIslandIndex = i
+                break
+            end
+        end
+    end
+})
+
+local isIslandRunning = false
 IslandsTab:Button({
     Title = "Bắt đầu di chuyển đến đảo",
     Callback = function()
-        local targetIsland = islandsList[selectedIslandIndex]
-        if targetIsland then
-            WindUI:Notify({ Title = "T HUB", Content = "Đang di chuyển tới đảo: " .. targetIsland.name, Duration = 3 })
-            task.spawn(function() movePlayerToTarget(targetIsland.pos, currentSpeedValue); WindUI:Notify({ Title = "T HUB", Content = "Đã đến đảo: " .. targetIsland.name, Duration = 3 }) end)
+        if isIslandRunning then return end
+        if #islandsList == 0 then
+            WindUI:Notify({ Title = "T HUB", Content = "Không có danh sách đảo!", Duration = 3 })
+            return
         end
+        
+        isIslandRunning = true
+        local targetIsland = islandsList[selectedIslandIndex]
+        WindUI:Notify({ Title = "T HUB", Content = "Đang di chuyển tới đảo: " .. targetIsland.name, Duration = 3 })
+        
+        task.spawn(function()
+            pcall(function()
+                local char = LocalPlayer.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
+                    WindUI:Notify({ Title = "T HUB", Content = "Lỗi nhân vật!", Duration = 3 })
+                    isIslandRunning = false
+                    return
+                end
+                
+                local hrp = char.HumanoidRootPart
+                local humanoid = char.Humanoid
+                local originalWalkSpeed = humanoid.WalkSpeed
+                clampSpeed()
+                humanoid.WalkSpeed = travelSpeed
+                
+                local finalTargetPos = targetIsland.pos
+                local startTime = tick()
+                local arrived = false
+                local avoidDirection = 1 
+                local avoidTimer = 0
+                local lastCheckPos = hrp.Position
+                local checkStuckTimer = tick()
+                local isBackingUp = false
+                local backupTimer = 0
+
+                local connection
+                connection = RunService.RenderStepped:Connect(function(dt)
+                    pcall(function()
+                        if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
+                            if connection then connection:Disconnect() end
+                            return
+                        end
+                        
+                        humanoid.WalkSpeed = travelSpeed
+                        humanoid.Jump = true
+                        
+                        local currentPos = hrp.Position
+                        local targetXZ = Vector3.new(finalTargetPos.X, currentPos.Y, finalTargetPos.Z)
+                        local distance = (targetXZ - currentPos).Magnitude
+                        
+                        if distance < 6.0 or (tick() - startTime) > 50 then
+                            humanoid:Move(Vector3.new(0, 0, 0))
+                            arrived = true
+                            if connection then connection:Disconnect() end
+                            return
+                        end
+
+                        if isBackingUp then
+                            backupTimer = backupTimer - dt
+                            humanoid.Jump = true
+                            humanoid:Move(-hrp.CFrame.LookVector)
+                            if backupTimer <= 0 then isBackingUp = false; avoidDirection = avoidDirection * -1 end
+                            return
+                        end
+
+                        if tick() - checkStuckTimer >= 5 then
+                            if (currentPos - lastCheckPos).Magnitude < 1.5 then
+                                isBackingUp = true
+                                backupTimer = 2.0
+                                avoidDirection = avoidDirection * -1
+                            end
+                            lastCheckPos = currentPos
+                            checkStuckTimer = tick()
+                        end
+                        
+                        local baseMoveDir = (targetXZ - currentPos).Unit
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        raycastParams.FilterDescendantsInstances = {char}
+                        
+                        local frontRay = workspace:Raycast(currentPos + Vector3.new(0, 1, 0), baseMoveDir * 20, raycastParams)
+                        if frontRay then
+                            if avoidTimer > 0 then
+                                avoidTimer = avoidTimer - dt
+                            else
+                                avoidDirection = avoidDirection * -1
+                                avoidTimer = 1.5
+                            end
+                            local angle = (avoidDirection == 1) and math.rad(65) or math.rad(-65)
+                            humanoid:Move((CFrame.Angles(0, angle, 0) * Vector3.new(baseMoveDir.X, 0, baseMoveDir.Z)).Unit)
+                        else
+                            avoidTimer = 0
+                            humanoid:Move(baseMoveDir)
+                        end
+                    end)
+                end)
+                
+                while not arrived and connection and connection.Connected do
+                    task.wait(0.05)
+                end
+                if connection then connection:Disconnect() end
+                
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid:Move(Vector3.new(0, 0, 0))
+                    char.Humanoid.WalkSpeed = originalWalkSpeed
+                end
+            end)
+            
+            isIslandRunning = false
+            WindUI:Notify({ Title = "T HUB", Content = "Đã đến đảo thành công!", Duration = 3 })
+        end)
     end
 })
 
@@ -996,7 +1063,7 @@ local originalSoundVolumes = {}
 
 -- 1. Tối Ưu Map & Part
 FixLagTab:Toggle({
-    Title = "⚡ Tối Ưu Map & Part",
+    Title = "Tối Ưu Map & Part",
     Value = false,
     Callback = function(state)
         local lighting = game:GetService("Lighting")
@@ -1036,7 +1103,7 @@ FixLagTab:Toggle({
 -- 2. Xóa Hiệu Ứng & Skill
 local effectConnection
 FixLagTab:Toggle({
-    Title = "🧹 Xóa Hiệu Ứng & Skill",
+    Title = "Xóa Hiệu Ứng & Skill",
     Value = false,
     Callback = function(state)
         if state then
@@ -1062,7 +1129,7 @@ FixLagTab:Toggle({
 -- 3. Xóa Hoạt Ảnh Nhân Vật
 local animLoopConnection
 FixLagTab:Toggle({
-    Title = "🏃 Xóa Hoạt Ảnh Nhân Vật",
+    Title = "Xóa Hoạt Ảnh Nhân Vật",
     Value = false,
     Callback = function(state)
         if state then
@@ -1096,7 +1163,7 @@ FixLagTab:Toggle({
 -- 4. Fix Lag Âm Thanh
 local soundConnection
 FixLagTab:Toggle({
-    Title = "🔊 Fix Lag Âm Thanh",
+    Title = "Fix Lag Âm Thanh",
     Value = false,
     Callback = function(state)
         if state then
