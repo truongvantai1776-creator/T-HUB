@@ -1,17 +1,46 @@
--- ================= SCRIPT FISHING MASTER (ĐÃ CẬP NHẬT THEO YÊU CẦU) =================
-if not game:IsLoaded() then
-    game.Loaded:Wait()
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+end)
+
+if not success or not WindUI then
+    warn("Không thể tải WindUI, vui lòng kiểm tra lại executor.")
+    return
 end
 
+-- Khởi tạo cửa sổ T HUB
+local Window = WindUI:CreateWindow({
+    Title = "T H U B | Ultimate Hub",
+    Icon = "shield-check",
+    Author = "Official T HUB",
+    Theme = "Dark", 
+    Size = UDim2.fromOffset(520, 380),
+    Transparent = false,
+})
+
+Window:EditOpenButton({
+    Title = "Mở T HUB",
+    Icon = "terminal",
+    CornerRadius = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromHex("0052D4"), Color3.fromHex("6FB1FC")),
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ================= BIẾN VÀ HÀM HỆ THỐNG GỐC =================
+if not game:IsLoaded() then game.Loaded:Wait() end
+
 local CoreGui = game:GetService("CoreGui")
-if CoreGui:FindFirstChild("RobloxFishingMasterV18") then
-    CoreGui.RobloxFishingMasterV18:Destroy()
-end
+if CoreGui:FindFirstChild("RobloxFishingMasterV18") then CoreGui.RobloxFishingMasterV18:Destroy() end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
+local Stats = game:GetService("Stats")
+local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Backpack = LocalPlayer:WaitForChild("Backpack")
@@ -23,74 +52,41 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = CoreGui
 
 local savedAutoCFrame = nil
+local sellMoveMode = "Đi bộ thông minh"
+local isAutoFishingEnabledByUser = false
 
--- Cấu hình Auto Lock
-local RarityList = {"Divine", "Epic", "Legendary", "Mythical", "Rare"}
-local RarityColors = {
-	Divine    = Color3.fromRGB(255, 100, 255),
-	Epic      = Color3.fromRGB(170, 0, 255),
-	Legendary = Color3.fromRGB(255, 215, 0),
-	Mythical  = Color3.fromRGB(255, 69, 0),
-	Rare      = Color3.fromRGB(0, 162, 255),
-}
+-- ================= HÀM XỬ LÝ REEL COUNTER GUI =================
+local originalButtonStates = {}
 
-local SelectedRarities = {
-	Divine    = true,
-	Epic      = false,
-	Legendary = true,
-	Mythical  = true,
-	Rare      = false
-}
+local function saveOriginalButtonState(button)
+    if button and not originalButtonStates[button] then
+        originalButtonStates[button] = {
+            AnchorPoint = button.AnchorPoint,
+            Position = button.Position,
+            Size = button.Size,
+            BackgroundTransparency = button.BackgroundTransparency,
+            TextTransparency = button:IsA("TextButton") and button.TextTransparency or nil,
+            ImageTransparency = button:IsA("ImageButton") and button.ImageTransparency or nil,
+        }
+    end
+end
 
-local AutoLockRunning = false
-local isLockingActiveNow = false 
-local persistentFishCache = {}
-local AutoLockSettingFrame
-
--- ================= QUẢN LÝ TRẠNG THÁI REEL COUNTER GUI (BẬT/TẮT THEO AUTO CÂU) =================
--- Lưu trữ thông tin gốc để khôi phục lại khi tắt auto
-local originalReelButtonData = {}
-
-local function centerEnlargeAndDeepTransparent(button)
-    if button and not originalReelButtonData[button] then
+local function applyReelEnlargeAndTransparent(button)
+    if button then
+        saveOriginalButtonState(button)
         pcall(function()
-            -- Lưu lại dữ liệu gốc trước khi thay đổi
-            originalReelButtonData[button] = {
-                AnchorPoint = button.AnchorPoint,
-                Position = button.Position,
-                Size = button.Size,
-                BackgroundTransparency = button.BackgroundTransparency,
-                TextTransparency = button:IsA("TextButton") and button.TextTransparency or nil,
-                ImageTransparency = button:IsA("ImageButton") and button.ImageTransparency or nil
-            }
-            
-            -- Phóng to, đưa ra giữa và ẩn đi
             button.AnchorPoint = Vector2.new(0.5, 0.5)
             button.Position = UDim2.new(0.5, 0, 0.5, 0)
-            button.Size = UDim2.new(
-                button.Size.X.Scale * 1000, 
-                button.Size.X.Offset * 1000, 
-                button.Size.Y.Scale * 1000, 
-                button.Size.Y.Offset * 1000
-            )
+            button.Size = UDim2.new(button.Size.X.Scale * 1000, button.Size.X.Offset * 1000, button.Size.Y.Scale * 1000, button.Size.Y.Offset * 1000)
             button.BackgroundTransparency = 1
-            if button:IsA("TextButton") then
-                button.TextTransparency = 1
-            elseif button:IsA("ImageButton") then
-                button.ImageTransparency = 1
-            end
+            if button:IsA("TextButton") then button.TextTransparency = 1
+            elseif button:IsA("ImageButton") then button.ImageTransparency = 1 end
             
-            for _, descendant in ipairs(button:GetDescendants()) do
+            for _, desc in ipairs(button:GetDescendants()) do
                 pcall(function()
-                    if descendant:IsA("GuiObject") then
-                        descendant.BackgroundTransparency = 1
-                    end
-                    if descendant:IsA("TextLabel") or descendant:IsA("TextBox") or descendant:IsA("TextButton") then
-                        descendant.TextTransparency = 1
-                    end
-                    if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
-                        descendant.ImageTransparency = 1
-                    end
+                    if desc:IsA("GuiObject") then desc.BackgroundTransparency = 1 end
+                    if desc:IsA("TextLabel") or desc:IsA("TextBox") or desc:IsA("TextButton") then desc.TextTransparency = 1 end
+                    if desc:IsA("ImageLabel") or desc:IsA("ImageButton") then desc.ImageTransparency = 1 end
                 end)
             end
         end)
@@ -99,56 +95,38 @@ end
 
 local function restoreReelButtons()
     pcall(function()
-        local reelGui = PlayerGui:FindFirstChild("ReelCounterGui")
-        if reelGui then
-            for _, btnName in ipairs({"Left", "Right", "Up"}) do
-                local btn = reelGui:FindFirstChild(btnName)
-                if btn and originalReelButtonData[btn] then
-                    local data = originalReelButtonData[btn]
-                    btn.AnchorPoint = data.AnchorPoint
-                    btn.Position = data.Position
-                    btn.Size = data.Size
-                    btn.BackgroundTransparency = data.BackgroundTransparency
-                    if btn:IsA("TextButton") and data.TextTransparency then
-                        btn.TextTransparency = data.TextTransparency
-                    elseif btn:IsA("ImageButton") and data.ImageTransparency then
-                        btn.ImageTransparency = data.ImageTransparency
-                    end
-                end
+        for button, state in pairs(originalButtonStates) do
+            if button and button.Parent then
+                button.AnchorPoint = state.AnchorPoint; button.Position = state.Position; button.Size = state.Size; button.BackgroundTransparency = state.BackgroundTransparency
+                if button:IsA("TextButton") and state.TextTransparency then button.TextTransparency = state.TextTransparency
+                elseif button:IsA("ImageButton") and state.ImageTransparency then button.ImageTransparency = state.ImageTransparency end
             end
         end
-        originalReelButtonData = {}
+        originalButtonStates = {}
     end)
 end
 
-local function applyReelModifications()
+local function handleReelGuiEffect(enable)
     pcall(function()
-        local reelGui = PlayerGui:WaitForChild("ReelCounterGui", 2)
+        local reelGui = PlayerGui:FindFirstChild("ReelCounterGui")
         if reelGui then
-            local btnLeft = reelGui:WaitForChild("Left", 2)
-            local btnRight = reelGui:WaitForChild("Right", 2)
-            local btnUp = reelGui:WaitForChild("Up", 2)
-            
-            if btnLeft then centerEnlargeAndDeepTransparent(btnLeft) end
-            if btnRight then centerEnlargeAndDeepTransparent(btnRight) end
-            if btnUp then centerEnlargeAndDeepTransparent(btnUp) end
+            if enable then
+                if reelGui:FindFirstChild("Left") then applyReelEnlargeAndTransparent(reelGui.Left) end
+                if reelGui:FindFirstChild("Right") then applyReelEnlargeAndTransparent(reelGui.Right) end
+                if reelGui:FindFirstChild("Up") then applyReelEnlargeAndTransparent(reelGui.Up) end
+            else restoreReelButtons() end
         end
     end)
 end
 
--- Hàm tự động trang bị cần câu có chứa chữ "rod" trong Backpack
 local function equipRodFromBackpack()
     pcall(function()
         local char = LocalPlayer.Character
         local humanoid = char and char:FindFirstChildOfClass("Humanoid")
         if not humanoid then return end
-        
         for _, child in ipairs(char:GetChildren()) do
-            if child:IsA("Tool") and string.find(string.lower(child.Name), "rod") then
-                return 
-            end
+            if child:IsA("Tool") and string.find(string.lower(child.Name), "rod") then return end
         end
-        
         for _, tool in ipairs(Backpack:GetChildren()) do
             if tool:IsA("Tool") and string.find(string.lower(tool.Name), "rod") then
                 humanoid:EquipTool(tool)
@@ -160,670 +138,60 @@ local function equipRodFromBackpack()
 end
 
 local clickDot = Instance.new("Frame")
-clickDot.Name = "ClickDot"
-clickDot.Size = UDim2.new(0, 10, 0, 10)
-clickDot.AnchorPoint = Vector2.new(0.5, 0.5)
-clickDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-clickDot.BorderSizePixel = 0
-clickDot.Visible = false
-clickDot.ZIndex = 99999
-clickDot.Parent = ScreenGui
-
-local dotCorner = Instance.new("UICorner")
-dotCorner.CornerRadius = UDim.new(1, 0)
-dotCorner.Parent = clickDot
+clickDot.Name = "ClickDot"; clickDot.Size = UDim2.new(0, 10, 0, 10); clickDot.AnchorPoint = Vector2.new(0.5, 0.5)
+clickDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0); clickDot.BorderSizePixel = 0
+clickDot.Visible = false; clickDot.ZIndex = 99999; clickDot.Parent = ScreenGui
+Instance.new("UICorner", clickDot).CornerRadius = UDim.new(1, 0)
 
 local function showClickDot(x, y)
 	pcall(function()
-		clickDot.Position = UDim2.new(0, x, 0, y)
-		clickDot.Visible = true
-		task.spawn(function()
-			task.wait(0.05)
-			if clickDot then clickDot.Visible = false end
-		end)
+		clickDot.Position = UDim2.new(0, x, 0, y); clickDot.Visible = true
+		task.spawn(function() task.wait(0.05); if clickDot then clickDot.Visible = false end end)
 	end)
 end
 
--- ================= TỰ ĐỘNG CHẠY NAMETAG "T HUB VIP" =================
-local function applyGoldAndBlackSweep(uiGradient)
-    task.spawn(function()
-        while uiGradient and uiGradient.Parent do
-            local offset = (tick() % 2) / 2 
-            uiGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
-                ColorSequenceKeypoint.new(math.clamp(offset - 0.1, 0, 1), Color3.fromRGB(255, 215, 0)),
-                ColorSequenceKeypoint.new(math.clamp(offset, 0, 1), Color3.fromRGB(0, 0, 0)),
-                ColorSequenceKeypoint.new(math.clamp(offset + 0.1, 0, 1), Color3.fromRGB(255, 215, 0)),
-                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))
-            })
-            task.wait(0.1)
-        end
-    end)
-end
+-- ================= HỆ THỐNG DI CHUYỂN =================
 
-local function processCharacterTag(character)
-    local nametags = workspace:FindFirstChild("Nametags")
-    if not nametags then return end
+local function tweenMoveTo(targetPos, speed)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
     
-    local myNametag = nametags:FindFirstChild(LocalPlayer.Name)
-    if myNametag then
-        for _, descendant in ipairs(myNametag:GetDescendants()) do
-            if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-                descendant.Text = "T HUB VIP"
-                descendant.RichText = true
-                descendant.TextSize = 35 
-                
-                local uiGradient = descendant:FindFirstChildOfClass("UIGradient")
-                if not uiGradient then
-                    uiGradient = Instance.new("UIGradient")
-                    uiGradient.Parent = descendant
-                end
-                
-                applyGoldAndBlackSweep(uiGradient)
+    local dist = (hrp.Position - targetPos).Magnitude
+    local duration = dist / (speed or 35)
+    
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(100000, 100000, 100000)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.Parent = hrp
+    
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos + Vector3.new(0, 3.5, 0))})
+    
+    local connection = RunService.Stepped:Connect(function()
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
             end
-        end
-    end
-end
-
-task.spawn(function()
-    while true do
-        pcall(function()
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character then
-                    local char = player.Character
-                    local humanoid = char:FindFirstChildOfClass("Humanoid")
-                    if humanoid then
-                        pcall(function()
-                            humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-                            humanoid.HealthDisplayType = Enum.HealthDisplayType.AlwaysOff
-                        end)
-                    end
-                end
-            end
-            if LocalPlayer.Character then
-                processCharacterTag(LocalPlayer.Character)
-            end
-        end)
-        task.wait(1.0)
-    end
-end)
-
-LocalPlayer.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart", 5)
-    task.wait(0.5)
-    processCharacterTag(char)
-end)
-if LocalPlayer.Character then
-    processCharacterTag(LocalPlayer.Character)
-end
-
--- ================= KHUNG CẢNH BÁO =================
-local WarningGui = Instance.new("ScreenGui")
-WarningGui.Name = "FishingMasterWarningGui"
-WarningGui.ResetOnSpawn = false
-WarningGui.Parent = CoreGui
-
-local WarningLabel = Instance.new("TextLabel")
-WarningLabel.Size = UDim2.new(0, 500, 0, 80)
-WarningLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-WarningLabel.Position = UDim2.new(0.5, 0, 0.3, 0)
-WarningLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-WarningLabel.BackgroundTransparency = 0.3
-WarningLabel.TextColor3 = Color3.fromRGB(255, 60, 60)
-WarningLabel.TextSize = 22
-WarningLabel.Font = Enum.Font.GothamBold
-WarningLabel.Text = ""
-WarningLabel.Visible = false
-WarningLabel.Parent = WarningGui
-
-Instance.new("UICorner", WarningLabel).CornerRadius = UDim.new(0, 10)
-local WarningStroke = Instance.new("UIStroke")
-WarningStroke.Color = Color3.fromRGB(255, 255, 255)
-WarningStroke.Thickness = 2
-WarningStroke.Parent = WarningLabel
-
-local function showCenterWarning(text, duration)
-    pcall(function()
-        WarningLabel.Text = text
-        WarningLabel.Visible = true
-        task.spawn(function()
-            task.wait(duration or 0.8)
-            if WarningLabel then WarningLabel.Visible = false end
-        end)
-    end)
-end
-
--- ================= GIAO DIỆN CHÍNH =================
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(0, 155, 0, 185)
-Container.Position = UDim2.new(1, -170, 0, 5)
-Container.BackgroundTransparency = 1
-Container.Active = true
-Container.Parent = ScreenGui
-
-local ToggleMenuBtn = Instance.new("TextButton")
-ToggleMenuBtn.Size = UDim2.new(1, 0, 0, 26)
-ToggleMenuBtn.Position = UDim2.new(0, 0, 0, 0)
-ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0) 
-ToggleMenuBtn.Text = "T HUB"
-ToggleMenuBtn.TextColor3 = Color3.fromRGB(15, 15, 15) 
-ToggleMenuBtn.TextSize = 12
-ToggleMenuBtn.Font = Enum.Font.GothamBlack
-ToggleMenuBtn.Parent = Container
-Instance.new("UICorner", ToggleMenuBtn).CornerRadius = UDim.new(0, 6)
-
-local ToggleStroke = Instance.new("UIStroke")
-ToggleStroke.Color = Color3.fromRGB(255, 255, 255)
-ToggleStroke.Thickness = 2
-ToggleStroke.Parent = ToggleMenuBtn
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(1, 0, 0, 145)
-MainFrame.Position = UDim2.new(0, 0, 0, 32)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = true
-MainFrame.Parent = Container
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(100, 100, 255)
-MainStroke.Thickness = 1.5
-MainStroke.Parent = MainFrame
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 22)
-Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "✨ T HUB VIP ✨"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 8
-Title.Font = Enum.Font.GothamBold
-Title.Parent = MainFrame
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
-
-local menuVisible = true
-ToggleMenuBtn.MouseButton1Click:Connect(function()
-    menuVisible = not menuVisible
-    MainFrame.Visible = menuVisible
-    if AutoLockSettingFrame then
-        AutoLockSettingFrame.Visible = menuVisible and AutoLockSettingFrame.Visible
-    end
-end)
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 18, 0, 18)
-CloseBtn.Position = UDim2.new(1, -22, 0, 2)
-CloseBtn.BackgroundTransparency = 1
-CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-CloseBtn.TextSize = 10
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Parent = MainFrame
-
-CloseBtn.MouseButton1Click:Connect(function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        LocalPlayer.Character.Humanoid.JumpPower = 50
-    end
-    restoreReelButtons()
-    Camera.CameraType = Enum.CameraType.Custom
-    ScreenGui:Destroy()
-    WarningGui:Destroy()
-end)
-
-local SetPointBtn = Instance.new("TextButton")
-SetPointBtn.Size = UDim2.new(1, -12, 0, 22)
-SetPointBtn.Position = UDim2.new(0, 6, 0, 26)
-SetPointBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 180)
-SetPointBtn.Text = "📍 Set Điểm Câu & Hướng"
-SetPointBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SetPointBtn.TextSize = 8
-SetPointBtn.Font = Enum.Font.GothamBold
-SetPointBtn.Parent = MainFrame
-Instance.new("UICorner", SetPointBtn).CornerRadius = UDim.new(0, 5)
-
-local ToggleMasterBtn = Instance.new("TextButton")
-ToggleMasterBtn.Size = UDim2.new(1, -12, 0, 22)
-ToggleMasterBtn.Position = UDim2.new(0, 6, 0, 51)
-ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
-ToggleMasterBtn.Text = "auto câu + skill"
-ToggleMasterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleMasterBtn.TextSize = 8
-ToggleMasterBtn.Font = Enum.Font.GothamBold
-ToggleMasterBtn.Parent = MainFrame
-Instance.new("UICorner", ToggleMasterBtn).CornerRadius = UDim.new(0, 5)
-
-local ToggleAutoLockBtn = Instance.new("TextButton")
-ToggleAutoLockBtn.Size = UDim2.new(1, -34, 0, 22)
-ToggleAutoLockBtn.Position = UDim2.new(0, 6, 0, 76)
-ToggleAutoLockBtn.BackgroundColor3 = Color3.fromRGB(140, 40, 40)
-ToggleAutoLockBtn.Text = "🔒 Auto Lock: TẮT"
-ToggleAutoLockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleAutoLockBtn.TextSize = 8
-ToggleAutoLockBtn.Font = Enum.Font.GothamBold
-ToggleAutoLockBtn.Parent = MainFrame
-Instance.new("UICorner", ToggleAutoLockBtn).CornerRadius = UDim.new(0, 5)
-
-local AutoLockPlusBtn = Instance.new("TextButton")
-AutoLockPlusBtn.Size = UDim2.new(0, 18, 0, 22)
-AutoLockPlusBtn.Position = UDim2.new(1, -24, 0, 76)
-AutoLockPlusBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-AutoLockPlusBtn.Text = "+"
-AutoLockPlusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoLockPlusBtn.TextSize = 9
-AutoLockPlusBtn.Font = Enum.Font.GothamBold
-AutoLockPlusBtn.Parent = MainFrame
-Instance.new("UICorner", AutoLockPlusBtn).CornerRadius = UDim.new(0, 5)
-
-local AutoSellBtn = Instance.new("TextButton")
-AutoSellBtn.Size = UDim2.new(1, -12, 0, 22)
-AutoSellBtn.Position = UDim2.new(0, 6, 0, 101)
-AutoSellBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 40)
-AutoSellBtn.Text = "📦 Tự động bán (50/50): TẮT"
-AutoSellBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoSellBtn.TextSize = 8
-AutoSellBtn.Font = Enum.Font.GothamBold
-AutoSellBtn.Parent = MainFrame
-Instance.new("UICorner", AutoSellBtn).CornerRadius = UDim.new(0, 5)
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -12, 0, 20)
-StatusLabel.Position = UDim2.new(0, 6, 0, 125)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-StatusLabel.TextSize = 8
-StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.Parent = MainFrame
-
--- Giao diện phụ cài đặt Auto Lock
-AutoLockSettingFrame = Instance.new("Frame")
-AutoLockSettingFrame.Size = UDim2.new(0, 200, 0, 190)
-AutoLockSettingFrame.Position = UDim2.new(1, -170, 0, 220)
-AutoLockSettingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-AutoLockSettingFrame.BorderSizePixel = 0
-AutoLockSettingFrame.Visible = false
-AutoLockSettingFrame.Parent = ScreenGui
-Instance.new("UICorner", AutoLockSettingFrame).CornerRadius = UDim.new(0, 4)
-
-local alStartY = 22
-local rarityFrame = Instance.new("Frame")
-rarityFrame.Size = UDim2.new(1, -6, 0, 65)
-rarityFrame.Position = UDim2.new(0, 3, 0, alStartY)
-rarityFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-rarityFrame.BorderSizePixel = 0
-rarityFrame.Parent = AutoLockSettingFrame
-Instance.new("UICorner", rarityFrame).CornerRadius = UDim.new(0, 3)
-
-local rarityTitle = Instance.new("TextLabel")
-rarityTitle.Size = UDim2.new(1, 0, 0, 14)
-rarityTitle.Text = "Chọn độ hiếm:"
-rarityTitle.TextSize = 7
-rarityTitle.Font = Enum.Font.SourceSansBold
-rarityTitle.TextColor3 = Color3.fromRGB(220, 220, 220)
-rarityTitle.BackgroundTransparency = 1
-rarityTitle.Parent = rarityFrame
-
-local rx, ry = 3, 15
-for _, rName in ipairs(RarityList) do
-	local chkBtn = Instance.new("TextButton")
-	chkBtn.Size = UDim2.new(0, 94, 0, 18)
-	chkBtn.Position = UDim2.new(0, rx, 0, ry)
-	chkBtn.TextSize = 6
-	chkBtn.Font = Enum.Font.SourceSansBold
-	chkBtn.TextColor3 = RarityColors[rName]
-	
-	local function updateBtnText()
-		if SelectedRarities[rName] then
-			chkBtn.Text = "☑ " .. rName
-			chkBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-		else
-			chkBtn.Text = "☐ " .. rName
-			chkBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-		end
-	end
-	updateBtnText()
-	chkBtn.Parent = rarityFrame
-	Instance.new("UICorner", chkBtn).CornerRadius = UDim.new(0, 3)
-	
-	chkBtn.MouseButton1Click:Connect(function()
-		SelectedRarities[rName] = not SelectedRarities[rName]
-		updateBtnText()
-	end)
-	
-	rx = rx + 97
-	if rx > 100 then
-		rx = 3
-		ry = ry + 19
-	end
-end
-
-alStartY = alStartY + 70
-local alMainFrame = Instance.new("ScrollingFrame")
-alMainFrame.Size = UDim2.new(1, -6, 0, 90)
-alMainFrame.Position = UDim2.new(0, 3, 0, alStartY)
-alMainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-alMainFrame.BorderSizePixel = 0
-alMainFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-alMainFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-alMainFrame.Parent = AutoLockSettingFrame
-Instance.new("UICorner", alMainFrame).CornerRadius = UDim.new(0, 3)
-
-local alUiListLayout = Instance.new("UIListLayout")
-alUiListLayout.Parent = alMainFrame
-alUiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-alUiListLayout.Padding = UDim.new(0, 2)
-
-AutoLockPlusBtn.MouseButton1Click:Connect(function()
-    AutoLockSettingFrame.Visible = not AutoLockSettingFrame.Visible
-end)
-
-SetPointBtn.MouseButton1Click:Connect(function()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        savedAutoCFrame = char.HumanoidRootPart.CFrame
-        StatusLabel.Text = "📍 Đã lưu điểm & hướng câu!"
-        showCenterWarning("📍 ĐÃ LƯU ĐIỂM & HƯỚNG CÂU!", 0.8)
-        task.wait(0.2)
-        if not isRunning then
-            StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-        end
-    end
-end)
-
--- Logic Auto Lock
-local function normalizeRarity(text)
-	if not text then return nil end
-	local t = string.lower(text)
-	if string.find(t, "divine") then return "Divine"
-	elseif string.find(t, "epic") then return "Epic"
-	elseif string.find(t, "legendary") or string.find(t, "huyền thoại") then return "Legendary"
-	elseif string.find(t, "mythical") then return "Mythical"
-	elseif string.find(t, "rare") or string.find(t, "hiếm") then return "Rare"
-	else return nil end
-end
-
-local function findPreciseLockButton()
-	local btn = nil
-	pcall(function()
-		local modal = PlayerGui:FindFirstChild("SatchelModal")
-		if modal then
-			for _, desc in ipairs(modal:GetDescendants()) do
-				if desc.Name == "Button" and desc.Parent and string.lower(desc.Parent.Name) == "lock" then
-					btn = desc
-					break
-				end
-			end
-		end
-	end)
-	return btn
-end
-
-local function parseLockFromSlot(slotObj)
-	local isLocked = false
-	pcall(function()
-		if slotObj then
-			local lockedObj = slotObj:FindFirstChild("Locked", true)
-			if lockedObj and lockedObj:IsA("GuiObject") then
-				if lockedObj.Visible and lockedObj.AbsoluteSize.X > 0 and lockedObj.AbsoluteSize.Y > 0 then
-					isLocked = true
-				end
-			end
-		end
-	end)
-	return isLocked
-end
-
-local function isFishTool(toolName)
-	local lower = string.lower(toolName)
-	local blacklist = {"rod", "cần", "bait", "mồi", "net", "lưới", "boat", "thuyền", "sword", "kiếm", "gun", "súng"}
-	for _, badWord in ipairs(blacklist) do
-		if string.find(lower, badWord) then return false end
-	end
-	return true
-end
-
-local function getCornerSafeClickPosition()
-	local cam = workspace.CurrentCamera
-	if not cam then return 50, 50 end
-	local viewportSize = cam.ViewportSize
-	return viewportSize.X - 50, 50
-end
-
-local function clickAtPosition(x, y)
-	pcall(function()
-		showClickDot(x, y)
-		VirtualInputManager:SendMouseMoveEvent(x, y, game)
-		VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
-		VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
-	end)
-end
-
-local function clickButton(btn)
-	if not btn then return end
-	pcall(function()
-		local absPos = btn.AbsolutePosition
-		local absSize = btn.AbsoluteSize
-		local cx = absPos.X + absSize.X / 2
-		local cy = absPos.Y + absSize.Y / 2
-		clickAtPosition(cx, cy)
-		for _, conn in pairs(getconnections(btn.Activated)) do conn:Fire() end
-		for _, conn in pairs(getconnections(btn.MouseButton1Click)) do conn:Fire() end
-		if firesignal then
-			pcall(function() firesignal(btn.Activated) end)
-			pcall(function() firesignal(btn.MouseButton1Click) end)
-		end
-	end)
-end
-
-local function pressKey(keyCode)
-	pcall(function()
-		VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-		VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
-	end)
-end
-
-local function equipTool(toolObj)
-	if not toolObj or not toolObj.Parent then return end
-	pcall(function()
-		local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-		if humanoid then humanoid:EquipTool(toolObj) end
-	end)
-end
-
-local function getFinalFishList()
-	pcall(function()
-		local modal = PlayerGui:FindFirstChild("SatchelModal")
-		if modal then
-			for _, desc in ipairs(modal:GetDescendants()) do
-				if not desc:IsDescendantOf(ScreenGui) and desc:IsA("GuiObject") and desc.Visible then
-					local slotName = desc.Name
-					local foundRarity = nil
-					for _, sub in ipairs(desc:GetDescendants()) do
-						if sub:IsA("TextLabel") or sub:IsA("TextButton") then
-							local txt = sub.Text
-							if txt and txt ~= "" then
-								local norm = normalizeRarity(txt)
-								if norm then foundRarity = norm end
-							end
-						end
-					end
-					
-					local isLocked = parseLockFromSlot(desc)
-					if foundRarity or desc:FindFirstChild("ImageLabel", true) then
-						if not persistentFishCache[slotName] then persistentFishCache[slotName] = {} end
-						if foundRarity then persistentFishCache[slotName].Rarity = foundRarity end
-						persistentFishCache[slotName].Locked = isLocked
-						persistentFishCache[slotName].SlotObj = desc
-					end
-				end
-			end
-		end
-	end)
-	
-	local foundFishes = {}
-	for _, tool in ipairs(Backpack:GetChildren()) do
-		if tool:IsA("Tool") and isFishTool(tool.Name) then
-			local fishName = tool.Name
-			local data = persistentFishCache[fishName] or persistentFishCache[tool.ClassName]
-			table.insert(foundFishes, {
-				Name = fishName,
-				Rarity = data and data.Rarity or nil,
-				ToolObj = tool,
-				Locked = data and data.Locked or false,
-				SlotObj = data and data.SlotObj
-			})
-		end
-	end
-	return foundFishes
-end
-
-task.spawn(function()
-	while true do
-		pcall(function()
-			if AutoLockRunning then
-				isLockingActiveNow = true
-				local modal = PlayerGui:FindFirstChild("SatchelModal")
-				if not modal or not modal.Enabled then
-					isLockingActiveNow = false
-					task.wait(0.2)
-					return
-				end
-				
-				local lockButton = findPreciseLockButton()
-				if not lockButton then
-					isLockingActiveNow = false
-					task.wait(0.2)
-					return
-				end
-				
-				local fishes = getFinalFishList()
-				local hasUnlockedFish = false
-				for _, fish in ipairs(fishes) do
-					if fish.Rarity and SelectedRarities[fish.Rarity] == true and not fish.Locked then
-						hasUnlockedFish = true
-						break
-					end
-				end
-				
-				if not hasUnlockedFish then
-					isLockingActiveNow = false
-					task.wait(0.2)
-					return
-				end
-				
-				pressKey(Enum.KeyCode.Two)
-				
-				fishes = getFinalFishList()
-				for _, fish in ipairs(fishes) do
-					if AutoLockRunning and fish.Rarity and SelectedRarities[fish.Rarity] == true and not fish.Locked and fish.ToolObj then
-						local sx, sy = getCornerSafeClickPosition()
-						clickAtPosition(sx, sy)
-						equipTool(fish.ToolObj)
-						
-						local originalSize = lockButton.Size
-						lockButton.Size = UDim2.new(0, 10000000, 0, 10000000)
-						clickButton(lockButton)
-						lockButton.Size = originalSize
-					end
-				end
-				
-				pressKey(Enum.KeyCode.Two)
-				pressKey(Enum.KeyCode.One)
-				
-				task.wait(3.0)
-				equipRodFromBackpack()
-
-				isLockingActiveNow = false
-			else
-				isLockingActiveNow = false
-			end
-		end)
-		task.wait(0.2)
-	end
-end)
-
-ToggleAutoLockBtn.MouseButton1Click:Connect(function()
-    if not savedAutoCFrame then
-        StatusLabel.Text = "Cần set điểm câu để bật các chức năng"
-        showCenterWarning("⚠ Cần set điểm câu để bật các chức năng!", 0.8)
-        task.wait(0.8)
-        StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-        return
-    end
-
-	AutoLockRunning = not AutoLockRunning
-	if AutoLockRunning then
-		ToggleAutoLockBtn.Text = "🔒 Auto Lock: BẬT"
-		ToggleAutoLockBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 40)
-	else
-		ToggleAutoLockBtn.Text = "🔒 Auto Lock: TẮT"
-		ToggleAutoLockBtn.BackgroundColor3 = Color3.fromRGB(140, 40, 40)
-		isLockingActiveNow = false
-	end
-end)
-
--- Lấy tọa độ chính giữa màn hình (Không random nữa)
-local function getScreenCenterPosition()
-    local vpSize = workspace.CurrentCamera.ViewportSize
-    local inset = GuiService:GetGuiInset()
-    return (vpSize.X / 2), (vpSize.Y / 2) + inset.Y
-end
-
-local function spamSkillKeys()
-    local keys = {Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V}
-    for _, key in ipairs(keys) do
-        VirtualInputManager:SendKeyEvent(true, key, false, game)
-        VirtualInputManager:SendKeyEvent(false, key, false, game)
-    end
-end
-
-local function hasEquippedRod()
-    local char = LocalPlayer.Character
-    if not char then return false end
-    for _, child in ipairs(char:GetChildren()) do
-        if child:IsA("Tool") and string.find(string.lower(child.Name), "rod") then return true end
-    end
-    return false
-end
-
-local isRunning = false
-local cameraLockConnection = nil
-
-local function enableCameraLock()
-    if cameraLockConnection then cameraLockConnection:Disconnect() end
-    cameraLockConnection = RunService.RenderStepped:Connect(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-            local rootPart = char.HumanoidRootPart
-            local humanoid = char.Humanoid
-            humanoid.WalkSpeed = 0
-            humanoid.JumpPower = 0
-            if savedAutoCFrame then
-                rootPart.CFrame = savedAutoCFrame
-                rootPart.Velocity = Vector3.new(0, 0, 0)
-            end
-            local camPos = rootPart.Position - (rootPart.CFrame.LookVector * 6) + Vector3.new(0, 3, 0)
-            Camera.CFrame = CFrame.new(camPos, rootPart.Position + Vector3.new(0, 1, 0))
         end
     end)
+    
+    tween:Play()
+    tween.Completed:Wait()
+    
+    connection:Disconnect()
+    bv:Destroy()
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then part.CanCollide = true end
+    end
+    task.wait(0.1)
 end
 
-local function disableCameraLock()
-    if cameraLockConnection then
-        cameraLockConnection:Disconnect()
-        cameraLockConnection = nil
-    end
-    Camera.CameraType = Enum.CameraType.Custom
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        LocalPlayer.Character.Humanoid.JumpPower = 50
-    end
-end
-
+-- Hàm đi bộ thông minh (Né vật cản & chống kẹt tự động - Tốc độ kết thúc: 20)
 local function walkSmartlyTo(targetCFrame)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return false end
+    
     local hrp = char.HumanoidRootPart
     local humanoid = char.Humanoid
     humanoid.WalkSpeed = 24
@@ -844,6 +212,7 @@ local function walkSmartlyTo(targetCFrame)
             if connection then connection:Disconnect() end
             return
         end
+        
         humanoid.WalkSpeed = 24
         local currentPos = hrp.Position
         local targetXZ = Vector3.new(finalTargetPos.X, currentPos.Y, finalTargetPos.Z)
@@ -860,7 +229,10 @@ local function walkSmartlyTo(targetCFrame)
             backupTimer = backupTimer - dt
             humanoid.Jump = true
             humanoid:Move(-hrp.CFrame.LookVector)
-            if backupTimer <= 0 then isBackingUp = false; avoidDirection = avoidDirection * -1 end
+            if backupTimer <= 0 then 
+                isBackingUp = false
+                avoidDirection = avoidDirection * -1 
+            end
             return
         end
 
@@ -899,22 +271,183 @@ local function walkSmartlyTo(targetCFrame)
     while not arrived and connection and connection.Connected do
         task.wait(0.05)
     end
+    
     if connection then connection:Disconnect() end
+    
     if char and char:FindFirstChild("Humanoid") then
         humanoid:Move(Vector3.new(0, 0, 0))
-        char.Humanoid.WalkSpeed = 16
+        char.Humanoid.WalkSpeed = 20 
     end
+    
     return (hrp.Position - finalTargetPos).Magnitude <= 6
+end
+
+local function movePlayerToTarget(targetPos, speed)
+    if sellMoveMode == "Đi bộ thông minh" then 
+        walkSmartlyTo(CFrame.new(targetPos)) 
+    else 
+        tweenMoveTo(targetPos, speed or 35) 
+    end
+end
+
+-- ================= TỰ ĐỘNG CHẠY NAMETAG "T HUB VIP" =================
+local function applyGoldAndBlackSweep(uiGradient)
+    task.spawn(function()
+        while uiGradient and uiGradient.Parent do
+            local offset = (tick() % 2) / 2 
+            uiGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)),
+                ColorSequenceKeypoint.new(math.clamp(offset - 0.1, 0, 1), Color3.fromRGB(255, 215, 0)),
+                ColorSequenceKeypoint.new(math.clamp(offset, 0, 1), Color3.fromRGB(0, 0, 0)),
+                ColorSequenceKeypoint.new(math.clamp(offset + 0.1, 0, 1), Color3.fromRGB(255, 215, 0)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 165, 0))
+            })
+            task.wait(0.1)
+        end
+    end)
+end
+
+local function processCharacterTag(character)
+    local nametags = workspace:FindFirstChild("Nametags")
+    if not nametags then return end
+    local myNametag = nametags:FindFirstChild(LocalPlayer.Name)
+    if myNametag then
+        for _, descendant in ipairs(myNametag:GetDescendants()) do
+            if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+                descendant.Text = "T HUB VIP"; descendant.RichText = true; descendant.TextSize = 35 
+                local uiGradient = descendant:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient", descendant)
+                applyGoldAndBlackSweep(uiGradient)
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                    pcall(function() player.Character.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None; player.Character.Humanoid.HealthDisplayType = Enum.HealthDisplayType.AlwaysOff end)
+                end
+            end
+            if LocalPlayer.Character then processCharacterTag(LocalPlayer.Character) end
+        end)
+        task.wait(1.0)
+    end
+end)
+
+-- ================= KHUNG CẢNH BÁO =================
+local WarningGui = Instance.new("ScreenGui", CoreGui)
+WarningGui.Name = "FishingMasterWarningGui"; WarningGui.ResetOnSpawn = false
+local WarningLabel = Instance.new("TextLabel", WarningGui)
+WarningLabel.Size = UDim2.new(0, 520, 0, 80); WarningLabel.AnchorPoint = Vector2.new(0.5, 0.5); WarningLabel.Position = UDim2.new(0.5, 0, 0.3, 0)
+WarningLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20); WarningLabel.BackgroundTransparency = 0.3
+WarningLabel.TextColor3 = Color3.fromRGB(255, 60, 60); WarningLabel.TextSize = 20; WarningLabel.Font = Enum.Font.GothamBold; WarningLabel.Visible = false
+Instance.new("UICorner", WarningLabel).CornerRadius = UDim.new(0, 10)
+local WarningStroke = Instance.new("UIStroke", WarningLabel); WarningStroke.Color = Color3.fromRGB(255, 255, 255); WarningStroke.Thickness = 2
+
+local function showCenterWarning(text, duration)
+    pcall(function()
+        WarningLabel.Text = text; WarningLabel.Visible = true
+        task.spawn(function() task.wait(duration or 0.8); if WarningLabel then WarningLabel.Visible = false end end)
+    end)
+end
+local function setCenterWarningVisible(visible, text)
+    pcall(function() if text then WarningLabel.Text = text end; WarningLabel.Visible = visible end)
+end
+
+-- ================= CÁC TAB T HUB =================
+local HomeTab = Window:Tab({ Title = "Trang Chủ", Icon = "image" })
+HomeTab:Paragraph({ Title = "✨ Chào mừng đến với T HUB", Desc = "More than just a hub, it's your space.\nTông màu xanh dương huyền ảo & độc quyền." })
+HomeTab:Paragraph({ Title = "📌 Thông tin phiên bản", Desc = "• Cập nhật: Đã tích hợp các nút Fix Lag mới trực tiếp vào WindUI." })
+
+local ServerTab = Window:Tab({ Title = "Thông Tin Server", Icon = "server" })
+local ServerParagraph = ServerTab:Paragraph({ Title = "⚡ T HUB - Trạng thái hệ thống", Desc = "Đang tải dữ liệu..." })
+
+local fps = 0; local frames = 0; local last = os.clock()
+RunService.RenderStepped:Connect(function()
+    frames += 1
+    if os.clock() - last >= 1 then fps = frames; frames = 0; last = os.clock() end
+end)
+local startTime = os.clock()
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local sec = os.clock() - startTime
+            local uptime = string.format("%02d:%02d:%02d", math.floor(sec / 3600), math.floor((sec % 3600) / 60), math.floor(sec % 60))
+            local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+            local memory = math.floor(Stats:GetTotalMemoryUsageMb())
+            local serverType = (game.PrivateServerId ~= "" and "Private") or "Public"
+            ServerParagraph:SetDesc(string.format("👥 Người chơi: %d/%d\n🆔 Job ID: %s\n🌐 Server: %s\n📶 Ping: %s\n🖥 FPS: %d\n💾 RAM: %dMB\n⏱ Uptime: %s", #Players:GetPlayers(), Players.MaxPlayers, game.JobId, serverType, ping, fps, memory, uptime))
+        end)
+    end
+end)
+
+-- ================= BIẾN AUTO LOCK =================
+local AutoLockRunning = true 
+local isLockingActiveNow = false 
+local persistentFishCache = {}
+
+local SelectedRarities = {
+	Divine    = true,  
+	Epic      = false,
+	Legendary = true,  
+	Mythical  = true,  
+	Rare      = false
+}
+
+-- ================= LOGIC AUTO CÂU =================
+local isRunning = false; local isAutoSellRunning = false; local autoSellToggleRef = nil
+local cameraLockConnection = nil
+
+local function enableCameraLock()
+    if cameraLockConnection then cameraLockConnection:Disconnect() end
+    cameraLockConnection = RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 0; char.Humanoid.JumpPower = 0
+            if savedAutoCFrame then char.HumanoidRootPart.CFrame = savedAutoCFrame; char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0) end
+            local camPos = char.HumanoidRootPart.Position - (char.HumanoidRootPart.CFrame.LookVector * 6) + Vector3.new(0, 3, 0)
+            Camera.CFrame = CFrame.new(camPos, char.HumanoidRootPart.Position + Vector3.new(0, 1, 0))
+        end
+    end)
+end
+
+local function disableCameraLock()
+    if cameraLockConnection then cameraLockConnection:Disconnect(); cameraLockConnection = nil end
+    Camera.CameraType = Enum.CameraType.Custom
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 20; LocalPlayer.Character.Humanoid.JumpPower = 50
+    end
+end
+
+local function getScreenCenterPosition()
+    local vpSize = workspace.CurrentCamera.ViewportSize
+    local inset = GuiService:GetGuiInset()
+    return vpSize.X / 2, (vpSize.Y / 2) + inset.Y
+end
+
+local function spamSkillKeys()
+    local keys = {Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V}
+    for _, key in ipairs(keys) do
+        VirtualInputManager:SendKeyEvent(true, key, false, game)
+        VirtualInputManager:SendKeyEvent(false, key, false, game)
+    end
+end
+
+local function hasEquippedRod()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    for _, child in ipairs(char:GetChildren()) do
+        if child:IsA("Tool") and string.find(string.lower(child.Name), "rod") then return true end
+    end
+    return false
 end
 
 local function startAutoMaster()
     if isRunning then return end
     isRunning = true
-    ToggleMasterBtn.Text = "🛑 TẮT AUTO"
-    ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-    
-    -- KHI BẬT AUTO CÂU: Phóng to và ẩn 3 nút Reel
-    applyReelModifications()
+    handleReelGuiEffect(true)
     
     if savedAutoCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character.HumanoidRootPart.CFrame = savedAutoCFrame
@@ -923,29 +456,27 @@ local function startAutoMaster()
     enableCameraLock()
     
     task.spawn(function()
+        local noRodStartTime = nil
         while isRunning do
             if not hasEquippedRod() then
-                StatusLabel.Text = "⏳ Đang đợi cầm cần..."
-                while isRunning and not hasEquippedRod() do task.wait(0.2) end
+                if not noRodStartTime then noRodStartTime = tick(); WindUI:Notify({ Title = "Cảnh báo", Content = "⚠️ Hãy cầm cần câu!", Duration = 3 }) end
+                local elapsed = tick() - noRodStartTime
+                setCenterWarningVisible(true, string.format("⚠️ HÃY CẦM CẦN CÂU!\n(Tự cầm sau: %ds)", math.max(0, math.ceil(60 - elapsed))))
+                if elapsed >= 60 then equipRodFromBackpack(); noRodStartTime = nil; setCenterWarningVisible(false) end
+                task.wait(0.2); continue
+            else
+                if noRodStartTime then noRodStartTime = nil; setCenterWarningVisible(false) end
             end
+            
             if not isRunning then break end
             
-            StatusLabel.Text = "⚡ Giữ & Click (Chính giữa)..."
             pcall(function()
-                if not isRunning then return end
-                
-                -- Giữ và click cố định tại chính giữa màn hình (Không random)
                 local x, y = getScreenCenterPosition()
                 showClickDot(x, y)
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
                 local startTime = tick()
-                while tick() - startTime < 0.2 and isRunning and hasEquippedRod() do 
-                    spamSkillKeys()
-                    task.wait(0.05)
-                end
+                while tick() - startTime < 0.2 and isRunning and hasEquippedRod() do spamSkillKeys(); task.wait(0.05) end
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
-                
-                if not isRunning then return end
                 
                 for i = 1, 10 do
                     if not isRunning or not hasEquippedRod() then break end
@@ -959,43 +490,61 @@ local function startAutoMaster()
             end)
             task.wait(0.05)
         end
+        setCenterWarningVisible(false)
     end)
 end
 
 local function stopAutoMaster()
-    if not isRunning then return end
-    isRunning = false
-    ToggleMasterBtn.Text = "auto câu + skill"
-    ToggleMasterBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 90)
-    StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-    
-    -- KHI TẮT AUTO CÂU: Khôi phục lại 3 nút Reel như ban đầu
-    restoreReelButtons()
-    disableCameraLock()
+    isRunning = false; setCenterWarningVisible(false); handleReelGuiEffect(false); disableCameraLock()
 end
 
-ToggleMasterBtn.MouseButton1Click:Connect(function()
-    if not savedAutoCFrame then
-        StatusLabel.Text = "Cần set điểm câu để bật các chức năng"
-        showCenterWarning("⚠️ Cần set điểm câu để bật các chức năng!", 0.8)
-        task.wait(0.8)
-        StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-        return
-    end
+-- ================= TAB CÂU CÁ & BÁN CÁ =================
+local FishingTab = Window:Tab({ Title = "Auto Câu Cá", Icon = "anchor" })
 
-    if isRunning then
-        stopAutoMaster()
-    else
-        task.spawn(function()
-            StatusLabel.Text = "🚶 Đang đi bộ tới điểm câu..."
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                walkSmartlyTo(savedAutoCFrame)
-                task.wait(0.1)
-            end
-            startAutoMaster()
-        end)
+FishingTab:Button({
+    Title = "📍 Set Điểm Câu & Hướng",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            savedAutoCFrame = char.HumanoidRootPart.CFrame
+            WindUI:Notify({ Title = "T HUB", Content = "Đã lưu điểm câu thành công!", Duration = 3 })
+            showCenterWarning("📍 ĐÃ LƯU ĐIỂM & HƯỚNG CÂU!", 0.8)
+        end
     end
-end)
+})
+
+local autoMasterToggleRef = FishingTab:Toggle({
+    Title = "Auto Câu + Skill",
+    Value = false,
+    Callback = function(state)
+        isAutoFishingEnabledByUser = state
+        if state then
+            if not savedAutoCFrame then
+                WindUI:Notify({ Title = "Cảnh báo", Content = "Cần set điểm câu trước khi bật!", Duration = 3 }); showCenterWarning("⚠️ Cần set điểm câu!", 0.8)
+                task.delay(0.1, function() if autoMasterToggleRef then autoMasterToggleRef:Set(false) end end)
+                return
+            end
+            task.spawn(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    movePlayerToTarget(savedAutoCFrame.Position, 35); LocalPlayer.Character.HumanoidRootPart.CFrame = savedAutoCFrame
+                end
+                startAutoMaster()
+            end)
+        else
+            stopAutoMaster()
+        end
+    end
+})
+
+FishingTab:Dropdown({
+    Title = "Chế độ di chuyển (Auto Câu & Auto Bán)", 
+    Values = {"Đi bộ thông minh", "Bay (Noclip)"}, 
+    Value = "Đi bộ thông minh",
+    Callback = function(option) 
+        sellMoveMode = option; 
+        WindUI:Notify({ Title = "T HUB", Content = "Đã chọn: " .. option, Duration = 2 }) 
+    end
+})
 
 local function isFishingButtonPresent()
     local found = false
@@ -1004,8 +553,7 @@ local function isFishingButtonPresent()
             if gui:IsA("ScreenGui") then
                 for _, desc in ipairs(gui:GetDescendants()) do
                     if (desc.Name == "FishingActionButton" or desc.Name == "Minigame" or string.find(string.lower(desc.Name), "reel")) and desc.Visible then
-                        found = true
-                        break
+                        found = true; break
                     end
                 end
             end
@@ -1016,161 +564,90 @@ local function isFishingButtonPresent()
 end
 
 local function getFishCapacity()
-    local currentFish, maxFish = 0, 50
+    local cur, maxF = 0, 50
     pcall(function()
         for _, gui in ipairs(PlayerGui:GetDescendants()) do
             if gui:IsA("TextLabel") and (gui.Name == "Capacity" or string.find(string.lower(gui.Text), "fish:")) then
-                local cur, max = string.match(gui.Text, "(%d+)/(%d+)")
-                if cur and max then
-                    currentFish = tonumber(cur)
-                    maxFish = tonumber(max)
-                    break
-                end
+                local c, m = string.match(gui.Text, "(%d+)/(%d+)")
+                if c and m then cur = tonumber(c); maxF = tonumber(m); break end
             end
         end
     end)
-    return currentFish, maxFish
+    return cur, maxF
 end
 
-local function simulateGamePadButton(keyCode, holdTime)
-    pcall(function()
-        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-        task.wait(holdTime or 0.05)
-        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
-    end)
+local function globalPressKey(keyCode)
+	pcall(function() VirtualInputManager:SendKeyEvent(true, keyCode, false, game); task.wait(0.05); VirtualInputManager:SendKeyEvent(false, keyCode, false, game) end)
 end
 
-local isAutoSellRunning = false
-
-AutoSellBtn.MouseButton1Click:Connect(function()
-    if not savedAutoCFrame then
-        StatusLabel.Text = "Cần set điểm câu để bật các chức năng"
-        showCenterWarning("⚠️ Cần set điểm câu để bật các chức năng!", 0.8)
-        task.wait(0.8)
-        StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
-        return
-    end
-
-    isAutoSellRunning = not isAutoSellRunning
-    
-    if isAutoSellRunning then
-        AutoSellBtn.Text = "📦 Tự động bán (50/50): BẬT"
-        AutoSellBtn.BackgroundColor3 = Color3.fromRGB(200, 140, 40)
-        
-        task.spawn(function()
-            while isAutoSellRunning do
-                StatusLabel.Text = "📦 Đang check kho..."
+autoSellToggleRef = FishingTab:Toggle({
+    Title = "Tự Động Bán (50/50)",
+    Value = false,
+    Callback = function(state)
+        if state then
+            if not savedAutoCFrame then
+                WindUI:Notify({ Title = "Cảnh báo", Content = "Cần set điểm câu trước khi bật!", Duration = 3 }); showCenterWarning("⚠ Cần set điểm câu!", 0.8)
+                task.delay(0.1, function() if autoSellToggleRef then autoSellToggleRef:Set(false) end end)
+                return
+            end
+            isAutoSellRunning = true
+            
+            task.spawn(function()
                 while isAutoSellRunning do
-                    local cur, max = getFishCapacity()
-                    StatusLabel.Text = string.format("📦 Kho cá: %d/%d", cur, max)
-                    if cur >= max and max > 0 then break end
-                    task.wait(1.0)
-                end
-                
-                if not isAutoSellRunning then break end
-                
-                StatusLabel.Text = "📦 Kho đầy! Đợi ổn định..."
-                task.wait(2.0)
-                
-                if not isAutoSellRunning then break end
-                
-                StatusLabel.Text = "⏳ Đợi kéo nốt cá hiện tại..."
-                local waitCheckStart = tick()
-                while isAutoSellRunning do
-                    local fishingActive = isFishingButtonPresent()
-                    local hasRod = hasEquippedRod()
-                    local elapsedWait = tick() - waitCheckStart
-                    if (not fishingActive and not hasRod) or (elapsedWait > 3) then break end
-                    task.wait(0.2)
-                end
-                
-                if not isAutoSellRunning then break end
-                if isRunning then stopAutoMaster() end
-                
-                if AutoLockRunning then
-                    StatusLabel.Text = "⏳ Đợi Auto Lock khóa nốt..."
-                    local lockWaitStart = tick()
-                    while isAutoSellRunning and AutoLockRunning and isLockingActiveNow and (tick() - lockWaitStart < 2) do
+                    while isAutoSellRunning do
+                        local cur, max = getFishCapacity()
+                        if cur >= max and max > 0 then break end
+                        task.wait(1.0)
+                    end
+                    
+                    if not isAutoSellRunning then break end
+                    task.wait(2.0)
+                    
+                    local waitCheckStart = tick()
+                    while isAutoSellRunning do
+                        if (not isFishingButtonPresent() and not hasEquippedRod()) or (tick() - waitCheckStart > 3) then break end
                         task.wait(0.2)
                     end
-                end
-                
-                if not isAutoSellRunning then break end
-                
-                StatusLabel.Text = "⏳ Cất cần..."
-                pcall(function()
-                    local centerX, centerY = getScreenCenterPosition()
-                    for i = 1, 2 do
-                        if not isAutoSellRunning then break end
-                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-                        task.wait(0.05)
-                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-                        task.wait(0.05)
-                    end
-                    task.wait(0.2)
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                    task.wait(0.05)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-                end)
-                
-                StatusLabel.Text = "🛑 Đang đi bán cá..."
-                task.wait(0.2)
-                
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local returnCFrame = savedAutoCFrame or char.HumanoidRootPart.CFrame
-                    StatusLabel.Text = "🧭 Tìm NPC..."
-                    local targetNpcPart = nil
-                    local shortestDist = math.huge
                     
-                    for _, obj in ipairs(workspace:GetDescendants()) do
-                        local nameLower = string.lower(obj.Name)
-                        if nameLower == "npc_fish_seller_1" or string.find(nameLower, "seller") or string.find(nameLower, "fish_seller") then
-                            local part = nil
-                            if obj:IsA("Model") then part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                            elseif obj:IsA("BasePart") then part = obj end
-                            
-                            if part then
-                                local dist = (char.HumanoidRootPart.Position - part.Position).Magnitude
-                                if dist < shortestDist then shortestDist = dist; targetNpcPart = part end
+                    if not isAutoSellRunning then break end
+                    if isRunning then stopAutoMaster() end
+                    
+                    if AutoLockRunning then
+                        local lockWaitStart = tick()
+                        while isAutoSellRunning and AutoLockRunning and isLockingActiveNow and (tick() - lockWaitStart < 2) do task.wait(0.2) end
+                    end
+                    
+                    if not isAutoSellRunning then break end
+                    
+                    pcall(function()
+                        local cx, cy = getScreenCenterPosition()
+                        VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 0); task.wait(0.05); VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 0)
+                        globalPressKey(Enum.KeyCode.One)
+                    end)
+                    task.wait(0.2)
+                    
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local targetNpcPart = nil; local shortestDist = math.huge
+                        for _, obj in ipairs(workspace:GetDescendants()) do
+                            local nameLower = string.lower(obj.Name)
+                            if nameLower == "npc_fish_seller_1" or string.find(nameLower, "seller") or string.find(nameLower, "fish_seller") then
+                                local part = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                                if part and part:IsA("BasePart") then
+                                    local dist = (char.HumanoidRootPart.Position - part.Position).Magnitude
+                                    if dist < shortestDist then shortestDist = dist; targetNpcPart = part end
+                                end
                             end
                         end
-                    end
-                    
-                    if targetNpcPart then
-                        StatusLabel.Text = "🚶 Đang đi tới NPC..."
-                        local targetPos = targetNpcPart.Position + Vector3.new(0, 0, 3)
-                        local arrivedAtNpc = walkSmartlyTo(CFrame.new(targetPos))
                         
-                        if arrivedAtNpc then
-                            StatusLabel.Text = "✅ Đã đến NPC, tương tác..."
-                            task.wait(1.0) 
-                            
+                        if targetNpcPart then
+                            local targetPos = targetNpcPart.Position + Vector3.new(0, 0, 3)
+                            movePlayerToTarget(targetPos, 35); task.wait(1.0) 
                             pcall(function()
-                                for _, obj in ipairs(workspace:GetDescendants()) do
-                                    local nameLower = string.lower(obj.Name)
-                                    if nameLower == "npc_fish_seller_1" or string.find(nameLower, "seller") then
-                                        local part = nil
-                                        if obj:IsA("Model") then part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                                        elseif obj:IsA("BasePart") then part = obj end
-                                        
-                                        if part and (part.Position - char.HumanoidRootPart.Position).Magnitude < 30 then
-                                            for _, prompt in ipairs(part:GetDescendants()) do
-                                                if prompt:IsA("ProximityPrompt") then fireproximityprompt(prompt) end
-                                            end
-                                        end
-                                    end
-                                end
+                                for _, prompt in ipairs(targetNpcPart.Parent:GetDescendants()) do if prompt:IsA("ProximityPrompt") then fireproximityprompt(prompt) end end
                             end)
-                            
-                            task.wait(0.5)
-                            GuiService.SelectedObject = nil 
-
-                            simulateGamePadButton(Enum.KeyCode.ButtonA, 0.05)
-                            pressKey(Enum.KeyCode.E)
-                            
-                            StatusLabel.Text = "⏳ Đang đợi hội thoại 1 (5s)..."
-                            task.wait(5.0)
+                            task.wait(0.5); GuiService.SelectedObject = nil 
+                            globalPressKey(Enum.KeyCode.ButtonA); globalPressKey(Enum.KeyCode.E); task.wait(5.0)
                             
                             local function selectOptionWithWait(btnName)
                                 pcall(function()
@@ -1179,58 +656,477 @@ AutoSellBtn.MouseButton1Click:Connect(function()
                                         if gui:IsA("ScreenGui") then
                                             for _, desc in ipairs(gui:GetDescendants()) do
                                                 if desc:IsA("TextButton") and desc.Visible and (desc.Name == btnName or string.find(string.lower(desc.Name), string.lower(btnName))) then
-                                                    foundButton = desc
-                                                    break
+                                                    foundButton = desc; break
                                                 end
                                             end
                                         end
                                         if foundButton then break end
                                     end
                                     if foundButton then
-                                        GuiService.SelectedObject = foundButton
-                                        task.wait(0.05)
+                                        GuiService.SelectedObject = foundButton; task.wait(0.05)
                                         for _, conn in ipairs(getconnections(foundButton.MouseButton1Click) or {}) do conn:Fire() end
                                         for _, conn in ipairs(getconnections(foundButton.Activated) or {}) do conn:Fire() end
                                     end
-                                    simulateGamePadButton(Enum.KeyCode.ButtonA, 0.05)
-                                    pressKey(Enum.KeyCode.E)
+                                    globalPressKey(Enum.KeyCode.ButtonA); globalPressKey(Enum.KeyCode.E)
                                 end)
-                                
-                                StatusLabel.Text = "⏳ Đang đợi hành động tiếp theo (5s)..."
                                 task.wait(5.0)
                             end
                             
-                            selectOptionWithWait("Option002")
-                            selectOptionWithWait("Option001")
-                            selectOptionWithWait("Option002")
-                            selectOptionWithWait("Option001")
-                        else
-                            StatusLabel.Text = "⚠ Không tới được NPC!"
-                            task.wait(1.0)
+                            selectOptionWithWait("Option002"); selectOptionWithWait("Option001")
+                            selectOptionWithWait("Option002"); selectOptionWithWait("Option001")
                         end
-                        
-                        StatusLabel.Text = "🚶 Đang đi bộ về điểm set..."
-                        walkSmartlyTo(returnCFrame)
-                        StatusLabel.Text = "✅ Đã về điểm câu!"
-                    else
-                        StatusLabel.Text = "⚠ Không thấy NPC!"
-                        task.wait(1.0)
+                        movePlayerToTarget(savedAutoCFrame.Position, 35); char.HumanoidRootPart.CFrame = savedAutoCFrame
+                    end
+                    
+                    if isAutoSellRunning then task.wait(0.5); equipRodFromBackpack(); task.wait(0.5); if isAutoSellRunning and isAutoFishingEnabledByUser then startAutoMaster() end end
+                    task.wait(1.0)
+                end
+            end)
+        else
+            isAutoSellRunning = false
+        end
+    end
+})
+
+-- ================= TAB AUTO LOCK =================
+local AutoLockTab = Window:Tab({ Title = "Auto Lock Cá", Icon = "lock" })
+
+AutoLockTab:Paragraph({ Title = "Hướng dẫn", Desc = "Tính năng này sẽ tự động khóa cá theo độ hiếm khi bạn mở túi (Satchel). Mặc định đã bật sẵn cho Divine, Legendary, Mythical." })
+
+AutoLockTab:Toggle({
+    Title = "Bật Auto Lock",
+    Value = true,
+    Callback = function(state)
+        AutoLockRunning = state
+        if not state then isLockingActiveNow = false end
+    end
+})
+
+AutoLockTab:Section({ Title = "Chọn Độ Hiếm Khóa" })
+
+AutoLockTab:Toggle({ Title = "Divine", Value = true, Callback = function(state) SelectedRarities["Divine"] = state end })
+AutoLockTab:Toggle({ Title = "Legendary", Value = true, Callback = function(state) SelectedRarities["Legendary"] = state end })
+AutoLockTab:Toggle({ Title = "Mythical", Value = true, Callback = function(state) SelectedRarities["Mythical"] = state end })
+AutoLockTab:Toggle({ Title = "Epic", Value = false, Callback = function(state) SelectedRarities["Epic"] = state end })
+AutoLockTab:Toggle({ Title = "Rare", Value = false, Callback = function(state) SelectedRarities["Rare"] = state end })
+
+do
+	local AutoLockVisuals = Instance.new("ScreenGui")
+	AutoLockVisuals.Name = "AutoLockVisuals"
+	AutoLockVisuals.ResetOnSpawn = false
+	AutoLockVisuals.Parent = CoreGui
+
+	local lockClickDot = Instance.new("Frame")
+	lockClickDot.Name = "ClickDot"
+	lockClickDot.Size = UDim2.new(0, 10, 0, 10)
+	lockClickDot.AnchorPoint = Vector2.new(0.5, 0.5)
+	lockClickDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	lockClickDot.BorderSizePixel = 0
+	lockClickDot.Visible = false
+	lockClickDot.ZIndex = 99999
+	lockClickDot.Parent = AutoLockVisuals
+	Instance.new("UICorner", lockClickDot).CornerRadius = UDim.new(1, 0)
+
+	local function showLockClickDot(x, y)
+		pcall(function()
+			lockClickDot.Position = UDim2.new(0, x, 0, y)
+			lockClickDot.Visible = true
+			task.spawn(function()
+				task.wait(0.05)
+				if lockClickDot then lockClickDot.Visible = false end
+			end)
+		end)
+	end
+
+	local function clickAtPosition(x, y)
+		pcall(function()
+			showLockClickDot(x, y)
+			VirtualInputManager:SendMouseMoveEvent(x, y, game)
+			VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+			VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+		end)
+	end
+
+	local function clickButton(btn)
+		if not btn then return end
+		pcall(function()
+			local absPos = btn.AbsolutePosition
+			local absSize = btn.AbsoluteSize
+			local cx = absPos.X + absSize.X / 2
+			local cy = absPos.Y + absSize.Y / 2
+			clickAtPosition(cx, cy)
+			for _, conn in pairs(getconnections(btn.Activated)) do conn:Fire() end
+			for _, conn in pairs(getconnections(btn.MouseButton1Click)) do conn:Fire() end
+			if firesignal then
+				pcall(function() firesignal(btn.Activated) end)
+				pcall(function() firesignal(btn.MouseButton1Click) end)
+			end
+		end)
+	end
+
+	local function pressKeyLocally(keyCode)
+		pcall(function()
+			VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+			VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+		end)
+	end
+
+	local function equipToolLocally(toolObj)
+		if not toolObj or not toolObj.Parent then return end
+		pcall(function()
+			local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid then humanoid:EquipTool(toolObj) end
+		end)
+	end
+
+	local function normalizeRarity(text)
+		if not text then return nil end
+		local t = string.lower(text)
+		if string.find(t, "divine") then return "Divine"
+		elseif string.find(t, "epic") then return "Epic"
+		elseif string.find(t, "legendary") or string.find(t, "huyền thoại") then return "Legendary"
+		elseif string.find(t, "mythical") then return "Mythical"
+		elseif string.find(t, "rare") or string.find(t, "hiếm") then return "Rare"
+		else return nil end
+	end
+
+	local function findPreciseLockButton()
+		local btn = nil
+		pcall(function()
+			local modal = PlayerGui:FindFirstChild("SatchelModal")
+			if modal then
+				for _, desc in ipairs(modal:GetDescendants()) do
+					if desc.Name == "Button" and desc.Parent and string.lower(desc.Parent.Name) == "lock" then
+						btn = desc; break
+					end
+				end
+			end
+		end)
+		return btn
+	end
+
+	local function parseLockFromSlot(slotObj)
+		local isLocked = false
+		pcall(function()
+			if slotObj then
+				local lockedObj = slotObj:FindFirstChild("Locked", true)
+				if lockedObj and lockedObj:IsA("GuiObject") then
+					if lockedObj.Visible and lockedObj.AbsoluteSize.X > 0 and lockedObj.AbsoluteSize.Y > 0 then
+						isLocked = true
+					end
+				end
+			end
+		end)
+		return isLocked
+	end
+
+	local function isFishTool(toolName)
+		local lower = string.lower(toolName)
+		local blacklist = {"rod", "cần", "bait", "mồi", "net", "lưới", "boat", "thuyền", "sword", "kiếm", "gun", "súng"}
+		for _, badWord in ipairs(blacklist) do
+			if string.find(lower, badWord) then return false end
+		end
+		return true
+	end
+
+	local function getCornerSafeClickPosition()
+		local cam = workspace.CurrentCamera
+		if not cam then return 50, 50 end
+		local viewportSize = cam.ViewportSize
+		return viewportSize.X - 50, 50
+	end
+
+	local function getFinalFishList()
+		pcall(function()
+			local modal = PlayerGui:FindFirstChild("SatchelModal")
+			if modal then
+				for _, desc in ipairs(modal:GetDescendants()) do
+					if not desc:IsDescendantOf(ScreenGui) and desc:IsA("GuiObject") and desc.Visible then
+						local slotName = desc.Name
+						local foundRarity = nil
+						for _, sub in ipairs(desc:GetDescendants()) do
+							if sub:IsA("TextLabel") or sub:IsA("TextButton") then
+								local txt = sub.Text
+								if txt and txt ~= "" then
+									local norm = normalizeRarity(txt)
+									if norm then foundRarity = norm end
+								end
+							end
+						end
+						
+						local isLocked = parseLockFromSlot(desc)
+						if foundRarity or desc:FindFirstChild("ImageLabel", true) then
+							if not persistentFishCache[slotName] then persistentFishCache[slotName] = {} end
+							if foundRarity then persistentFishCache[slotName].Rarity = foundRarity end
+							persistentFishCache[slotName].Locked = isLocked
+							persistentFishCache[slotName].SlotObj = desc
+						end
+					end
+				end
+			end
+		end)
+		
+		local foundFishes = {}
+		for _, tool in ipairs(Backpack:GetChildren()) do
+			if tool:IsA("Tool") and isFishTool(tool.Name) then
+				local fishName = tool.Name
+				local data = persistentFishCache[fishName] or persistentFishCache[tool.ClassName]
+				table.insert(foundFishes, {
+					Name = fishName,
+					Rarity = data and data.Rarity or nil,
+					ToolObj = tool,
+					Locked = data and data.Locked or false,
+					SlotObj = data and data.SlotObj
+				})
+			end
+		end
+		return foundFishes
+	end
+
+	task.spawn(function()
+		while true do
+			pcall(function()
+				if AutoLockRunning then
+					isLockingActiveNow = true
+					local modal = PlayerGui:FindFirstChild("SatchelModal")
+					if not modal or not modal.Enabled then
+						isLockingActiveNow = false; task.wait(0.2); return
+					end
+					
+					local lockButton = findPreciseLockButton()
+					if not lockButton then
+						isLockingActiveNow = false; task.wait(0.2); return
+					end
+					
+					local fishes = getFinalFishList()
+					local hasUnlockedFish = false
+					for _, fish in ipairs(fishes) do
+						if fish.Rarity and SelectedRarities[fish.Rarity] == true and not fish.Locked then
+							hasUnlockedFish = true; break
+						end
+					end
+					
+					if not hasUnlockedFish then
+						isLockingActiveNow = false; task.wait(0.2); return
+					end
+					
+					pressKeyLocally(Enum.KeyCode.Two)
+					
+					fishes = getFinalFishList()
+					for _, fish in ipairs(fishes) do
+						if AutoLockRunning and fish.Rarity and SelectedRarities[fish.Rarity] == true and not fish.Locked and fish.ToolObj then
+							local sx, sy = getCornerSafeClickPosition()
+							clickAtPosition(sx, sy)
+							equipToolLocally(fish.ToolObj)
+							
+							local originalSize = lockButton.Size
+							lockButton.Size = UDim2.new(0, 10000000, 0, 10000000)
+							clickButton(lockButton)
+							lockButton.Size = originalSize
+						end
+					end
+					
+					pressKeyLocally(Enum.KeyCode.Two)
+					pressKeyLocally(Enum.KeyCode.One)
+					
+					task.wait(3.0)
+					equipRodFromBackpack()
+
+					isLockingActiveNow = false
+				else
+					isLockingActiveNow = false
+				end
+			end)
+			task.wait(0.2)
+		end
+	end)
+end
+
+-- ================= TAB ISLANDS =================
+local IslandsTab = Window:Tab({ Title = "Islands", Icon = "map" })
+local islandsList = {}; local selectedIslandIndex = 1
+
+local function scanExactIslands()
+    local scanned = {}
+    pcall(function()
+        local worldFolder = workspace:FindFirstChild("World")
+        if worldFolder and worldFolder:FindFirstChild("Islands") then
+            for _, islandFolder in ipairs(worldFolder.Islands:GetChildren()) do
+                if islandFolder:IsA("Folder") or islandFolder:IsA("Model") then
+                    local targetPos = nil
+                    local spawnPoint = islandFolder:FindFirstChild("SpawnPoint", true)
+                    if spawnPoint then
+                        if spawnPoint:IsA("BasePart") then targetPos = spawnPoint.Position
+                        elseif spawnPoint:IsA("Model") then targetPos = spawnPoint:GetPivot().Position end
+                    end
+                    if not targetPos then
+                        for _, desc in ipairs(islandFolder:GetDescendants()) do if desc:IsA("BasePart") then targetPos = desc.Position; break end end
+                    end
+                    if targetPos then table.insert(scanned, {name = string.gsub(islandFolder.Name, "^island_", ""), pos = targetPos}) end
+                end
+            end
+        end
+    end)
+    islandsList = (#scanned > 0) and scanned or {{name = "Starter", pos = Vector3.new(0, 10, 0)}}
+end
+scanExactIslands()
+local islandNames = {}
+for _, island in ipairs(islandsList) do table.insert(islandNames, island.name) end
+
+local currentSpeedValue = 30
+IslandsTab:Input({ Title = "Tốc độ di chuyển (Speed: 10 - 40)", Value = "30", Callback = function(text) currentSpeedValue = math.clamp(tonumber(text) or 30, 10, 40) end })
+IslandsTab:Dropdown({ Title = "Chọn đảo cần đến", Values = islandNames, Value = islandNames[1] or "", Callback = function(option) for i, name in ipairs(islandNames) do if name == option then selectedIslandIndex = i; break end end end })
+IslandsTab:Button({
+    Title = "Bắt đầu di chuyển đến đảo",
+    Callback = function()
+        local targetIsland = islandsList[selectedIslandIndex]
+        if targetIsland then
+            WindUI:Notify({ Title = "T HUB", Content = "Đang di chuyển tới đảo: " .. targetIsland.name, Duration = 3 })
+            task.spawn(function() movePlayerToTarget(targetIsland.pos, currentSpeedValue); WindUI:Notify({ Title = "T HUB", Content = "Đã đến đảo: " .. targetIsland.name, Duration = 3 }) end)
+        end
+    end
+})
+
+-- ================= TAB FIX LAG (TÍCH HỢP WINDUI) =================
+local FixLagTab = Window:Tab({ Title = "Fix Lag", Icon = "activity" })
+
+local originalPartsData = {}
+local originalLightingData = {GlobalShadows = game:GetService("Lighting").GlobalShadows, FogEnd = game:GetService("Lighting").FogEnd}
+local originalSoundVolumes = {}
+
+-- 1. Tối Ưu Map & Part
+FixLagTab:Toggle({
+    Title = "⚡ Tối Ưu Map & Part",
+    Value = false,
+    Callback = function(state)
+        local lighting = game:GetService("Lighting")
+        if state then
+            for _, part in ipairs(workspace:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    originalPartsData[part] = {
+                        Material = part.Material,
+                        Color = part.Color,
+                        CastShadow = part.CastShadow,
+                        TextureID = part:IsA("MeshPart") and part.TextureID or nil
+                    }
+                    part.Material = Enum.Material.SmoothPlastic
+                    part.Color = Color3.fromRGB(150, 150, 150)
+                    part.CastShadow = false
+                    if part:IsA("MeshPart") then part.TextureID = "" end
+                end
+            end
+            lighting.GlobalShadows = false
+            lighting.FogEnd = 9e9
+        else
+            for part, data in pairs(originalPartsData) do
+                if part and part.Parent then
+                    part.Material = data.Material
+                    part.Color = data.Color
+                    part.CastShadow = data.CastShadow
+                    if part:IsA("MeshPart") and data.TextureID then part.TextureID = data.TextureID end
+                end
+            end
+            lighting.GlobalShadows = originalLightingData.GlobalShadows
+            lighting.FogEnd = originalLightingData.FogEnd
+            originalPartsData = {}
+        end
+    end
+})
+
+-- 2. Xóa Hiệu Ứng & Skill
+local effectConnection
+FixLagTab:Toggle({
+    Title = "🧹 Xóa Hiệu Ứng & Skill",
+    Value = false,
+    Callback = function(state)
+        if state then
+            effectConnection = workspace.DescendantAdded:Connect(function(child)
+                if child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Smoke") or child:IsA("Sparkles") or child:IsA("Beam") or child:IsA("Trail") or child:IsA("Highlight") or child:IsA("Explosion") then
+                    pcall(function() child:Destroy() end)
+                end
+            end)
+            for _, descendant in ipairs(workspace:GetDescendants()) do
+                if descendant:IsA("ParticleEmitter") or descendant:IsA("Fire") or descendant:IsA("Smoke") or descendant:IsA("Sparkles") or descendant:IsA("Beam") or descendant:IsA("Trail") or descendant:IsA("Highlight") or descendant:IsA("Explosion") then
+                    pcall(function() descendant:Destroy() end)
+                end
+            end
+        else
+            if effectConnection then 
+                effectConnection:Disconnect() 
+                effectConnection = nil 
+            end
+        end
+    end
+})
+
+-- 3. Xóa Hoạt Ảnh Nhân Vật
+local animLoopConnection
+FixLagTab:Toggle({
+    Title = "🏃 Xóa Hoạt Ảnh Nhân Vật",
+    Value = false,
+    Callback = function(state)
+        if state then
+            animLoopConnection = game:GetService("RunService").Stepped:Connect(function()
+                for _, char in ipairs(workspace:GetChildren()) do
+                    if char:IsA("Model") then
+                        local humanoid = char:FindFirstChildOfClass("Humanoid")
+                        if humanoid then
+                            local animator = humanoid:FindFirstChildOfClass("Animator")
+                            if animator then
+                                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                                    pcall(function()
+                                        track:Stop(0)
+                                        track:AdjustSpeed(0)
+                                    end)
+                                end
+                            end
+                        end
                     end
                 end
-                
-                if isAutoSellRunning then
-                    StatusLabel.Text = "🎣 Đang cầm lại cần câu..."
-                    task.wait(0.5)
-                    equipRodFromBackpack() 
-                    task.wait(0.5)
-                    if isAutoSellRunning then startAutoMaster() end
-                end
-                task.wait(1.0)
+            end)
+        else
+            if animLoopConnection then
+                animLoopConnection:Disconnect()
+                animLoopConnection = nil
             end
-        end)
-    else
-        AutoSellBtn.Text = "📦 Tự động bán (50/50): TẮT"
-        AutoSellBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 40)
-        StatusLabel.Text = "⚡ Trạng thái: Đang tắt"
+        end
     end
-end)
+})
+
+-- 4. Fix Lag Âm Thanh
+local soundConnection
+FixLagTab:Toggle({
+    Title = "🔊 Fix Lag Âm Thanh",
+    Value = false,
+    Callback = function(state)
+        if state then
+            for _, descendant in ipairs(game:GetDescendants()) do
+                if descendant:IsA("Sound") then
+                    originalSoundVolumes[descendant] = descendant.Volume
+                    descendant.Volume = 0
+                    descendant:Stop()
+                end
+            end
+            
+            soundConnection = game.DescendantAdded:Connect(function(child)
+                if child:IsA("Sound") then
+                    originalSoundVolumes[child] = child.Volume
+                    child.Volume = 0
+                    child:Stop()
+                end
+            end)
+        else
+            if soundConnection then
+                soundConnection:Disconnect()
+                soundConnection = nil
+            end
+            
+            for sound, vol in pairs(originalSoundVolumes) do
+                if sound and sound.Parent then
+                    sound.Volume = vol
+                end
+            end
+            originalSoundVolumes = {}
+        end
+    end
+})
