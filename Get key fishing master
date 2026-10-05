@@ -1,0 +1,395 @@
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Link npoint, link Get Key và link script chính của bạn
+local NPOINT_URL = "https://api.npoint.io/df2d5d0fda1ea4e5a0fa"
+local GET_KEY_LINK = "https://link4m.org/nRPpsl2B"
+local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Fishing%20master775889"
+
+-- Tên file lưu cache key trên máy người chơi
+local CACHE_FILE_NAME = "THUB_KeyCache_" .. tostring(player.UserId) .. ".json"
+
+-- Xóa UI cũ nếu có
+if playerGui:FindFirstChild("THUB_HeavyFX_Key") then
+    playerGui.THUB_HeavyFX_Key:Destroy()
+end
+if playerGui:FindFirstChild("THUB_ReuseKey_UI") then
+    playerGui.THUB_ReuseKey_UI:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "THUB_HeavyFX_Key"
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = playerGui
+
+-- Main Card (Giao diện chính với hiệu ứng nặng)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 340, 0, 190)
+mainFrame.Position = UDim2.new(0.5, -170, 0.5, -95)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 14)
+uiCorner.Parent = mainFrame
+
+-- Hiệu ứng viền sáng đổi màu RGB liên tục
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Thickness = 2.5
+uiStroke.Parent = mainFrame
+
+local colorConn
+colorConn = RunService.RenderStepped:Connect(function()
+    if not mainFrame or not mainFrame.Parent then
+        if colorConn then colorConn:Disconnect() end
+        return
+    end
+    local hue = (tick() % 5) / 5
+    local rgbColor = Color3.fromHSV(hue, 1, 1)
+    uiStroke.Color = rgbColor
+end)
+
+-- Tiêu đề
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Position = UDim2.new(0, 0, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "T-HUB SECURITY SYSTEM"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 14
+title.Font = Enum.Font.GothamBlack
+title.Parent = mainFrame
+
+task.spawn(function()
+    while title and title.Parent do
+        local tw1 = TweenService:Create(title, TweenInfo.new(0.6), {TextColor3 = Color3.fromRGB(255, 0, 127)})
+        tw1:Play()
+        task.wait(0.6)
+        local tw2 = TweenService:Create(title, TweenInfo.new(0.6), {TextColor3 = Color3.fromRGB(0, 243, 255)})
+        tw2:Play()
+        task.wait(0.6)
+    end
+end)
+
+-- Ô nhập Key (Trống trơn)
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(0, 300, 0, 42)
+textBox.Position = UDim2.new(0.5, -150, 0, 48)
+textBox.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+textBox.PlaceholderText = ""
+textBox.Text = ""
+textBox.TextSize = 14
+textBox.Font = Enum.Font.Code
+textBox.ClearTextOnFocus = false
+textBox.Parent = mainFrame
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 8)
+boxCorner.Parent = textBox
+
+local boxStroke = Instance.new("UIStroke")
+boxStroke.Color = Color3.fromRGB(60, 70, 90)
+boxStroke.Thickness = 1.5
+boxStroke.Parent = textBox
+
+-- Nút Lấy Key
+local getKeyBtn = Instance.new("TextButton")
+getKeyBtn.Size = UDim2.new(0, 142, 0, 38)
+getKeyBtn.Position = UDim2.new(0.5, -150, 0, 98)
+getKeyBtn.BackgroundColor3 = Color3.fromRGB(40, 45, 60)
+getKeyBtn.Text = "LAY KEY NGAY"
+getKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+getKeyBtn.TextSize = 12
+getKeyBtn.Font = Enum.Font.GothamBold
+getKeyBtn.Parent = mainFrame
+
+local getBtnCorner = Instance.new("UICorner")
+getBtnCorner.CornerRadius = UDim.new(0, 8)
+getBtnCorner.Parent = getKeyBtn
+
+-- Nút Xác Thực (Hiệu ứng pulse)
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0, 142, 0, 38)
+submitBtn.Position = UDim2.new(0.5, 8, 0, 98)
+submitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+submitBtn.Text = "XAC THUC"
+submitBtn.TextColor3 = Color3.fromRGB(10, 12, 18)
+submitBtn.TextSize = 12
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.Parent = mainFrame
+
+local subBtnCorner = Instance.new("UICorner")
+subBtnCorner.CornerRadius = UDim.new(0, 8)
+subBtnCorner.Parent = submitBtn
+
+task.spawn(function()
+    while submitBtn and submitBtn.Parent do
+        TweenService:Create(submitBtn, TweenInfo.new(0.4), {Size = UDim2.new(0, 146, 0, 41), Position = UDim2.new(0.5, 6, 0, 96.5)}):Play()
+        task.wait(0.4)
+        TweenService:Create(submitBtn, TweenInfo.new(0.4), {Size = UDim2.new(0, 142, 0, 38), Position = UDim2.new(0.5, 8, 0, 98)}):Play()
+        task.wait(0.4)
+    end
+end)
+
+-- Dòng trạng thái
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 22)
+statusLabel.Position = UDim2.new(0, 0, 0, 148)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.Parent = mainFrame
+
+-- Nhãn hiển thị thời gian hạn sử dụng ở góc màn hình sau khi vào game
+local expiryGui = Instance.new("ScreenGui")
+expiryGui.Name = "THUB_ExpiryTimer"
+expiryGui.IgnoreGuiInset = true
+expiryGui.Enabled = false
+expiryGui.Parent = playerGui
+
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(0, 180, 0, 30)
+timerLabel.Position = UDim2.new(1, -190, 0, 10)
+timerLabel.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+timerLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+timerLabel.TextSize = 12
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.Text = "Expires: Calculating..."
+timerLabel.Parent = expiryGui
+
+local timerCorner = Instance.new("UICorner")
+timerCorner.CornerRadius = UDim.new(0, 6)
+timerCorner.Parent = timerLabel
+
+local timerStroke = Instance.new("UIStroke")
+timerStroke.Color = Color3.fromRGB(48, 54, 61)
+timerStroke.Parent = timerLabel
+
+-- HÀM LOAD SCRIPT CHÍNH VÀ CHẠY ĐỒNG HỒ ĐẾM NGƯỢC
+local function startMainScript(expireTime)
+    if colorConn then colorConn:Disconnect() end
+    screenGui:Destroy()
+    
+    local reuseGui = playerGui:FindFirstChild("THUB_ReuseKey_UI")
+    if reuseGui then reuseGui:Destroy() end
+
+    expiryGui.Enabled = true
+    task.spawn(function()
+        while expiryGui and expiryGui.Parent do
+            local timeLeft = expireTime - os.time()
+            if timeLeft > 0 then
+                local hours = math.floor(timeLeft / 3600)
+                local minutes = math.floor((timeLeft % 3600) / 60)
+                local seconds = timeLeft % 60
+                timerLabel.Text = string.format("Key Expires: %02d:%02d:%02d", hours, minutes, seconds)
+            else
+                timerLabel.Text = "Key Expired!"
+                timerLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+                
+                -- Chỉ xóa đúng file cache chứa key đã hết hạn này
+                pcall(function()
+                    if delfile and isfile and isfile(CACHE_FILE_NAME) then
+                        delfile(CACHE_FILE_NAME)
+                    end
+                end)
+                
+                break
+            end
+            task.wait(1)
+        end
+    end)
+
+    local loadSuccess, loadError = pcall(function()
+        loadstring(game:HttpGet(MAIN_SCRIPT_URL))()
+    end)
+
+    if not loadError and loadSuccess then
+        print("T-HUB Fishing Master loaded successfully!")
+    else
+        warn("Lỗi load script chính: ", loadError)
+    end
+end
+
+-- 🌟 KIỂM TRA LỊCH SỬ KEY CŨ (CHỈ XÓA ĐÚNG KEY HẾT HẠN)
+task.spawn(pcall, function()
+    if readfile and isfile and isfile(CACHE_FILE_NAME) then
+        local rawCache = readfile(CACHE_FILE_NAME)
+        local cacheData = HttpService:JSONDecode(rawCache)
+        
+        if cacheData and cacheData.key and cacheData.expireTimestamp then
+            local cachedKey = cacheData.key
+            local cachedExpire = tonumber(cacheData.expireTimestamp) or 0
+            
+            -- Nếu key vẫn còn hạn
+            if os.time() < cachedExpire then
+                local reuseGui = Instance.new("ScreenGui")
+                reuseGui.Name = "THUB_ReuseKey_UI"
+                reuseGui.IgnoreGuiInset = true
+                reuseGui.Parent = playerGui
+
+                local reuseFrame = Instance.new("Frame")
+                reuseFrame.Size = UDim2.new(0, 220, 0, 140)
+                reuseFrame.Position = UDim2.new(0.5, 180, 0.5, -95)
+                reuseFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
+                reuseFrame.BorderSizePixel = 0
+                reuseFrame.Parent = reuseGui
+
+                local rCorner = Instance.new("UICorner")
+                rCorner.CornerRadius = UDim.new(0, 14)
+                rCorner.Parent = reuseFrame
+
+                local rStroke = Instance.new("UIStroke")
+                rStroke.Color = Color3.fromRGB(0, 255, 100)
+                rStroke.Thickness = 2
+                rStroke.Parent = reuseFrame
+
+                local rTitle = Instance.new("TextLabel")
+                rTitle.Size = UDim2.new(1, 0, 0, 30)
+                rTitle.Position = UDim2.new(0, 0, 0, 5)
+                rTitle.BackgroundTransparency = 1
+                rTitle.Text = "KEY CU CON HAN"
+                rTitle.TextColor3 = Color3.fromRGB(0, 255, 100)
+                rTitle.TextSize = 12
+                rTitle.Font = Enum.Font.GothamBold
+                rTitle.Parent = reuseFrame
+
+                local rInfo = Instance.new("TextLabel")
+                rInfo.Size = UDim2.new(1, -20, 0, 40)
+                rInfo.Position = UDim2.new(0, 10, 0, 35)
+                rInfo.BackgroundTransparency = 1
+                rInfo.Text = "Key: " .. cachedKey:sub(1, 10) .. "...\n(Co the su dung lai)"
+                rInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
+                rInfo.TextSize = 11
+                rInfo.Font = Enum.Font.Code
+                rInfo.TextWrapped = true
+                rInfo.Parent = reuseFrame
+
+                local reuseBtn = Instance.new("TextButton")
+                reuseBtn.Size = UDim2.new(0, 200, 0, 36)
+                reuseBtn.Position = UDim2.new(0.5, -100, 0, 90)
+                reuseBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+                reuseBtn.Text = "SU DUNG LAI"
+                reuseBtn.TextColor3 = Color3.fromRGB(10, 12, 18)
+                reuseBtn.TextSize = 12
+                reuseBtn.Font = Enum.Font.GothamBold
+                reuseBtn.Parent = reuseGui -- Sửa lại parent gắn vào ScreenGui chuẩn
+
+                local rbCorner = Instance.new("UICorner")
+                rbCorner.CornerRadius = UDim.new(0, 8)
+                rbCorner.Parent = reuseBtn
+
+                reuseBtn.MouseButton1Click:Connect(function()
+                    startMainScript(cachedExpire)
+                end)
+            else
+                -- 🛑 CHỈ XÓA ĐÚNG CÁI KEY ĐÃ HẾT HẠN ĐÓ THÔI
+                if delfile then
+                    delfile(CACHE_FILE_NAME)
+                end
+            end
+        end
+    end
+end)
+
+-- Chức năng Lấy Key
+getKeyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(GET_KEY_LINK)
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+        statusLabel.Text = "Da copy Link Get Key vao Clipboard!"
+    else
+        statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.Text = "Executor loi khong ho tro copy!"
+    end
+end)
+
+-- Chức năng Xác Thực Key mới
+submitBtn.MouseButton1Click:Connect(function()
+    local inputKey = (textBox.Text or ""):gsub("%s+", "")
+    
+    if inputKey == "" then
+        statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.Text = "Vui long khong de trong key!"
+        return
+    end
+
+    statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+    statusLabel.Text = "Dang ket noi phan tich Cloud..."
+
+    local success, response = pcall(function()
+        local rawData = game:HttpGet(NPOINT_URL)
+        return HttpService:JSONDecode(rawData)
+    end)
+
+    if not success or not response then
+        statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.Text = "Loi ket noi may chu Cloud!"
+        return
+    end
+
+    local keyList = response.keys or {}
+    local currentTime = os.time()
+    local foundIndex = nil
+    local expireTime = 0
+    local isExpired = false
+
+    for i, keyData in ipairs(keyList) do
+        local cloudKey = tostring(keyData.key or ""):gsub("%s+", "")
+        if cloudKey == inputKey then
+            foundIndex = i
+            expireTime = tonumber(keyData.expireTimestamp) or 0
+            if currentTime > expireTime then
+                isExpired = true
+            end
+            break
+        end
+    end
+
+    if isExpired then
+        statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.Text = "Key nay da het han su dung!"
+        return
+    end
+
+    if not foundIndex then
+        statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.Text = "Key khong ton tai hoac da bi dung!"
+        return
+    end
+
+    -- Xóa key trên npoint (Dùng 1 lần)
+    statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+    statusLabel.Text = "Dang khoa key..."
+
+    table.remove(keyList, foundIndex)
+    response.keys = keyList
+
+    pcall(function()
+        game:HttpPost(NPOINT_URL, HttpService:JSONEncode(response), false, "application/json")
+    end)
+
+    -- Lưu cache key mới vào máy người chơi
+    pcall(function()
+        if writefile then
+            local cacheData = {
+                key = inputKey,
+                expireTimestamp = expireTime
+            }
+            writefile(CACHE_FILE_NAME, HttpService:JSONEncode(cacheData))
+        end
+    end)
+
+    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+    statusLabel.Text = "Xac thuc thanh cong! Dang tai script..."
+    task.wait(0.8)
+    
+    startMainScript(expireTime)
+end)
