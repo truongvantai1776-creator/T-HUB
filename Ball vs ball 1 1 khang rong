@@ -1,0 +1,442 @@
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+end)
+
+if not success or not WindUI then
+    warn("Không thể tải WindUI, vui lòng kiểm tra lại executor.")
+    return
+end
+
+-- Khởi tạo cửa sổ T HUB với kích thước rộng để hiển thị thoáng đãng
+local Window = WindUI:CreateWindow({
+    Title = "T H U B | Ball vs Ball",
+    Icon = "shield-check",
+    Author = "Official T HUB",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(720, 420),
+    Transparent = false,
+})
+
+-- Nút mở giao diện
+Window:EditOpenButton({
+    Title = "Mở T HUB | Ball vs Ball",
+    Icon = "terminal",
+    CornerRadius = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromHex("0052D4"), Color3.fromHex("6FB1FC")),
+    Enabled = true,
+    Draggable = true,
+})
+
+-- Biến toàn cục phục vụ cho các tính năng Auto
+local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Vô hiệu hóa toàn bộ âm thanh xuất hiện trong SoundService
+local function muteAllSounds()
+    pcall(function()
+        SoundService.Volume = 0
+        for _, sound in ipairs(SoundService:GetDescendants()) do
+            if sound:IsA("Sound") then
+                sound.Volume = 0
+                sound:Stop()
+            end
+        end
+    end)
+end
+
+-- Lắng nghe và tự động tắt mọi âm thanh mới sinh ra
+SoundService.ChildAdded:Connect(function(child)
+    if child:IsA("Sound") then
+        pcall(function()
+            child.Volume = 0
+            child:Stop()
+        end)
+    end
+end)
+
+-- Hàm kích hoạt sự kiện UI đồng thời tắt sạch âm thanh của nút
+local function triggerButtonSignalOnce(btnName)
+    muteAllSounds()
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui ~= Window.Root then
+            for _, descendant in ipairs(gui:GetDescendants()) do
+                if descendant.Name == btnName and (descendant:IsA("GuiButton") or descendant:IsA("TextButton") or descendant:IsA("ImageButton")) then
+                    pcall(function()
+                        for _, sound in ipairs(descendant:GetDescendants()) do
+                            if sound:IsA("Sound") then
+                                sound.Volume = 0
+                                sound:Stop()
+                            end
+                        end
+
+                        if getconnections then
+                            for _, connection in ipairs(getconnections(descendant.Activated)) do
+                                connection:Fire()
+                            end
+                            for _, connection in ipairs(getconnections(descendant.MouseButton1Click)) do
+                                connection:Fire()
+                            end
+                        elseif firesignal then
+                            firesignal(descendant.MouseButton1Click)
+                            firesignal(descendant.Activated)
+                        end
+                    end)
+                    return
+                end
+            end
+        end
+    end
+end
+
+-- Hàm riêng cho Auto Claim Quest
+local function triggerDailyQuestClaim()
+    muteAllSounds()
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui ~= Window.Root then
+            for _, descendant in ipairs(gui:GetDescendants()) do
+                if descendant.Name == "领取按钮" and (descendant:IsA("GuiButton") or descendant:IsA("TextButton") or descendant:IsA("ImageButton")) then
+                    local parentCheck = descendant.Parent
+                    local isInsideDailyQuest = false
+                    while parentCheck do
+                        if parentCheck.Name == "每日任务" then
+                            isInsideDailyQuest = true
+                            break
+                        end
+                        parentCheck = parentCheck.Parent
+                    end
+                    
+                    if isInsideDailyQuest then
+                        pcall(function()
+                            for _, sound in ipairs(descendant:GetDescendants()) do
+                                if sound:IsA("Sound") then
+                                    sound.Volume = 0
+                                    sound:Stop()
+                                end
+                            end
+
+                            if getconnections then
+                                for _, connection in ipairs(getconnections(descendant.Activated)) do
+                                    connection:Fire()
+                                end
+                                for _, connection in ipairs(getconnections(descendant.MouseButton1Click)) do
+                                    connection:Fire()
+                                end
+                            elseif firesignal then
+                                firesignal(descendant.MouseButton1Click)
+                                firesignal(descendant.Activated)
+                            end
+                        end)
+                        return
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Hàm riêng cho Auto Claim Online Rewards
+local function triggerOnlineRewardsClaim()
+    muteAllSounds()
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui ~= Window.Root then
+            for _, descendant in ipairs(gui:GetDescendants()) do
+                if descendant.Name == "领取按钮" and (descendant:IsA("GuiButton") or descendant:IsA("TextButton") or descendant:IsA("ImageButton")) then
+                    local parentCheck = descendant.Parent
+                    local isInsideOnlineRewards = false
+                    while parentCheck do
+                        if parentCheck.Name == "在线奖励" then
+                            isInsideOnlineRewards = true
+                            break
+                        end
+                        parentCheck = parentCheck.Parent
+                    end
+                    
+                    if isInsideOnlineRewards then
+                        pcall(function()
+                            for _, sound in ipairs(descendant:GetDescendants()) do
+                                if sound:IsA("Sound") then
+                                    sound.Volume = 0
+                                    sound:Stop()
+                                end
+                            end
+
+                            if getconnections then
+                                for _, connection in ipairs(getconnections(descendant.Activated)) do
+                                    connection:Fire()
+                                end
+                                for _, connection in ipairs(getconnections(descendant.MouseButton1Click)) do
+                                    connection:Fire()
+                                end
+                            elseif firesignal then
+                                firesignal(descendant.MouseButton1Click)
+                                firesignal(descendant.Activated)
+                            end
+                        end)
+                        return
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Trạng thái các tính năng Auto
+local autoPlayState = false
+local autoLockState = false
+local autoPickBallState = false
+local autoClaimQuestState = false
+local autoClaimOnlineState = false
+
+-- Luồng 1: Auto Play (FastGame 3s & Leave 10s)
+task.spawn(function()
+    while true do
+        if autoPlayState then 
+            triggerButtonSignalOnce("快速游戏按钮") 
+        end
+        task.wait(3)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        if autoPlayState then 
+            triggerButtonSignalOnce("离开按钮") 
+        end
+        task.wait(10)
+    end
+end)
+
+-- Luồng 2: Auto Lock Aim
+task.spawn(function()
+    while true do
+        if autoLockState then 
+            triggerButtonSignalOnce("发射按钮") 
+        end
+        task.wait(0.05)
+    end
+end)
+
+-- Luồng 3: Auto Pick Ball (1 -> 2 -> 3)
+task.spawn(function()
+    while true do
+        if autoPickBallState then
+            triggerButtonSignalOnce("选项卡1")
+            task.wait(1)
+            if not autoPickBallState then break end
+            
+            triggerButtonSignalOnce("选项卡2")
+            task.wait(1)
+            if not autoPickBallState then break end
+            
+            triggerButtonSignalOnce("选项卡3")
+            task.wait(1)
+        else
+            task.wait(0.2)
+        end
+    end
+end)
+
+-- Luồng 4: Auto Claim Quest
+task.spawn(function()
+    while true do
+        if autoClaimQuestState then 
+            triggerDailyQuestClaim() 
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- Luồng 5: Auto Claim Online Rewards
+task.spawn(function()
+    while true do
+        if autoClaimOnlineState then 
+            triggerOnlineRewardsClaim() 
+        end
+        task.wait(0.5)
+    end
+end)
+
+
+-- ==================== 1. TAB TRANG CHỦ ====================
+local HomeTab = Window:Tab({
+    Title = "Trang Chủ",
+    Icon = "home",
+})
+
+HomeTab:Paragraph({
+    Title = "📌 Thông tin phiên bản & Owner",
+    Desc = "• Phiên bản: v1.0.4 (Tắt toàn bộ âm thanh)\n• Nội dung Update:\n  - Loại bỏ hoàn toàn tiếng động và âm thanh bấm nút\n  - Phân chia Tab gọn gàng\n• Owner: T HUB",
+})
+
+HomeTab:Paragraph({
+    Title = "✨ Chào mừng đến với T HUB",
+    Desc = "Cảm ơn bạn đã sử dụng script của chúng tôi! Chúc bạn có những giây phút trải nghiệm tuyệt vời.\n\n🔗 Các liên kết chính:\n• Discord: https://discord.gg/5kNdBzNWk8\n• TikTok: t.hub69",
+})
+
+HomeTab:Button({
+    Title = "📋 Copy Link Discord",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://discord.gg/5kNdBzNWk8")
+            WindUI:Notify({ Title = "T HUB", Content = "Đã sao chép link Discord!", Duration = 3 })
+        end
+    end
+})
+
+HomeTab:Button({
+    Title = "📋 Copy User TikTok",
+    Callback = function()
+        if setclipboard then
+            setclipboard("t.hub69")
+            WindUI:Notify({ Title = "T HUB", Content = "Đã sao chép user TikTok (t.hub69)!", Duration = 3 })
+        end
+    end
+})
+
+
+-- ==================== 2. TAB AUTO GAME ====================
+local AutoGameTab = Window:Tab({
+    Title = "Auto Game",
+    Icon = "zap",
+})
+
+AutoGameTab:Toggle({
+    Title = "Auto Play",
+    Desc = "Tự động vào game nhanh và thoát trận (Tắt sạch âm thanh)",
+    Default = false,
+    Callback = function(state)
+        autoPlayState = state
+        WindUI:Notify({ Title = "T HUB", Content = "Auto Play: " .. (state and "BẬT" or "TẮT"), Duration = 2 })
+    end
+})
+
+AutoGameTab:Toggle({
+    Title = "Auto Pick Ball",
+    Desc = "Tự động chuyển các tab bóng (1 -> 2 -> 3) (Tắt sạch âm thanh)",
+    Default = false,
+    Callback = function(state)
+        autoPickBallState = state
+        WindUI:Notify({ Title = "T HUB", Content = "Auto Pick Ball: " .. (state and "BẬT" or "TẮT"), Duration = 2 })
+    end
+})
+
+AutoGameTab:Toggle({
+    Title = "Auto Lock Aim",
+    Desc = "Tự động bấm nút phát bóng liên tục (Tắt sạch âm thanh)",
+    Default = false,
+    Callback = function(state)
+        autoLockState = state
+        WindUI:Notify({ Title = "T HUB", Content = "Auto Lock Aim: " .. (state and "BẬT" or "TẮT"), Duration = 2 })
+    end
+})
+
+
+-- ==================== 3. TAB AUTO CLAIM ====================
+local AutoClaimTab = Window:Tab({
+    Title = "Auto Claim",
+    Icon = "gift",
+})
+
+AutoClaimTab:Toggle({
+    Title = "Auto Claim Quest",
+    Desc = "Tự động nhận thưởng nhiệm vụ hàng ngày (Tắt sạch âm thanh)",
+    Default = false,
+    Callback = function(state)
+        autoClaimQuestState = state
+        WindUI:Notify({ Title = "T HUB", Content = "Auto Claim Quest: " .. (state and "BẬT" or "TẮT"), Duration = 2 })
+    end
+})
+
+AutoClaimTab:Toggle({
+    Title = "Auto Claim Online",
+    Desc = "Tự động nhận thưởng thời gian online (Tắt sạch âm thanh)",
+    Default = false,
+    Callback = function(state)
+        autoClaimOnlineState = state
+        WindUI:Notify({ Title = "T HUB", Content = "Auto Claim Online: " .. (state and "BẬT" or "TẮT"), Duration = 2 })
+    end
+})
+
+
+-- ==================== 4. TAB THÔNG TIN SERVER ====================
+local ServerTab = Window:Tab({
+    Title = "Thông Tin Server",
+    Icon = "server",
+})
+
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local TeleportService = game:GetService("TeleportService")
+local lp = Players.LocalPlayer
+local startTime = os.clock()
+
+local ServerParagraph = ServerTab:Paragraph({
+    Title = "⚡ T HUB - Trạng thái hệ thống",
+    Desc = "Đang tải dữ liệu...",
+})
+
+local fps = 0
+local frames = 0
+local last = os.clock()
+RunService.RenderStepped:Connect(function()
+    frames += 1
+    if os.clock() - last >= 1 then
+        fps = frames
+        frames = 0
+        last = os.clock()
+    end
+end)
+
+local function formatTime(sec)
+    local h = math.floor(sec / 3600)
+    local m = math.floor((sec % 3600) / 60)
+    local s = math.floor(sec % 60)
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local uptime = formatTime(os.clock() - startTime)
+            local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+            local memory = math.floor(Stats:GetTotalMemoryUsageMb())
+            local serverType = (game.PrivateServerId ~= "" and "Private") or "Public"
+            local time12 = os.date("%I:%M:%S %p")
+
+            ServerParagraph:SetDesc(
+                string.format(
+                    "👥 Người chơi: %d/%d\n🆔 Job ID: %s\n🌐 Loại Server: %s\n📶 Ping: %s\n🖥 FPS: %d\n💾 RAM: %dMB\n⏱ Uptime: %s\n🕒 Giờ: %s",
+                    #Players:GetPlayers(),
+                    Players.MaxPlayers,
+                    game.JobId,
+                    serverType,
+                    ping,
+                    fps,
+                    memory,
+                    uptime,
+                    time12
+                )
+            )
+        end)
+    end
+end)
+
+ServerTab:Button({
+    Title = "📋 Sao chép Job ID",
+    Callback = function()
+        if setclipboard then
+            setclipboard(game.JobId)
+            WindUI:Notify({ Title = "T HUB", Content = "Đã copy Job ID!", Duration = 3 })
+        end
+    end
+})
+
+ServerTab:Button({
+    Title = "🔄 Rejoin Server",
+    Callback = function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, lp)
+    end
+})
