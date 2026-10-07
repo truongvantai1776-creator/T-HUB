@@ -1769,14 +1769,14 @@ end
 
 CreateToggleableGameButton("Run A Ways", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Runaways")
 CreateToggleableGameButton("ANIME ARENA", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Anime%20abiliti%20areana")
-CreateToggleableGameButton("MM2", "https://onyxscripts.xyz")
+CreateToggleableGameButton("ball vs ball", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Ball%20vs%20ball%201%201%20khang%20rong")
 CreateToggleableGameButton("RIDE A PET", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 CreateToggleableGameButton("+1 LOOT TO FORGE", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/lootforge.luau")
-CreateToggleableGameButton("ANIME DICE", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/animedice.lua")
-CreateToggleableGameButton("Slayers 2", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
+CreateToggleableGameButton("⚠️", "htt://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/animedice.lua")
+CreateToggleableGameButton("⚠️", "ht://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 CreateToggleableGameButton("Build And Kill Zombie", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Build%20and%20kill%20zombie0905517")
 CreateToggleableGameButton("heavyweight fishing", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/heavyweightfishing.lua")
-CreateToggleableGameButton("Build The Pyramid", "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
+CreateToggleableGameButton("⚠️", "ht://raw.githubusercontent.com/joustingmatch/Ouroboros/main/loader.lua")
 CreateToggleableGameButton("blox fruit", "https://raw.githubusercontent.com/duczsitink/DUCKHUB/refs/heads/main/main.lua")
 CreateToggleableGameButton("fishing master", "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Fishing%20master775889")
 
