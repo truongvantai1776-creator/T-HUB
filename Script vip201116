@@ -1,16 +1,16 @@
 --[[
     ╔══════════════════════════════════════════════════════════╗
-    ║         T HUB | ULTRA v14 - Full URL Edition             ║
-    ║   No GITHUB_RAW • Clean UI • Hidden Cooldown             ║
+    ║         T HUB | ULTRA v15 - Bigger UI, Smaller Toggle    ║
+    ║   Full URL • Clean UI • Hidden Cooldown                  ║
     ╚══════════════════════════════════════════════════════════╝
 ]]
 
 -- ==================== CẤU HÌNH ====================
 local HUB_NAME      = "T HUB"
-local VERSION       = "v14.0.0"
+local VERSION       = "v15.0.0"
 local DISCORD       = "https://discord.gg/5kNdBzNWk8"
 local TIKTOK        = "t.hub69"
-local COOLDOWN_TIME = 60 -- Cooldown ẩn (không hiển thị cho user)
+local COOLDOWN_TIME = 60
 
 -- ⚠️ DÁN ID ẢNH ROBLOX CỦA BẠN VÀO ĐÂY
 local LOGO_ASSET_ID = ""
@@ -297,18 +297,18 @@ addTheme("THUB Crimson", "#ef4444", "#150707", "#7f1d1d", "#321212", "#fca5a5")
 addTheme("THUB Emerald", "#10b981", "#06120e", "#065f46", "#0f2b22", "#6ee7b7")
 pcall(function() WindUI:SetTheme("THUB Neon") end)
 
--- ==================== WINDOW ====================
+-- ==================== WINDOW (TO HƠN) ====================
 local function makeWindow(icon)
     return WindUI:CreateWindow({
         Title = HUB_NAME .. " | Ultra",
         Icon = icon,
         Author = "Ultimate Hub • by " .. HUB_NAME,
         Folder = "THUB",
-        Size = UDim2.fromOffset(680, 440),
+        Size = UDim2.fromOffset(800, 540),
         Theme = "THUB Neon",
         Transparent = true,
         Resizable = true,
-        SideBarWidth = 190,
+        SideBarWidth = 215,
         HasOutline = true,
         User = {
             Enabled = true, Anonymous = false,
@@ -328,7 +328,7 @@ end
 pcall(function() Window:SetToggleKey(Enum.KeyCode.RightShift) end)
 pcall(function() Window:EditOpenButton({ Enabled = false }) end)
 
--- ==================== NÚT TOGGLE ====================
+-- ==================== NÚT TOGGLE (NHỎ HƠN) ====================
 local toggleGui = Instance.new("ScreenGui")
 toggleGui.Name = "THubToggle"
 toggleGui.ResetOnSpawn = false
@@ -337,8 +337,8 @@ toggleGui.DisplayOrder = 100
 parentGui(toggleGui)
 
 local pill = Instance.new("Frame", toggleGui)
-pill.Size = UDim2.fromOffset(120, 34)
-pill.Position = UDim2.new(0.5, -60, 0, 12)
+pill.Size = UDim2.fromOffset(100, 28)
+pill.Position = UDim2.new(0.5, -50, 0, 10)
 pill.BackgroundColor3 = Color3.fromRGB(15, 18, 30)
 pill.BackgroundTransparency = 0.2
 pill.BorderSizePixel = 0
@@ -346,7 +346,6 @@ pill.Active = true
 pill.ClipsDescendants = false
 Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
 
--- Drag logic
 local dragging = false
 local dragStart, startPos
 
@@ -378,7 +377,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Glass layer
 local glassLayer = Instance.new("Frame", pill)
 glassLayer.Size = UDim2.fromScale(1, 1)
 glassLayer.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -394,9 +392,8 @@ glassGrad.Transparency = NumberSequence.new({
     NumberSequenceKeypoint.new(1, 0.85),
 })
 
--- Viền sáng
 local pillStroke = Instance.new("UIStroke", pill)
-pillStroke.Thickness = 1.5
+pillStroke.Thickness = 1.3
 pillStroke.Color = Color3.fromHex("6FB1FC")
 pillStroke.Transparency = 0.15
 local strokeGrad = Instance.new("UIGradient", pillStroke)
@@ -407,14 +404,13 @@ strokeGrad.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(1.0, Color3.fromHex("00E5FF")),
 })
 
--- Flow ring
 local flowRing = Instance.new("Frame", pill)
 flowRing.Size = UDim2.fromScale(1, 1)
 flowRing.BackgroundTransparency = 1
 flowRing.ZIndex = 2
 Instance.new("UICorner", flowRing).CornerRadius = UDim.new(1, 0)
 local flowStroke = Instance.new("UIStroke", flowRing)
-flowStroke.Thickness = 1.5
+flowStroke.Thickness = 1.3
 flowStroke.Color = Color3.new(1, 1, 1)
 flowStroke.Transparency = 0
 local flowGrad = Instance.new("UIGradient", flowStroke)
@@ -439,7 +435,6 @@ flowGrad.Transparency = NumberSequence.new({
     NumberSequenceKeypoint.new(1, 0.7),
 })
 
--- Aura
 local aura = Instance.new("ImageLabel", pill)
 aura.Size = UDim2.fromScale(1.4, 2.5)
 aura.Position = UDim2.fromScale(0.5, 0.5)
@@ -450,22 +445,20 @@ aura.ImageColor3 = Color3.fromHex("6FB1FC")
 aura.ImageTransparency = 0.72
 aura.ZIndex = 0
 
--- Logo
 local pillLogo = Instance.new("ImageLabel", pill)
-pillLogo.Size = UDim2.fromOffset(20, 20)
-pillLogo.Position = UDim2.new(0, 8, 0.5, -10)
+pillLogo.Size = UDim2.fromOffset(16, 16)
+pillLogo.Position = UDim2.new(0, 7, 0.5, -8)
 pillLogo.BackgroundTransparency = 1
 pillLogo.Image = LOGO or "rbxassetid://10482229151"
 pillLogo.ZIndex = 5
 
--- Text
 local pillText = Instance.new("TextLabel", pill)
-pillText.Size = UDim2.new(1, -38, 1, 0)
-pillText.Position = UDim2.new(0, 34, 0, 0)
+pillText.Size = UDim2.new(1, -32, 1, 0)
+pillText.Position = UDim2.new(0, 28, 0, 0)
 pillText.BackgroundTransparency = 1
 pillText.Font = Enum.Font.GothamBold
 pillText.Text = "T HUB"
-pillText.TextSize = 13
+pillText.TextSize = 11
 pillText.TextColor3 = Color3.fromHex("FFFFFF")
 pillText.TextXAlignment = Enum.TextXAlignment.Left
 pillText.TextYAlignment = Enum.TextYAlignment.Center
@@ -473,10 +466,9 @@ pillText.ZIndex = 5
 local textGrad = Instance.new("UIGradient", pillText)
 textGrad.Color = ColorSequence.new(Color3.fromHex("FFFFFF"), Color3.fromHex("6FB1FC"))
 
--- Dot
 local dot = Instance.new("Frame", pill)
-dot.Size = UDim2.fromOffset(5, 5)
-dot.Position = UDim2.new(1, -12, 0.5, -2.5)
+dot.Size = UDim2.fromOffset(4, 4)
+dot.Position = UDim2.new(1, -10, 0.5, -2)
 dot.BackgroundColor3 = Color3.fromHex("00FF88")
 dot.BorderSizePixel = 0
 dot.ZIndex = 5
@@ -491,7 +483,6 @@ dotGlow.ImageColor3 = Color3.fromHex("00FF88")
 dotGlow.ImageTransparency = 0.2
 dotGlow.ZIndex = 4
 
--- Animations
 task.spawn(function()
     while pill.Parent do
         flowGrad.Rotation = (flowGrad.Rotation + 2) % 360
@@ -526,24 +517,22 @@ task.spawn(function()
     end
 end)
 
--- Hover
 local hovering = false
 local function setHover(h)
     hovering = h
     TweenService:Create(pill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         BackgroundTransparency = h and 0.1 or 0.2,
     }):Play()
-    TweenService:Create(pillStroke, TweenInfo.new(0.3), { Thickness = h and 2 or 1.5, Transparency = h and 0 or 0.15 }):Play()
+    TweenService:Create(pillStroke, TweenInfo.new(0.3), { Thickness = h and 1.8 or 1.3, Transparency = h and 0 or 0.15 }):Play()
     TweenService:Create(aura, TweenInfo.new(0.3), { ImageTransparency = h and 0.4 or 0.72 }):Play()
     TweenService:Create(pillLogo, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-        Size = h and UDim2.fromOffset(22, 22) or UDim2.fromOffset(20, 20),
-        Position = h and UDim2.new(0, 9, 0.5, -11) or UDim2.new(0, 8, 0.5, -10),
+        Size = h and UDim2.fromOffset(18, 18) or UDim2.fromOffset(16, 16),
+        Position = h and UDim2.new(0, 8, 0.5, -9) or UDim2.new(0, 7, 0.5, -8),
     }):Play()
 end
 pill.MouseEnter:Connect(function() setHover(true) end)
 pill.MouseLeave:Connect(function() setHover(false) end)
 
--- Click toggle
 local busy = false
 pill.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -579,7 +568,6 @@ pill.InputEnded:Connect(function(input)
     end
 end)
 
--- Dot theo trạng thái
 task.spawn(function()
     local lastState = nil
     while pill.Parent do
@@ -602,7 +590,6 @@ task.spawn(function()
     end
 end)
 
--- ==================== TAGS ====================
 pcall(function()
     Window:Tag({ Title = VERSION, Color = Color3.fromHex("#3b82f6") })
 end)
@@ -651,7 +638,7 @@ HomeTab:Paragraph({
 })
 HomeTab:Paragraph({
     Title = "📌 " .. L("Version ", "Phiên bản ") .. VERSION,
-    Desc = L("• Modern UI Design\n• Original Neon Toggle Button\n• Game Support\n• Owner: ", "• Giao diện hiện đại\n• Nút Toggle Neon nguyên bản\n• Hỗ Trợ Game\n• Owner: ") .. HUB_NAME,
+    Desc = L("• Bigger UI, Smaller Toggle\n• Original Neon Toggle Button\n• Game Support\n• Owner: ", "• UI to hơn, Toggle nhỏ hơn\n• Nút Toggle Neon nguyên bản\n• Hỗ Trợ Game\n• Owner: ") .. HUB_NAME,
     Image = "sparkles", ImageSize = 40,
 })
 
@@ -1153,7 +1140,6 @@ UtilTab:Dropdown({
     end,
 })
 
--- VIP Tools (URL đầy đủ, không dùng biến)
 UtilTab:Section({ Title = L("VIP Tools", "Công Cụ VIP"), Icon = "sparkles" })
 local vipLoaded = {}
 local function vipToggle(key, title, desc, icon, fullUrl)
@@ -1171,7 +1157,7 @@ vipToggle("flycam", "Fly Cam", L("Free camera", "Camera bay tự do"), "camera",
 vipToggle("button", "Button", L("On-screen buttons", "Nút bấm trên màn hình"), "mouse-pointer-click",
     "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Button")
 
--- ==================== GAME SUPPORT (URL ĐẦY ĐỦ) ====================
+-- ==================== GAME SUPPORT ====================
 GameTab:Section({ Title = L("Special game support", "Hỗ trợ game riêng biệt"), Icon = "gamepad-2" })
 GameTab:Paragraph({
     Title = "🎮 " .. L("Game Scripts", "Script Game"),
@@ -1208,7 +1194,6 @@ local function makeGameBtn(gameTitle, url)
     })
 end
 
--- Danh sách game với URL đầy đủ
 makeGameBtn("Run A Ways",
     "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Runaways")
 
@@ -1388,5 +1373,5 @@ end)
 pcall(function() HomeTab:Select() end)
 ready = true
 notify("✨ " .. HUB_NAME .. " " .. VERSION,
-    L("Full URL Edition!", "Phiên bản URL đầy đủ!") .. "\n" ..
+    L("Back to original structure!", "Quay lại cấu trúc gốc!") .. "\n" ..
     L("Press RightShift to show/hide.", "Nhấn RightShift để ẩn/hiện."), "sparkles", 8)
