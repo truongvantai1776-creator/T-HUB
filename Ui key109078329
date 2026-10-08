@@ -1,383 +1,531 @@
--- =========================================================================
--- CẤU HÌNH DISCORD WEBHOOK
--- =========================================================================
-local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1555414852531654686/eLf6rojyq84iQ-fNbevQOPVzUGUPsalmLvgfhJkP2eT7qAgyUQJGTjvKTAVBU_4R3zhc" 
-
--- =========================================================================
--- CẤU HÌNH CHỦ SCRIPT (Chỉ dùng để nhận diện tài khoản của bạn để không gửi thông báo rác khi test)
--- =========================================================================
-local OWNER_USERNAME = "TaoLa_Kid2k20" -- Tên đăng nhập (Username) chính
-local OWNER_DISPLAY = "T_HUD"         -- Tên hiển thị (Display Name) của bạn
-
--- DANH SÁCH WHITELIST ĐÃ ĐỂ TRỐNG HOÀN TOÀN (Không ai được miễn Key)
-local WHITELISTED_USERS = {}
-
--- // Cấu hình 10 đường link chứa Key trên GitHub (Raw) cho 10 ngày
-local KEY_URLS = {
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key1",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key2",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key3",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key4",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key5",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key6",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key7",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key8",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key9",
-    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Key10"
-}
-
-local GET_KEY_LINKS = {
-    "https://link4m.net/eIr1lw",
-    "https://link4m.org/WxexRrW",
-    "https://link4m.org/dNuITuS",
-    "https://link4m.net/zKnSwI",
-    "https://link4m.org/ATfGToAC",
-    "https://link4m.net/gpGnz",
-    "https://link4m.org/Z8Peb",
-    "https://link4m.org/CweuPUQM",
-    "https://link4m.net/Wv7EGWo",
-    "https://link4m.net/p5xQwVT"
-}
-
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+-- // T-HUB Auto-Login if Key is Still Valid (No Key System UI needed if active)
+local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local function LoadMainScript()
-    print("Đang mở script chính...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201116"))()
-end
+local NPOINT_URL = "https://api.npoint.io/cd54b4bf2ab3d1bcfa13"
+local KEY_LINK = "https://link4m.org/UQ6Ap"
+local SCRIPT_LOADSTRING = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201116"))()'
 
-local function IsOwner()
-    local name = LocalPlayer.Name:lower()
-    local display = LocalPlayer.DisplayName:lower()
-    if name == OWNER_USERNAME:lower() or display == OWNER_DISPLAY:lower() then
-        return true
-    end
-    return false
-end
+local SAVED_DATA_FILENAME = "THUB_AutoLoginData.json"
 
-local function IsWhitelisted(playerName, playerDisplay)
-    for _, name in ipairs(WHITELISTED_USERS) do
-        if name:lower() == playerName:lower() or name:lower() == playerDisplay:lower() then
-            return true
-        end
-    end
-    return false
-end
+-- Từ điển ngôn ngữ (Mặc định là EN)
+local currentLang = "EN" 
+local texts = {
+    EN = {
+        title = "T - H U B   S Y S T E M",
+        placeholder = "Paste your key here...",
+        getBtn = "Get Key Link",
+        verifyBtn = "Verify Key",
+        statusReady = "Status: Ready for verification",
+        statusEmpty = "Please enter your key!",
+        statusError = "Connection error or blocked!",
+        statusDecode = "Data decryption error!",
+        statusNotFound = "Key does not exist or already used!",
+        statusExpired = "This key has expired!",
+        statusVerifying = "Verifying key...",
+        statusSuccess = "Success! Launching...",
+        copied = "Key link copied to clipboard!"
+    },
+    VI = {
+        title = "HỆ THỐNG T - H U B",
+        placeholder = "Dán key của bạn vào đây...",
+        getBtn = "Lấy Link Key",
+        verifyBtn = "Xác Thực Key",
+        statusReady = "Trạng thái: Sẵn sàng xác thực",
+        statusEmpty = "Vui lòng nhập key của bạn!",
+        statusError = "Lỗi kết nối mạng hoặc bị chặn!",
+        statusDecode = "Lỗi giải mã dữ liệu!",
+        statusNotFound = "Key không tồn tại hoặc đã được sử dụng!",
+        statusExpired = "Key này đã hết hạn sử dụng!",
+        statusVerifying = "Đang xác thực key...",
+        statusSuccess = "Thành công! Đang khởi chạy...",
+        copied = "Đã sao chép link key vào bộ nhớ tạm!"
+    }
+}
 
--- (Vì danh sách Whitelist trống nên đoạn này sẽ không bao giờ tự động cho qua, kể cả bạn)
-if IsWhitelisted(LocalPlayer.Name, LocalPlayer.DisplayName) then
-    LoadMainScript()
-    return
-end
-
--- // HÀM GỬI THÔNG BÁO LÊN DISCORD (Không gửi thông báo nếu tài khoản là của bạn)
-local function SendDiscordNotification()
-    if IsOwner() then return end 
-    if DISCORD_WEBHOOK_URL == "" then return end
-    
-    task.spawn(function()
+-- Lưu thời hạn key vào file
+local function saveSessionData(expireTimestamp, key)
+    if writefile then
         pcall(function()
-            local data = {
-                ["content"] = string.format("👑 **Có người vượt Key thành công!**\n- **Username:** `%s`\n- **Display Name:** `%s`\n- **Thời gian:** <t:%d:F>", 
-                    LocalPlayer.Name, 
-                    LocalPlayer.DisplayName, 
-                    os.time()
-                )
-            }
-            local body = HttpService:JSONEncode(data)
-            
-            if syn and syn.request then
-                syn.request({
-                    Url = DISCORD_WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = body
-                })
-            elseif http_request then
-                http_request({
-                    Url = DISCORD_WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = body
-                })
+            local data = HttpService:JSONEncode({ expire = expireTimestamp, key = key })
+            writefile(SAVED_DATA_FILENAME, data)
+        end)
+    end
+end
+
+-- Đọc thời hạn key đã lưu
+local function loadSessionData()
+    if readfile and isfile then
+        local success, data = pcall(function()
+            if isfile(SAVED_DATA_FILENAME) then
+                return readfile(SAVED_DATA_FILENAME)
             end
         end)
+        if success and data and data ~= "" then
+            local decodeSuccess, result = pcall(function()
+                return HttpService:JSONDecode(data)
+            end)
+            if decodeSuccess and result then
+                return result
+            end
+        end
+    end
+    return nil
+end
+
+local function safeRequest(url, method, bodyData)
+    local req = syn and syn.request or http_request or request or HttpPost
+    if not req then return nil end
+
+    local success, response = pcall(function()
+        if method == "GET" then
+            return req({ Url = url, Method = "GET" })
+        else
+            return req({
+                Url = url,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = bodyData
+            })
+        end
+    end)
+
+    if success then return response end
+    return nil
+end
+
+-- Hàm thực thi script chính và bật Watermark
+local function launchMainScript(expireTimestamp)
+    local successScript, err = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201116"))()
+    end)
+    if not successScript then
+        warn("Lỗi khi load script chính: " .. tostring(err))
+    end
+end
+
+-- HÀM KÉO THẢ KHUNG
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            TweenService:Create(frame, TweenInfo.new(0.05, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                Position = UDim2.new(
+                    startPos.X.Scale, 
+                    startPos.X.Offset + delta.X, 
+                    startPos.Y.Scale, 
+                    startPos.Y.Offset + delta.Y
+                )
+            }):Play()
+        end
     end)
 end
 
-local SAVE_FILE_NAME = "THUB_KeyCache_24h.json"
+-- WATERMARK ĐỒNG HỒ ĐẾM NGƯỢC
+local function createFloatingTimer(expireTimestamp)
+    if CoreGui:FindFirstChild("THUB_Watermark") then
+        CoreGui.THUB_Watermark:Destroy()
+    end
 
-local function CheckSavedKey()
-    if isfile and readfile and isfile(SAVE_FILE_NAME) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(SAVE_FILE_NAME))
-        end)
-        if success and data and data.ExpiryTime then
-            if os.time() < data.ExpiryTime then
-                return true
+    local WatermarkGui = Instance.new("ScreenGui")
+    WatermarkGui.Name = "THUB_Watermark"
+    WatermarkGui.Parent = CoreGui
+    WatermarkGui.ResetOnSpawn = false
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 120, 0, 36)
+    Frame.Position = UDim2.new(0, 30, 0, 30)
+    Frame.BackgroundColor3 = Color3.fromRGB(6, 12, 26)
+    Frame.BackgroundTransparency = 0.2
+    Frame.BorderSizePixel = 0
+    Frame.Parent = WatermarkGui
+
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Color = Color3.fromRGB(56, 189, 248)
+    UIStroke.Transparency = 0.3
+    UIStroke.Parent = Frame
+
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Size = UDim2.new(1, 0, 1, 0)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.TextColor3 = Color3.fromRGB(56, 189, 248)
+    TextLabel.TextSize = 13
+    TextLabel.Font = Enum.Font.GothamBold
+    TextLabel.Text = "--:--:--"
+    TextLabel.Parent = Frame
+
+    makeDraggable(Frame)
+
+    task.spawn(function()
+        while WatermarkGui and WatermarkGui.Parent do
+            local now = os.time() * 1000
+            local distance = expireTimestamp - now
+
+            if distance <= 0 then
+                TextLabel.Text = "EXPIRED"
+                TextLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+                break
+            else
+                local hours = math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+                local minutes = math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+                local seconds = math.floor((distance % (1000 * 60)) / 1000)
+                
+                TextLabel.Text = string.format("%02dh %02dm %02ds", hours, minutes, seconds)
             end
+            task.wait(1)
         end
-    end
-    return false
+    end)
 end
 
-local function SaveKeySession()
-    if writefile and HttpService then
-        local data = { ExpiryTime = os.time() + 86400 }
-        pcall(function()
-            writefile(SAVE_FILE_NAME, HttpService:JSONEncode(data))
-        end)
-    end
-    SendDiscordNotification()
+-- ==========================================
+-- KIỂM TRA TỰ ĐỘNG ĐĂNG NHẬP KHI KHỞI ĐỘNG
+-- ==========================================
+local savedSession = loadSessionData()
+if savedSession and savedSession.expire and savedSession.expire > (os.time() * 1000) then
+    -- Nếu key vẫn còn hạn, tự động bật thẳng script luôn không cần hiện bảng key
+    createFloatingTimer(savedSession.expire)
+    launchMainScript(savedSession.expire)
+    return -- Dừng script luôn, không hiện giao diện nhập key nữa
 end
 
-if CheckSavedKey() then
-    LoadMainScript()
-    return
+-- ==========================================
+-- GIAO DIỆN NHẬP KEY CHÍNH (NẾU HẾT HẠN HOẶC CHƯA CÓ)
+-- ==========================================
+if CoreGui:FindFirstChild("THUB_KeySystem") then
+    CoreGui.THUB_KeySystem:Destroy()
 end
-
-local LAST_DAY_FILE = "THUB_LastRandomDay_V2.json"
-
-local function GetRandomIndexForPlayer()
-    local secondsInDay = 86400
-    local currentDayEpoch = math.floor(os.time() / secondsInDay)
-    
-    local data = nil
-    if isfile and readfile and isfile(LAST_DAY_FILE) then
-        pcall(function()
-            data = HttpService:JSONDecode(readfile(LAST_DAY_FILE))
-        end)
-    end
-    
-    if data and data.EpochDay == currentDayEpoch and data.AssignedIndex then
-        return data.AssignedIndex
-    end
-    
-    local history = (data and data.History) or {}
-    math.randomseed(os.time() + tick() + LocalPlayer.UserId)
-    local newIndex = math.random(1, 10)
-    
-    local function isInHistory(val, tbl)
-        for _, v in ipairs(tbl) do if v == val then return true end end
-        return false
-    end
-    
-    while isInHistory(newIndex, history) do
-        newIndex = math.random(1, 10)
-    end
-    
-    table.insert(history, newIndex)
-    if #history > 5 then table.remove(history, 1) end
-    
-    if writefile and HttpService then
-        pcall(function()
-            writefile(LAST_DAY_FILE, HttpService:JSONEncode({
-                EpochDay = currentDayEpoch,
-                AssignedIndex = newIndex,
-                History = history
-            }))
-        end)
-    end
-    
-    return newIndex
-end
-
-local activeIndex = GetRandomIndexForPlayer()
-local CURRENT_KEY_URL = KEY_URLS[activeIndex]
-local CURRENT_GET_KEY_LINK = GET_KEY_LINKS[activeIndex]
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CustomKeySystem"
+ScreenGui.Name = "THUB_KeySystem"
+ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 240)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Size = UDim2.new(0, 420, 0, 240)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -120)
+MainFrame.BackgroundColor3 = Color3.fromRGB(6, 12, 26)
+MainFrame.BackgroundTransparency = 0.15
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = MainFrame
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
 
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(70, 70, 70)
-MainStroke.Thickness = 1.5
-MainStroke.Parent = MainFrame
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(56, 189, 248)
+UIStroke.Transparency = 0.4
+UIStroke.Parent = MainFrame
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(0, 280, 0, 35)
-TitleLabel.Position = UDim2.new(0.5, -140, 0.05, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "✨ key đâu em? ✨"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 20
-TitleLabel.Font = Enum.Font.FredokaOne
-TitleLabel.Parent = MainFrame
+-- Nút ngôn ngữ góc trái phía trên
+local LangBtn = Instance.new("TextButton")
+LangBtn.Size = UDim2.new(0, 65, 0, 26)
+LangBtn.Position = UDim2.new(0, 310, 0, 12)
+LangBtn.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+LangBtn.BackgroundTransparency = 0.2
+LangBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LangBtn.TextSize = 11
+LangBtn.Font = Enum.Font.GothamBold
+LangBtn.Text = "🇬🇧 ENG"
+LangBtn.TextTransparency = 1
+LangBtn.Parent = MainFrame
+
+Instance.new("UICorner", LangBtn).CornerRadius = UDim.new(0, 6)
+local LangStroke = Instance.new("UIStroke")
+LangStroke.Color = Color3.fromRGB(56, 189, 248)
+LangStroke.Transparency = 0.5
+LangStroke.Parent = LangBtn
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 290, 0, 45)
+Title.Position = UDim2.new(0, 15, 0, -3)
+Title.BackgroundTransparency = 1
+Title.Text = texts[currentLang].title
+Title.TextColor3 = Color3.fromRGB(56, 189, 248)
+Title.TextTransparency = 1
+Title.TextSize = 15
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
 
 local TextBox = Instance.new("TextBox")
-TextBox.Size = UDim2.new(0, 280, 0, 38)
-TextBox.Position = UDim2.new(0.5, -140, 0.23, 0)
-TextBox.PlaceholderText = "Nhập key từ trang web..."
-TextBox.Text = ""
+TextBox.Size = UDim2.new(0, 390, 0, 42)
+TextBox.Position = UDim2.new(0, 15, 0, 50)
+TextBox.BackgroundColor3 = Color3.fromRGB(11, 19, 43)
+TextBox.BackgroundTransparency = 0.2
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
-TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TextBox.BorderSizePixel = 0
+TextBox.TextTransparency = 1
+TextBox.Text = ""
+TextBox.PlaceholderText = texts[currentLang].placeholder
+TextBox.PlaceholderColor3 = Color3.fromRGB(148, 163, 184)
+TextBox.TextSize = 13
+TextBox.Font = Enum.Font.Gotham
 TextBox.ClearTextOnFocus = false
 TextBox.Parent = MainFrame
 
-local BoxCorner = Instance.new("UICorner")
-BoxCorner.CornerRadius = UDim.new(0, 8)
-BoxCorner.Parent = TextBox
-
+Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 8)
 local BoxStroke = Instance.new("UIStroke")
-BoxStroke.Color = Color3.fromRGB(60, 60, 60)
+BoxStroke.Color = Color3.fromRGB(56, 189, 248)
+BoxStroke.Transparency = 0.5
 BoxStroke.Parent = TextBox
 
-local SubmitBtn = Instance.new("TextButton")
-SubmitBtn.Size = UDim2.new(0, 280, 0, 38)
-SubmitBtn.Position = UDim2.new(0.5, -140, 0.45, 0)
-SubmitBtn.Text = "Xác Nhận Key"
-SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SubmitBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
-SubmitBtn.BorderSizePixel = 0
-SubmitBtn.Font = Enum.Font.SourceSansBold
-SubmitBtn.TextSize = 16
-SubmitBtn.Parent = MainFrame
-
-local SubmitCorner = Instance.new("UICorner")
-SubmitCorner.CornerRadius = UDim.new(0, 8)
-SubmitCorner.Parent = SubmitBtn
-
 local GetKeyBtn = Instance.new("TextButton")
-GetKeyBtn.Size = UDim2.new(0, 280, 0, 38)
-GetKeyBtn.Position = UDim2.new(0.5, -140, 0.67, 0)
-GetKeyBtn.Text = "Lấy Link Get Key"
-GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-GetKeyBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 230)
-GetKeyBtn.BorderSizePixel = 0
-GetKeyBtn.Font = Enum.Font.SourceSansBold
-GetKeyBtn.TextSize = 16
+GetKeyBtn.Size = UDim2.new(0, 185, 0, 38)
+GetKeyBtn.Position = UDim2.new(0, 15, 0, 120)
+GetKeyBtn.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+GetKeyBtn.BackgroundTransparency = 0.1
+GetKeyBtn.TextColor3 = Color3.fromRGB(56, 189, 248)
+GetKeyBtn.TextTransparency = 1
+GetKeyBtn.Text = texts[currentLang].getBtn
+GetKeyBtn.TextSize = 13
+GetKeyBtn.Font = Enum.Font.GothamBold
 GetKeyBtn.Parent = MainFrame
 
-local GetKeyCorner = Instance.new("UICorner")
-GetKeyCorner.CornerRadius = UDim.new(0, 8)
-GetKeyCorner.Parent = GetKeyBtn
+Instance.new("UICorner", GetKeyBtn).CornerRadius = UDim.new(0, 8)
+
+local VerifyBtn = Instance.new("TextButton")
+VerifyBtn.Size = UDim2.new(0, 185, 0, 38)
+VerifyBtn.Position = UDim2.new(0, 220, 0, 120)
+VerifyBtn.BackgroundColor3 = Color3.fromRGB(56, 189, 248)
+VerifyBtn.BackgroundTransparency = 0
+VerifyBtn.TextColor3 = Color3.fromRGB(6, 12, 26)
+VerifyBtn.TextTransparency = 1
+VerifyBtn.Text = texts[currentLang].verifyBtn
+VerifyBtn.TextSize = 13
+VerifyBtn.Font = Enum.Font.GothamBold
+VerifyBtn.Parent = MainFrame
+
+Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 8)
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 280, 0, 25)
-StatusLabel.Position = UDim2.new(0.5, -140, 0.87, 0)
+StatusLabel.Size = UDim2.new(0, 390, 0, 30)
+StatusLabel.Position = UDim2.new(0, 15, 0, 180)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Nhấn 'Lấy Link Get Key' để copy link"
-StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-StatusLabel.TextSize = 13
-StatusLabel.Font = Enum.Font.SourceSansItalic
+StatusLabel.TextColor3 = Color3.fromRGB(148, 163, 184)
+StatusLabel.TextTransparency = 1
+StatusLabel.Text = texts[currentLang].statusReady
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
-local dragging, dragInput, dragStart, startPos
+makeDraggable(MainFrame)
 
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+LangBtn.MouseButton1Click:Connect(function()
+    if currentLang == "EN" then
+        currentLang = "VI"
+        LangBtn.Text = "🇻🇳 VIE"
+    else
+        currentLang = "EN"
+        LangBtn.Text = "🇬🇧 ENG"
     end
+    
+    local t = texts[currentLang]
+    Title.Text = t.title
+    TextBox.PlaceholderText = t.placeholder
+    GetKeyBtn.Text = t.getBtn
+    VerifyBtn.Text = t.verifyBtn
+    StatusLabel.Text = t.statusReady
 end)
 
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(
-            startPos.X.Scale, 
-            startPos.X.Offset + delta.X, 
-            startPos.Y.Scale, 
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-local function applyHoverEffect(btn, originalColor, hoverColor)
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = originalColor}):Play()
-    end)
-end
-
-applyHoverEffect(SubmitBtn, Color3.fromRGB(0, 180, 80), Color3.fromRGB(0, 220, 100))
-applyHoverEffect(GetKeyBtn, Color3.fromRGB(0, 130, 230), Color3.fromRGB(30, 160, 255))
-
+-- Hiệu ứng khởi động (Delay 0.2s + Xoáy chậm)
 task.spawn(function()
-    while true do
-        for i = 0, 1, 0.01 do
-            TitleLabel.TextColor3 = Color3.fromHSV(i, 0.7, 1)
-            task.wait(0.05)
-        end
-    end
+    task.wait(0.2)
+
+    MainFrame.Rotation = 720
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    
+    TweenService:Create(MainFrame, TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 420, 0, 240),
+        Rotation = 0
+    }):Play()
+
+    task.spawn(function()
+        Title.Rotation = -180
+        TweenService:Create(Title, TweenInfo.new(1.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 15, 0, -3),
+            Rotation = 0,
+            TextTransparency = 0
+        }):Play()
+    end)
+
+    task.spawn(function()
+        task.wait(0.05)
+        LangBtn.Rotation = 180
+        TweenService:Create(LangBtn, TweenInfo.new(1.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 310, 0, 12),
+            Rotation = 0,
+            TextTransparency = 0
+        }):Play()
+    end)
+
+    task.spawn(function()
+        task.wait(0.1)
+        TextBox.Rotation = 180
+        TweenService:Create(TextBox, TweenInfo.new(1.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 15, 0, 50),
+            Rotation = 0,
+            TextTransparency = 0
+        }):Play()
+    end)
+
+    task.spawn(function()
+        task.wait(0.15)
+        GetKeyBtn.Rotation = -90
+        TweenService:Create(GetKeyBtn, TweenInfo.new(1.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 15, 0, 120),
+            Rotation = 0,
+            TextTransparency = 0
+        }):Play()
+    end)
+
+    task.spawn(function()
+        task.wait(0.2)
+        VerifyBtn.Rotation = 90
+        TweenService:Create(VerifyBtn, TweenInfo.new(1.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 220, 0, 120),
+            Rotation = 0,
+            TextTransparency = 0
+        }):Play()
+    end)
+
+    task.spawn(function()
+        task.wait(0.25)
+        TweenService:Create(StatusLabel, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 15, 0, 180),
+            TextTransparency = 0
+        }):Play()
+    end)
 end)
 
 GetKeyBtn.MouseButton1Click:Connect(function()
-    local clipboardFunc = setclipboard or toclipboard or syn and syn.write_clipboard
-    if clipboardFunc then
-        clipboardFunc(CURRENT_GET_KEY_LINK)
-        StatusLabel.Text = "Đã sao chép link vào bộ nhớ tạm!"
-        StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
-    else
-        StatusLabel.Text = "Executor không hỗ trợ sao chép tự động!"
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+    local t = texts[currentLang]
+    if setclipboard then
+        setclipboard(KEY_LINK)
+        StatusLabel.TextColor3 = Color3.fromRGB(56, 189, 248)
+        StatusLabel.Text = t.copied
     end
 end)
 
-SubmitBtn.MouseButton1Click:Connect(function()
-    local userKey = TextBox.Text
-    SubmitBtn.Text = "Đang kiểm tra..."
+local isVerifyingCooldown = false
 
-    local success, serverKey = pcall(function()
-        return game:HttpGet(CURRENT_KEY_URL)
+VerifyBtn.MouseButton1Click:Connect(function()
+    local t = texts[currentLang]
+    if isVerifyingCooldown then return end
+
+    local userKey = TextBox.Text
+    if not userKey or not userKey:match("%S") then
+        StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+        StatusLabel.Text = t.statusEmpty
+        return
+    end
+
+    StatusLabel.TextColor3 = Color3.fromRGB(245, 158, 11)
+    StatusLabel.Text = t.statusVerifying
+
+    -- Cooldown chống spam 3 giây
+    isVerifyingCooldown = true
+    task.spawn(function()
+        for i = 3, 1, -1 do
+            VerifyBtn.Text = string.format("%ds", i)
+            task.wait(1)
+        end
+        VerifyBtn.Text = t.verifyBtn
+        isVerifyingCooldown = false
     end)
 
-    if success and serverKey then
-        serverKey = serverKey:gsub("%s+", "") 
-        
-        if userKey == serverKey then
-            SubmitBtn.Text = "Thành công!"
-            SaveKeySession()
-            
-            local info = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            TweenService:Create(MainFrame, info, {Size = UDim2.new(0, 0, 0, 0), Position = MainFrame.Position + UDim2.new(0, 160, 0, 120)}):Play()
-            task.wait(0.3)
-            ScreenGui:Destroy()
-            
-            LoadMainScript()
-        else
-            SubmitBtn.Text = "Key sai rồi!"
-            task.wait(1.5)
-            SubmitBtn.Text = "Xác Nhận Key"
+    task.spawn(function()
+        local response = safeRequest(NPOINT_URL, "GET")
+        if not response or not response.Body then
+            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+            StatusLabel.Text = t.statusError
+            return
         end
-    else
-        SubmitBtn.Text = "Lỗi kết nối!"
-        task.wait(1.5)
-        SubmitBtn.Text = "Xác Nhận Key"
-    end
+
+        local successDecode, result = pcall(function()
+            return HttpService:JSONDecode(response.Body)
+        end)
+
+        if not successDecode or not result or not result.devices then
+            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+            StatusLabel.Text = t.statusDecode
+            return
+        end
+
+        local currentTime = os.time() * 1000
+        local keyIndex = nil
+        local targetDevice = nil
+
+        for i, device in ipairs(result.devices) do
+            if device.key == userKey then
+                keyIndex = i
+                targetDevice = device
+                break
+            end
+        end
+
+        if not keyIndex or not targetDevice then
+            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+            StatusLabel.Text = t.statusNotFound
+            return
+        end
+
+        if targetDevice.expireTimestamp <= currentTime then
+            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+            StatusLabel.Text = t.statusExpired
+            return
+        end
+
+        local expireTimestamp = targetDevice.expireTimestamp
+        table.remove(result.devices, keyIndex)
+
+        task.spawn(function()
+            safeRequest(NPOINT_URL, "POST", HttpService:JSONEncode(result))
+        end)
+
+        -- Lưu phiên làm việc tự động
+        saveSessionData(expireTimestamp, userKey)
+
+        StatusLabel.TextColor3 = Color3.fromRGB(16, 185, 129)
+        StatusLabel.Text = t.statusSuccess
+        task.wait(1)
+        
+        local fadeOut = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 0),
+            Rotation = -720,
+            BackgroundTransparency = 1
+        })
+        fadeOut:Play()
+        fadeOut.Completed:Wait()
+        
+        ScreenGui:Destroy()
+        createFloatingTimer(expireTimestamp)
+        launchMainScript(expireTimestamp)
+    end)
 end)
