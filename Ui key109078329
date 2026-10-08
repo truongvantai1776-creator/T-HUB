@@ -1,53 +1,115 @@
--- // T-HUB Auto-Login if Key is Still Valid (No Key System UI needed if active)
+-- ══════════════════════════════════════════════════════════════
+-- ████████╗      ██╗  ██╗ ██╗   ██╗ ██████╗ 
+-- ╚══██╔══╝      ██║  ██║ ██║   ██║ ██╔══██╗
+--    ██║         ███████║ ██║   ██║ ██████╔╝
+--    ██║         ██╔══██║ ██║   ██║ ██╔══██╗
+--    ██║         ██║  ██║ ╚██████╔╝ ██████╔╝
+--    ╚═╝         ╚═╝  ╚═╝  ╚═════╝  ╚═════╝ 
+--           T-HUB VIP PRO EDITION v3.5
+-- ══════════════════════════════════════════════════════════════
+
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local NPOINT_URL = "https://api.npoint.io/cd54b4bf2ab3d1bcfa13"
 local KEY_LINK = "https://link4m.org/UQ6Ap"
-local SCRIPT_LOADSTRING = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201116"))()'
-
 local SAVED_DATA_FILENAME = "THUB_AutoLoginData.json"
 
--- Từ điển ngôn ngữ (Mặc định là EN)
-local currentLang = "EN" 
+-- ══════════════════════════════════════════════════════════════
+-- COLOR PALETTE
+-- ══════════════════════════════════════════════════════════════
+local Palette = {
+    BgDeep      = Color3.fromRGB(4, 8, 20),
+    BgMain      = Color3.fromRGB(8, 14, 32),
+    BgPanel     = Color3.fromRGB(13, 21, 46),
+    BgInput     = Color3.fromRGB(18, 27, 55),
+    Accent      = Color3.fromRGB(56, 189, 248),
+    Accent2     = Color3.fromRGB(139, 92, 246),
+    Accent3     = Color3.fromRGB(236, 72, 153),
+    Success     = Color3.fromRGB(16, 185, 129),
+    Danger      = Color3.fromRGB(239, 68, 68),
+    DangerDark  = Color3.fromRGB(127, 29, 29),
+    Warning     = Color3.fromRGB(245, 158, 11),
+    Text        = Color3.fromRGB(241, 245, 249),
+    TextDim     = Color3.fromRGB(148, 163, 184),
+    White       = Color3.fromRGB(255, 255, 255),
+}
+
+-- ══════════════════════════════════════════════════════════════
+-- LANGUAGE DICTIONARY
+-- ══════════════════════════════════════════════════════════════
+local currentLang = "EN"
 local texts = {
     EN = {
         title = "T - H U B   S Y S T E M",
+        subtitle = "PREMIUM EDITION  •  v3.5",
         placeholder = "Paste your key here...",
-        getBtn = "Get Key Link",
-        verifyBtn = "Verify Key",
-        statusReady = "Status: Ready for verification",
-        statusEmpty = "Please enter your key!",
-        statusError = "Connection error or blocked!",
-        statusDecode = "Data decryption error!",
-        statusNotFound = "Key does not exist or already used!",
-        statusExpired = "This key has expired!",
-        statusVerifying = "Verifying key...",
-        statusSuccess = "Success! Launching...",
-        copied = "Key link copied to clipboard!"
+        getBtn = "GET KEY LINK",
+        verifyBtn = "VERIFY KEY",
+        statusReady = "◉  Status: Ready for verification",
+        statusEmpty = "⚠  Please enter your key!",
+        statusError = "✕  Connection error or blocked!",
+        statusDecode = "✕  Data decryption error!",
+        statusNotFound = "✕  Key does not exist or already used!",
+        statusExpired = "✕  This key has expired!",
+        statusVerifying = "⟳  Verifying key...",
+        statusSuccess = "✓  Success! Launching...",
+        copied = "✓  Key link copied to clipboard!",
+        watermark = "T-HUB",
+        deleteBtn = "DELETE KEY",
+        cancelTitle1 = "⚠  WARNING",
+        cancelMsg1 = "Are you sure you want to DELETE this key?\nYou will lose access to T-HUB immediately.",
+        cancelBtnYes = "CONTINUE",
+        cancelBtnNo = "GO BACK",
+        cancelTitle2 = "⚠⚠  FINAL WARNING",
+        cancelMsg2 = "This action CANNOT be undone!\nThe key will be permanently removed.\n\nConfirm to delete?",
+        cancelBtnConfirm = "DELETE",
+        cancelBtnAbort = "ABORT",
+        cancelSuccess = "Key deleted successfully!",
+        introWelcome = "T-HUB SYSTEM",
+        introSub = "PREMIUM EDITION",
+        introLoading = "INITIALIZING...",
     },
     VI = {
         title = "HỆ THỐNG T - H U B",
+        subtitle = "BẢN CAO CẤP  •  v3.5",
         placeholder = "Dán key của bạn vào đây...",
-        getBtn = "Lấy Link Key",
-        verifyBtn = "Xác Thực Key",
-        statusReady = "Trạng thái: Sẵn sàng xác thực",
-        statusEmpty = "Vui lòng nhập key của bạn!",
-        statusError = "Lỗi kết nối mạng hoặc bị chặn!",
-        statusDecode = "Lỗi giải mã dữ liệu!",
-        statusNotFound = "Key không tồn tại hoặc đã được sử dụng!",
-        statusExpired = "Key này đã hết hạn sử dụng!",
-        statusVerifying = "Đang xác thực key...",
-        statusSuccess = "Thành công! Đang khởi chạy...",
-        copied = "Đã sao chép link key vào bộ nhớ tạm!"
+        getBtn = "LẤY LINK KEY",
+        verifyBtn = "XÁC THỰC KEY",
+        statusReady = "◉  Trạng thái: Sẵn sàng xác thực",
+        statusEmpty = "⚠  Vui lòng nhập key của bạn!",
+        statusError = "✕  Lỗi kết nối mạng hoặc bị chặn!",
+        statusDecode = "✕  Lỗi giải mã dữ liệu!",
+        statusNotFound = "✕  Key không tồn tại hoặc đã dùng!",
+        statusExpired = "✕  Key này đã hết hạn sử dụng!",
+        statusVerifying = "⟳  Đang xác thực key...",
+        statusSuccess = "✓  Thành công! Đang khởi chạy...",
+        copied = "✓  Đã sao chép link key!",
+        watermark = "T-HUB",
+        deleteBtn = "XÓA KEY",
+        cancelTitle1 = "⚠  CẢNH BÁO",
+        cancelMsg1 = "Bạn có chắc chắn muốn XÓA key hiện tại?\nBạn sẽ mất quyền truy cập T-HUB ngay lập tức.",
+        cancelBtnYes = "TIẾP TỤC",
+        cancelBtnNo = "QUAY LẠI",
+        cancelTitle2 = "⚠⚠  CẢNH BÁO CUỐI",
+        cancelMsg2 = "Hành động này KHÔNG THỂ hoàn tác!\nKey sẽ bị xóa vĩnh viễn.\n\nXác nhận xóa?",
+        cancelBtnConfirm = "XÓA",
+        cancelBtnAbort = "HỦY BỎ",
+        cancelSuccess = "Đã xóa key thành công!",
+        introWelcome = "HỆ THỐNG T-HUB",
+        introSub = "BẢN CAO CẤP",
+        introLoading = "ĐANG KHỞI TẠO...",
     }
 }
 
--- Lưu thời hạn key vào file
+-- ══════════════════════════════════════════════════════════════
+-- SESSION HELPERS
+-- ══════════════════════════════════════════════════════════════
 local function saveSessionData(expireTimestamp, key)
     if writefile then
         pcall(function()
@@ -57,7 +119,16 @@ local function saveSessionData(expireTimestamp, key)
     end
 end
 
--- Đọc thời hạn key đã lưu
+local function clearSessionData()
+    if writefile and isfile then
+        pcall(function()
+            if isfile(SAVED_DATA_FILENAME) then
+                writefile(SAVED_DATA_FILENAME, "")
+            end
+        end)
+    end
+end
+
 local function loadSessionData()
     if readfile and isfile then
         local success, data = pcall(function()
@@ -69,9 +140,7 @@ local function loadSessionData()
             local decodeSuccess, result = pcall(function()
                 return HttpService:JSONDecode(data)
             end)
-            if decodeSuccess and result then
-                return result
-            end
+            if decodeSuccess and result then return result end
         end
     end
     return nil
@@ -80,75 +149,751 @@ end
 local function safeRequest(url, method, bodyData)
     local req = syn and syn.request or http_request or request or HttpPost
     if not req then return nil end
-
     local success, response = pcall(function()
         if method == "GET" then
             return req({ Url = url, Method = "GET" })
         else
             return req({
-                Url = url,
-                Method = "POST",
+                Url = url, Method = "POST",
                 Headers = { ["Content-Type"] = "application/json" },
                 Body = bodyData
             })
         end
     end)
-
     if success then return response end
     return nil
 end
 
--- Hàm thực thi script chính và bật Watermark
 local function launchMainScript(expireTimestamp)
     local successScript, err = pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201116"))()
     end)
     if not successScript then
-        warn("Lỗi khi load script chính: " .. tostring(err))
+        warn("[T-HUB] Lỗi khi load script chính: " .. tostring(err))
     end
 end
 
--- HÀM KÉO THẢ KHUNG
+-- ══════════════════════════════════════════════════════════════
+-- DRAGGABLE
+-- ══════════════════════════════════════════════════════════════
 local function makeDraggable(frame)
     local dragging, dragInput, dragStart, startPos
-
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
-
     frame.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             TweenService:Create(frame, TweenInfo.new(0.05, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-                Position = UDim2.new(
-                    startPos.X.Scale, 
-                    startPos.X.Offset + delta.X, 
-                    startPos.Y.Scale, 
-                    startPos.Y.Offset + delta.Y
-                )
+                Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             }):Play()
         end
     end)
 end
 
--- WATERMARK ĐỒNG HỒ ĐẾM NGƯỢC
-local function createFloatingTimer(expireTimestamp)
+-- ══════════════════════════════════════════════════════════════
+-- UTILS
+-- ══════════════════════════════════════════════════════════════
+local function addRipple(button, color)
+    button.MouseButton1Down:Connect(function()
+        local ripple = Instance.new("Frame")
+        ripple.BackgroundColor3 = color or Color3.fromRGB(255, 255, 255)
+        ripple.BackgroundTransparency = 0.5
+        ripple.BorderSizePixel = 0
+        ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+        ripple.Position = UDim2.new(0.5, 0, 0.5, 0)
+        ripple.Size = UDim2.new(0, 0, 0, 0)
+        ripple.ZIndex = 5
+        ripple.Parent = button
+        Instance.new("UICorner", ripple).CornerRadius = UDim.new(1, 0)
+        local tween = TweenService:Create(ripple, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(2, 0, 2, 0), BackgroundTransparency = 1
+        })
+        tween:Play()
+        tween.Completed:Connect(function() ripple:Destroy() end)
+    end)
+end
+
+local function addHover(button, baseColor, hoverColor)
+    local orig = baseColor or button.BackgroundColor3
+    local tgt = hoverColor or Color3.fromRGB(
+        math.min(orig.R * 255 + 25, 255),
+        math.min(orig.G * 255 + 25, 255),
+        math.min(orig.B * 255 + 25, 255)
+    )
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), { BackgroundColor3 = tgt }):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), { BackgroundColor3 = orig }):Play()
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════
+-- ⚡ INTRO NGẮN GỌN - SANG - MƯỢT (3.5s)
+-- ══════════════════════════════════════════════════════════════
+local function playIntro(lang, callback)
+    lang = lang or currentLang
+    local t = texts[lang]
+
+    local IntroGui = Instance.new("ScreenGui")
+    IntroGui.Name = "THUB_Intro"
+    IntroGui.Parent = CoreGui
+    IntroGui.ResetOnSpawn = false
+    IntroGui.IgnoreGuiInset = true
+    IntroGui.DisplayOrder = 500
+
+    -- Nền đen
+    local BlackBg = Instance.new("Frame")
+    BlackBg.Size = UDim2.new(1, 0, 1, 0)
+    BlackBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    BlackBg.BackgroundTransparency = 1
+    BlackBg.BorderSizePixel = 0
+    BlackBg.ZIndex = 1
+    BlackBg.Parent = IntroGui
+    TweenService:Create(BlackBg, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()
+    task.wait(0.3)
+
+    -- Shockwave 1 lần
+    local wave = Instance.new("Frame")
+    wave.AnchorPoint = Vector2.new(0.5, 0.5)
+    wave.Position = UDim2.new(0.5, 0, 0.5, 0)
+    wave.Size = UDim2.new(0, 0, 0, 0)
+    wave.BackgroundTransparency = 1
+    wave.ZIndex = 3
+    wave.Parent = IntroGui
+    Instance.new("UICorner", wave).CornerRadius = UDim.new(1, 0)
+    local wStroke = Instance.new("UIStroke")
+    wStroke.Color = Palette.Accent
+    wStroke.Thickness = 3
+    wStroke.Parent = wave
+    local wTween = TweenService:Create(wave, TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 1800, 0, 1800)
+    })
+    local wStrokeTween = TweenService:Create(wStroke, TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Thickness = 0.5, Transparency = 1
+    })
+    wTween:Play()
+    wStrokeTween:Play()
+
+    -- Particle nhẹ
+    for i = 1, 30 do
+        task.spawn(function()
+            local p = Instance.new("Frame")
+            p.Size = UDim2.new(0, math.random(3, 6), 0, math.random(3, 6))
+            p.Position = UDim2.new(0.5, 0, 0.5, 0)
+            p.AnchorPoint = Vector2.new(0.5, 0.5)
+            local pick = math.random(1, 3)
+            p.BackgroundColor3 = pick == 1 and Palette.Accent or (pick == 2 and Palette.Accent2 or Palette.Accent3)
+            p.BorderSizePixel = 0
+            p.ZIndex = 4
+            p.Parent = IntroGui
+            Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
+            local angle = math.rad(i * 12) + math.rad(math.random(-10, 10))
+            local dist = math.random(280, 550)
+            local tw = TweenService:Create(p, TweenInfo.new(math.random(9, 14) / 10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(0.5, math.cos(angle) * dist, 0.5, math.sin(angle) * dist),
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 0, 0, 0)
+            })
+            tw:Play()
+            tw.Completed:Connect(function() p:Destroy() end)
+        end)
+        task.wait(0.01)
+    end
+
+    task.wait(0.2)
+
+    -- Logo container
+    local LogoContainer = Instance.new("Frame")
+    LogoContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+    LogoContainer.Position = UDim2.new(0.5, 0, 0.45, 0)
+    LogoContainer.Size = UDim2.new(0, 0, 0, 0)
+    LogoContainer.BackgroundTransparency = 1
+    LogoContainer.ZIndex = 10
+    LogoContainer.Parent = IntroGui
+
+    -- Glow
+    local Glow = Instance.new("ImageLabel")
+    Glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    Glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Glow.Size = UDim2.new(0, 260, 0, 260)
+    Glow.BackgroundTransparency = 1
+    Glow.Image = "rbxassetid://5028857084"
+    Glow.ImageColor3 = Palette.Accent
+    Glow.ImageTransparency = 0.4
+    Glow.ScaleType = Enum.ScaleType.Slice
+    Glow.SliceCenter = Rect.new(24, 24, 276, 276)
+    Glow.ZIndex = 9
+    Glow.Parent = LogoContainer
+
+    -- Vòng tròn ngoài
+    local Ring1 = Instance.new("Frame")
+    Ring1.AnchorPoint = Vector2.new(0.5, 0.5)
+    Ring1.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Ring1.Size = UDim2.new(0, 180, 0, 180)
+    Ring1.BackgroundTransparency = 1
+    Ring1.ZIndex = 10
+    Ring1.Parent = LogoContainer
+    Instance.new("UICorner", Ring1).CornerRadius = UDim.new(1, 0)
+    local r1s = Instance.new("UIStroke")
+    r1s.Color = Palette.Accent
+    r1s.Thickness = 2
+    r1s.Transparency = 0.3
+    r1s.Parent = Ring1
+
+    -- Vòng tròn trong
+    local Ring2 = Instance.new("Frame")
+    Ring2.AnchorPoint = Vector2.new(0.5, 0.5)
+    Ring2.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Ring2.Size = UDim2.new(0, 140, 0, 140)
+    Ring2.BackgroundTransparency = 1
+    Ring2.ZIndex = 10
+    Ring2.Parent = LogoContainer
+    Instance.new("UICorner", Ring2).CornerRadius = UDim.new(1, 0)
+    local r2s = Instance.new("UIStroke")
+    r2s.Color = Palette.Accent2
+    r2s.Thickness = 3
+    r2s.Transparency = 0.3
+    r2s.Parent = Ring2
+
+    -- Big Logo
+    local BigLogo = Instance.new("Frame")
+    BigLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+    BigLogo.Position = UDim2.new(0.5, 0, 0.5, 0)
+    BigLogo.Size = UDim2.new(0, 90, 0, 90)
+    BigLogo.BackgroundColor3 = Palette.Accent
+    BigLogo.BorderSizePixel = 0
+    BigLogo.ZIndex = 11
+    BigLogo.Parent = LogoContainer
+    Instance.new("UICorner", BigLogo).CornerRadius = UDim.new(0, 22)
+
+    local bg = Instance.new("UIGradient")
+    bg.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.Accent),
+        ColorSequenceKeypoint.new(0.5, Palette.Accent2),
+        ColorSequenceKeypoint.new(1, Palette.Accent3)
+    }
+    bg.Rotation = 45
+    bg.Parent = BigLogo
+    task.spawn(function()
+        while bg and bg.Parent do
+            TweenService:Create(bg, TweenInfo.new(1.5, Enum.EasingStyle.Linear), { Rotation = 405 }):Play()
+            task.wait(1.5)
+        end
+    end)
+
+    local BigLogoText = Instance.new("TextLabel")
+    BigLogoText.Size = UDim2.new(1, 0, 1, 0)
+    BigLogoText.BackgroundTransparency = 1
+    BigLogoText.Text = "T"
+    BigLogoText.TextColor3 = Palette.White
+    BigLogoText.TextSize = 60
+    BigLogoText.Font = Enum.Font.GothamBlack
+    BigLogoText.ZIndex = 12
+    BigLogoText.Parent = BigLogo
+
+    -- Ring xoay liên tục
+    task.spawn(function()
+        while Ring1 and Ring1.Parent do
+            Ring1.Rotation = Ring1.Rotation + 1.2
+            task.wait(0.016)
+        end
+    end)
+    task.spawn(function()
+        while Ring2 and Ring2.Parent do
+            Ring2.Rotation = Ring2.Rotation - 1.8
+            task.wait(0.016)
+        end
+    end)
+
+    -- Logo entrance
+    LogoContainer.Size = UDim2.new(0, 0, 0, 0)
+    LogoContainer.Rotation = 180
+    TweenService:Create(LogoContainer, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 200, 0, 200),
+        Rotation = 0
+    }):Play()
+
+    -- Pulse 1 lần
+    task.spawn(function()
+        task.wait(0.5)
+        local pulse = Instance.new("Frame")
+        pulse.AnchorPoint = Vector2.new(0.5, 0.5)
+        pulse.Position = UDim2.new(0.5, 0, 0.5, 0)
+        pulse.Size = UDim2.new(0, 90, 0, 90)
+        pulse.BackgroundTransparency = 1
+        pulse.ZIndex = 8
+        pulse.Parent = LogoContainer
+        Instance.new("UICorner", pulse).CornerRadius = UDim.new(1, 0)
+        local ps = Instance.new("UIStroke")
+        ps.Color = Palette.Accent
+        ps.Thickness = 3
+        ps.Parent = pulse
+        local tw = TweenService:Create(pulse, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 260, 0, 260)
+        })
+        local sw = TweenService:Create(ps, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Transparency = 1
+        })
+        tw:Play()
+        sw:Play()
+        task.wait(1)
+        pulse:Destroy()
+    end)
+
+    -- WELCOME text (typewriter)
+    task.wait(0.6)
+
+    local Welcome = Instance.new("TextLabel")
+    Welcome.AnchorPoint = Vector2.new(0.5, 0)
+    Welcome.Position = UDim2.new(0.5, 0, 0.62, 0)
+    Welcome.Size = UDim2.new(0, 700, 0, 36)
+    Welcome.BackgroundTransparency = 1
+    Welcome.Text = ""
+    Welcome.TextColor3 = Palette.White
+    Welcome.TextSize = 26
+    Welcome.Font = Enum.Font.GothamBlack
+    Welcome.ZIndex = 20
+    Welcome.Parent = IntroGui
+
+    task.spawn(function()
+        local full = t.introWelcome
+        for i = 1, #full do
+            Welcome.Text = string.sub(full, 1, i)
+            task.wait(0.035)
+        end
+    end)
+
+    task.wait(0.4)
+
+    local SubText = Instance.new("TextLabel")
+    SubText.AnchorPoint = Vector2.new(0.5, 0)
+    SubText.Position = UDim2.new(0.5, 0, 0.62, 42)
+    SubText.Size = UDim2.new(0, 700, 0, 20)
+    SubText.BackgroundTransparency = 1
+    SubText.Text = t.introSub
+    SubText.TextColor3 = Palette.Accent
+    SubText.TextSize = 12
+    SubText.Font = Enum.Font.GothamBold
+    SubText.TextTransparency = 1
+    SubText.ZIndex = 20
+    SubText.Parent = IntroGui
+    TweenService:Create(SubText, TweenInfo.new(0.4), { TextTransparency = 0 }):Play()
+
+    -- Loading bar gọn
+    task.wait(0.5)
+
+    local LoadContainer = Instance.new("Frame")
+    LoadContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+    LoadContainer.Position = UDim2.new(0.5, 0, 0.78, 0)
+    LoadContainer.Size = UDim2.new(0, 340, 0, 5)
+    LoadContainer.BackgroundColor3 = Palette.BgPanel
+    LoadContainer.BackgroundTransparency = 0.3
+    LoadContainer.BorderSizePixel = 0
+    LoadContainer.ZIndex = 20
+    LoadContainer.Parent = IntroGui
+    Instance.new("UICorner", LoadContainer).CornerRadius = UDim.new(1, 0)
+
+    local LoadFill = Instance.new("Frame")
+    LoadFill.Size = UDim2.new(0, 0, 1, 0)
+    LoadFill.BackgroundColor3 = Palette.Accent
+    LoadFill.BorderSizePixel = 0
+    LoadFill.ZIndex = 21
+    LoadFill.Parent = LoadContainer
+    Instance.new("UICorner", LoadFill).CornerRadius = UDim.new(1, 0)
+
+    local FillGrad = Instance.new("UIGradient")
+    FillGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.Accent),
+        ColorSequenceKeypoint.new(0.5, Palette.Accent2),
+        ColorSequenceKeypoint.new(1, Palette.Accent3)
+    }
+    FillGrad.Parent = LoadFill
+
+    local StatusText = Instance.new("TextLabel")
+    StatusText.AnchorPoint = Vector2.new(0.5, 0)
+    StatusText.Position = UDim2.new(0.5, 0, 0.78, 14)
+    StatusText.Size = UDim2.new(0, 700, 0, 18)
+    StatusText.BackgroundTransparency = 1
+    StatusText.Text = t.introLoading
+    StatusText.TextColor3 = Palette.TextDim
+    StatusText.TextSize = 11
+    StatusText.Font = Enum.Font.Code
+    StatusText.TextTransparency = 1
+    StatusText.ZIndex = 20
+    StatusText.Parent = IntroGui
+    TweenService:Create(StatusText, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+
+    -- Loading chạy
+    task.spawn(function()
+        for i = 1, 100 do
+            TweenService:Create(LoadFill, TweenInfo.new(0.04), {
+                Size = UDim2.new(i / 100, 0, 1, 0)
+            }):Play()
+            if i == 50 then StatusText.Text = "LOADING..." end
+            if i == 90 then StatusText.Text = "READY!"; StatusText.TextColor3 = Palette.Success end
+            task.wait(0.012)
+        end
+    end)
+
+    task.wait(1.5)
+
+    -- Flash + fade out
+    local Flash = Instance.new("Frame")
+    Flash.Size = UDim2.new(1, 0, 1, 0)
+    Flash.BackgroundColor3 = Palette.White
+    Flash.BackgroundTransparency = 1
+    Flash.BorderSizePixel = 0
+    Flash.ZIndex = 100
+    Flash.Parent = IntroGui
+    local ft = TweenService:Create(Flash, TweenInfo.new(0.12), { BackgroundTransparency = 0.4 })
+    ft:Play()
+    ft.Completed:Wait()
+    TweenService:Create(Flash, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
+
+    TweenService:Create(BlackBg, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+    TweenService:Create(Welcome, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
+    TweenService:Create(SubText, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
+    TweenService:Create(StatusText, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
+    TweenService:Create(LoadContainer, TweenInfo.new(0.35), {
+        BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 5)
+    }):Play()
+    TweenService:Create(LogoContainer, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Rotation = -120
+    }):Play()
+
+    task.wait(0.7)
+    IntroGui:Destroy()
+
+    if callback then callback() end
+end
+
+-- ══════════════════════════════════════════════════════════════
+-- CANCEL DIALOG (2-STEP WARNING)
+-- ══════════════════════════════════════════════════════════════
+local function showCancelDialog(lang, onConfirmed)
+    local t = texts[lang or currentLang]
+
+    local ConfirmGui = Instance.new("ScreenGui")
+    ConfirmGui.Name = "THUB_CancelConfirm"
+    ConfirmGui.Parent = CoreGui
+    ConfirmGui.ResetOnSpawn = false
+    ConfirmGui.IgnoreGuiInset = true
+    ConfirmGui.DisplayOrder = 999
+
+    local Backdrop = Instance.new("Frame")
+    Backdrop.Size = UDim2.new(1, 0, 1, 0)
+    Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Backdrop.BackgroundTransparency = 1
+    Backdrop.BorderSizePixel = 0
+    Backdrop.ZIndex = 1
+    Backdrop.Parent = ConfirmGui
+    TweenService:Create(Backdrop, TweenInfo.new(0.35), { BackgroundTransparency = 0.4 }):Play()
+
+    local function buildDialog(titleText, msgText, btnYesText, btnNoText, isDanger, onYes, onNo)
+        local Dialog = Instance.new("Frame")
+        Dialog.Size = UDim2.new(0, 0, 0, 0)
+        Dialog.Position = UDim2.new(0.5, 0, 0.5, 0)
+        Dialog.AnchorPoint = Vector2.new(0.5, 0.5)
+        Dialog.BackgroundColor3 = Palette.BgMain
+        Dialog.BorderSizePixel = 0
+        Dialog.ZIndex = 10
+        Dialog.Parent = ConfirmGui
+        Instance.new("UICorner", Dialog).CornerRadius = UDim.new(0, 14)
+
+        local dGrad = Instance.new("UIGradient")
+        dGrad.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Palette.BgMain),
+            ColorSequenceKeypoint.new(1, Palette.BgPanel)
+        }
+        dGrad.Rotation = 45
+        dGrad.Parent = Dialog
+
+        local dStroke = Instance.new("UIStroke")
+        dStroke.Color = isDanger and Palette.Danger or Palette.Warning
+        dStroke.Thickness = 2
+        dStroke.Transparency = 0.15
+        dStroke.Parent = Dialog
+
+        local dGlow = Instance.new("ImageLabel")
+        dGlow.BackgroundTransparency = 1
+        dGlow.Image = "rbxassetid://5028857084"
+        dGlow.ImageColor3 = isDanger and Palette.Danger or Palette.Warning
+        dGlow.ImageTransparency = 0.75
+        dGlow.ScaleType = Enum.ScaleType.Slice
+        dGlow.SliceCenter = Rect.new(24, 24, 276, 276)
+        dGlow.Size = UDim2.new(1, 40, 1, 40)
+        dGlow.Position = UDim2.new(0, -20, 0, -20)
+        dGlow.ZIndex = 9
+        dGlow.Parent = Dialog
+        task.spawn(function()
+            while dGlow and dGlow.Parent do
+                TweenService:Create(dGlow, TweenInfo.new(1.8), { ImageTransparency = 0.55 }):Play()
+                task.wait(1.8)
+                if not (dGlow and dGlow.Parent) then break end
+                TweenService:Create(dGlow, TweenInfo.new(1.8), { ImageTransparency = 0.85 }):Play()
+                task.wait(1.8)
+            end
+        end)
+
+        local IconCircle = Instance.new("Frame")
+        IconCircle.Size = UDim2.new(0, 52, 0, 52)
+        IconCircle.Position = UDim2.new(0, 22, 0, 20)
+        IconCircle.BackgroundColor3 = isDanger and Palette.Danger or Palette.Warning
+        IconCircle.BackgroundTransparency = 0.15
+        IconCircle.BorderSizePixel = 0
+        IconCircle.ZIndex = 11
+        IconCircle.Parent = Dialog
+        Instance.new("UICorner", IconCircle).CornerRadius = UDim.new(1, 0)
+
+        local IconInner = Instance.new("Frame")
+        IconInner.Size = UDim2.new(1, -8, 1, -8)
+        IconInner.Position = UDim2.new(0, 4, 0, 4)
+        IconInner.BackgroundColor3 = isDanger and Palette.DangerDark or Palette.BgDeep
+        IconInner.BackgroundTransparency = 0.3
+        IconInner.BorderSizePixel = 0
+        IconInner.ZIndex = 12
+        IconInner.Parent = IconCircle
+        Instance.new("UICorner", IconInner).CornerRadius = UDim.new(1, 0)
+
+        local IconText = Instance.new("TextLabel")
+        IconText.Size = UDim2.new(1, 0, 1, 0)
+        IconText.BackgroundTransparency = 1
+        IconText.Text = "!"
+        IconText.TextColor3 = Palette.White
+        IconText.TextSize = 30
+        IconText.Font = Enum.Font.GothamBlack
+        IconText.ZIndex = 13
+        IconText.Parent = IconInner
+
+        task.spawn(function()
+            while IconCircle and IconCircle.Parent do
+                TweenService:Create(IconCircle, TweenInfo.new(0.6), { Rotation = 8 }):Play()
+                task.wait(0.6)
+                if not (IconCircle and IconCircle.Parent) then break end
+                TweenService:Create(IconCircle, TweenInfo.new(0.6), { Rotation = -8 }):Play()
+                task.wait(0.6)
+                if not (IconCircle and IconCircle.Parent) then break end
+                TweenService:Create(IconCircle, TweenInfo.new(0.6), { Rotation = 0 }):Play()
+                task.wait(0.6)
+            end
+        end)
+
+        local DlgTitle = Instance.new("TextLabel")
+        DlgTitle.Size = UDim2.new(1, -100, 0, 30)
+        DlgTitle.Position = UDim2.new(0, 88, 0, 22)
+        DlgTitle.BackgroundTransparency = 1
+        DlgTitle.Text = titleText
+        DlgTitle.TextColor3 = isDanger and Palette.Danger or Palette.Warning
+        DlgTitle.TextSize = 17
+        DlgTitle.Font = Enum.Font.GothamBlack
+        DlgTitle.TextXAlignment = Enum.TextXAlignment.Left
+        DlgTitle.ZIndex = 11
+        DlgTitle.Parent = Dialog
+
+        local DlgSub = Instance.new("TextLabel")
+        DlgSub.Size = UDim2.new(1, -100, 0, 16)
+        DlgSub.Position = UDim2.new(0, 88, 0, 50)
+        DlgSub.BackgroundTransparency = 1
+        DlgSub.Text = "T-HUB SECURITY"
+        DlgSub.TextColor3 = Palette.TextDim
+        DlgSub.TextSize = 10
+        DlgSub.Font = Enum.Font.GothamMedium
+        DlgSub.TextXAlignment = Enum.TextXAlignment.Left
+        DlgSub.ZIndex = 11
+        DlgSub.Parent = Dialog
+
+        local Div = Instance.new("Frame")
+        Div.Size = UDim2.new(1, -44, 0, 1)
+        Div.Position = UDim2.new(0, 22, 0, 86)
+        Div.BackgroundColor3 = isDanger and Palette.Danger or Palette.Warning
+        Div.BackgroundTransparency = 0.7
+        Div.BorderSizePixel = 0
+        Div.ZIndex = 11
+        Div.Parent = Dialog
+
+        local DlgMsg = Instance.new("TextLabel")
+        DlgMsg.Size = UDim2.new(1, -44, 0, 70)
+        DlgMsg.Position = UDim2.new(0, 22, 0, 98)
+        DlgMsg.BackgroundTransparency = 1
+        DlgMsg.Text = msgText
+        DlgMsg.TextColor3 = Palette.Text
+        DlgMsg.TextSize = 13
+        DlgMsg.Font = Enum.Font.Gotham
+        DlgMsg.TextWrapped = true
+        DlgMsg.TextXAlignment = Enum.TextXAlignment.Left
+        DlgMsg.TextYAlignment = Enum.TextYAlignment.Top
+        DlgMsg.ZIndex = 11
+        DlgMsg.Parent = Dialog
+
+        local BtnNo = Instance.new("TextButton")
+        BtnNo.Size = UDim2.new(0, 175, 0, 42)
+        BtnNo.Position = UDim2.new(0, 22, 1, -60)
+        BtnNo.BackgroundColor3 = Palette.BgPanel
+        BtnNo.TextColor3 = Palette.Text
+        BtnNo.Text = btnNoText
+        BtnNo.TextSize = 13
+        BtnNo.Font = Enum.Font.GothamBold
+        BtnNo.AutoButtonColor = false
+        BtnNo.ZIndex = 11
+        BtnNo.Parent = Dialog
+        Instance.new("UICorner", BtnNo).CornerRadius = UDim.new(0, 10)
+        local noStroke = Instance.new("UIStroke")
+        noStroke.Color = Palette.TextDim
+        noStroke.Transparency = 0.5
+        noStroke.Parent = BtnNo
+        addHover(BtnNo, Palette.BgPanel, Palette.BgInput)
+        addRipple(BtnNo, Palette.TextDim)
+
+        local BtnYes = Instance.new("TextButton")
+        BtnYes.Size = UDim2.new(0, 175, 0, 42)
+        BtnYes.Position = UDim2.new(1, -197, 1, -60)
+        BtnYes.BackgroundColor3 = isDanger and Palette.Danger or Palette.Warning
+        BtnYes.TextColor3 = Palette.White
+        BtnYes.Text = btnYesText
+        BtnYes.TextSize = 13
+        BtnYes.Font = Enum.Font.GothamBold
+        BtnYes.AutoButtonColor = false
+        BtnYes.ZIndex = 11
+        BtnYes.Parent = Dialog
+        Instance.new("UICorner", BtnYes).CornerRadius = UDim.new(0, 10)
+        local yesStroke = Instance.new("UIStroke")
+        yesStroke.Color = Palette.White
+        yesStroke.Transparency = 0.7
+        yesStroke.Parent = BtnYes
+        addRipple(BtnYes, Palette.White)
+
+        BtnYes.MouseEnter:Connect(function()
+            TweenService:Create(BtnYes, TweenInfo.new(0.2), {
+                BackgroundColor3 = isDanger and Color3.fromRGB(220, 38, 38) or Color3.fromRGB(217, 119, 6)
+            }):Play()
+        end)
+        BtnYes.MouseLeave:Connect(function()
+            TweenService:Create(BtnYes, TweenInfo.new(0.2), {
+                BackgroundColor3 = isDanger and Palette.Danger or Palette.Warning
+            }):Play()
+        end)
+
+        Dialog.Size = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(Dialog, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 440, 0, 240)
+        }):Play()
+
+        local function closeDialog(callback)
+            local tween = TweenService:Create(Dialog, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0),
+                Rotation = -15
+            })
+            tween:Play()
+            tween.Completed:Connect(function()
+                Dialog:Destroy()
+                if callback then callback() end
+            end)
+        end
+
+        BtnYes.MouseButton1Click:Connect(function() closeDialog(onYes) end)
+        BtnNo.MouseButton1Click:Connect(function() closeDialog(onNo) end)
+    end
+
+    buildDialog(
+        t.cancelTitle1, t.cancelMsg1, t.cancelBtnYes, t.cancelBtnNo, false,
+        function()
+            task.wait(0.15)
+            buildDialog(
+                t.cancelTitle2, t.cancelMsg2, t.cancelBtnConfirm, t.cancelBtnAbort, true,
+                function()
+                    clearSessionData()
+                    if onConfirmed then onConfirmed() end
+
+                    local Toast = Instance.new("Frame")
+                    Toast.Size = UDim2.new(0, 0, 0, 50)
+                    Toast.Position = UDim2.new(0.5, 0, 0.9, 0)
+                    Toast.AnchorPoint = Vector2.new(0.5, 0.5)
+                    Toast.BackgroundColor3 = Palette.Success
+                    Toast.BorderSizePixel = 0
+                    Toast.ZIndex = 100
+                    Toast.Parent = ConfirmGui
+                    Instance.new("UICorner", Toast).CornerRadius = UDim.new(0, 10)
+
+                    local ToastText = Instance.new("TextLabel")
+                    ToastText.Size = UDim2.new(1, 0, 1, 0)
+                    ToastText.BackgroundTransparency = 1
+                    ToastText.Text = t.cancelSuccess
+                    ToastText.TextColor3 = Palette.White
+                    ToastText.TextSize = 14
+                    ToastText.Font = Enum.Font.GothamBold
+                    ToastText.ZIndex = 101
+                    ToastText.Parent = Toast
+
+                    TweenService:Create(Toast, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(0, 320, 0, 50)
+                    }):Play()
+
+                    task.wait(1.5)
+
+                    TweenService:Create(Toast, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                        Size = UDim2.new(0, 0, 0, 50),
+                        BackgroundTransparency = 1
+                    }):Play()
+                    TweenService:Create(ToastText, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+                    task.wait(0.5)
+
+                    TweenService:Create(Backdrop, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+                    task.wait(0.35)
+                    ConfirmGui:Destroy()
+
+                    if CoreGui:FindFirstChild("THUB_Watermark") then
+                        CoreGui.THUB_Watermark:Destroy()
+                    end
+                    if CoreGui:FindFirstChild("THUB_KeySystem") then
+                        CoreGui.THUB_KeySystem:Destroy()
+                    end
+
+                    task.wait(0.4)
+                    -- Reload script để hiện lại bảng key
+                    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+                    if PlayerGui then
+                        local rel = game:HttpGet("https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Script%20vip201116")
+                        -- Chạy lại key system gốc
+                    end
+                end,
+                function()
+                    task.wait(0.1)
+                    TweenService:Create(Backdrop, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+                    task.wait(0.35)
+                    ConfirmGui:Destroy()
+                end
+            )
+        end,
+        function()
+            TweenService:Create(Backdrop, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+            task.wait(0.35)
+            ConfirmGui:Destroy()
+        end
+    )
+end
+
+-- ══════════════════════════════════════════════════════════════
+-- WATERMARK (DƯỚI MÀN HÌNH + NÚT "XÓA KEY")
+-- ══════════════════════════════════════════════════════════════
+local function createFloatingTimer(expireTimestamp, lang)
+    lang = lang or currentLang
+    local t = texts[lang]
+
     if CoreGui:FindFirstChild("THUB_Watermark") then
         CoreGui.THUB_Watermark:Destroy()
     end
@@ -157,375 +902,797 @@ local function createFloatingTimer(expireTimestamp)
     WatermarkGui.Name = "THUB_Watermark"
     WatermarkGui.Parent = CoreGui
     WatermarkGui.ResetOnSpawn = false
+    WatermarkGui.IgnoreGuiInset = true
 
+    -- ĐẶT Ở DƯỚI MÀN HÌNH (góc dưới trái)
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 120, 0, 36)
-    Frame.Position = UDim2.new(0, 30, 0, 30)
-    Frame.BackgroundColor3 = Color3.fromRGB(6, 12, 26)
-    Frame.BackgroundTransparency = 0.2
+    Frame.Size = UDim2.new(0, 250, 0, 38)
+    Frame.Position = UDim2.new(0, 20, 1, -58)
+    Frame.BackgroundColor3 = Palette.BgMain
+    Frame.BackgroundTransparency = 0.08
     Frame.BorderSizePixel = 0
     Frame.Parent = WatermarkGui
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.Accent),
+        ColorSequenceKeypoint.new(0.5, Palette.Accent2),
+        ColorSequenceKeypoint.new(1, Palette.Accent3)
+    }
+    grad.Parent = Frame
+    task.spawn(function()
+        while Frame and Frame.Parent do
+            TweenService:Create(grad, TweenInfo.new(3, Enum.EasingStyle.Linear), { Rotation = 360 }):Play()
+            task.wait(3)
+        end
+    end)
 
-    local UIStroke = Instance.new("UIStroke")
-    UIStroke.Color = Color3.fromRGB(56, 189, 248)
-    UIStroke.Transparency = 0.3
-    UIStroke.Parent = Frame
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Palette.Accent
+    stroke.Thickness = 1.2
+    stroke.Transparency = 0.2
+    stroke.Parent = Frame
 
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.TextColor3 = Color3.fromRGB(56, 189, 248)
-    TextLabel.TextSize = 13
-    TextLabel.Font = Enum.Font.GothamBold
-    TextLabel.Text = "--:--:--"
-    TextLabel.Parent = Frame
+    -- Logo T
+    local logoFrame = Instance.new("Frame")
+    logoFrame.Size = UDim2.new(0, 26, 0, 26)
+    logoFrame.Position = UDim2.new(0, 6, 0, 6)
+    logoFrame.BackgroundColor3 = Palette.Accent
+    logoFrame.BorderSizePixel = 0
+    logoFrame.Parent = Frame
+    Instance.new("UICorner", logoFrame).CornerRadius = UDim.new(0, 7)
+
+    local logoGrad = Instance.new("UIGradient")
+    logoGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.Accent),
+        ColorSequenceKeypoint.new(1, Palette.Accent2)
+    }
+    logoGrad.Parent = logoFrame
+
+    local logoText = Instance.new("TextLabel")
+    logoText.Size = UDim2.new(1, 0, 1, 0)
+    logoText.BackgroundTransparency = 1
+    logoText.Text = "T"
+    logoText.TextColor3 = Palette.White
+    logoText.TextSize = 16
+    logoText.Font = Enum.Font.GothamBlack
+    logoText.Parent = logoFrame
+
+    -- Dot xanh nhấp nháy
+    local dot = Instance.new("Frame")
+    dot.Size = UDim2.new(0, 5, 0, 5)
+    dot.Position = UDim2.new(0, 38, 0, 16)
+    dot.BackgroundColor3 = Palette.Success
+    dot.BorderSizePixel = 0
+    dot.Parent = Frame
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+    task.spawn(function()
+        while dot and dot.Parent do
+            TweenService:Create(dot, TweenInfo.new(0.8), { BackgroundTransparency = 0.7 }):Play()
+            task.wait(0.8)
+            if not (dot and dot.Parent) then break end
+            TweenService:Create(dot, TweenInfo.new(0.8), { BackgroundTransparency = 0 }):Play()
+            task.wait(0.8)
+        end
+    end)
+
+    -- Timer
+    local TimerLabel = Instance.new("TextLabel")
+    TimerLabel.Size = UDim2.new(0, 90, 0, 24)
+    TimerLabel.Position = UDim2.new(0, 48, 0, 7)
+    TimerLabel.BackgroundTransparency = 1
+    TimerLabel.TextColor3 = Palette.Accent
+    TimerLabel.TextSize = 13
+    TimerLabel.Font = Enum.Font.Code
+    TimerLabel.Text = "--:--:--"
+    TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TimerLabel.Parent = Frame
+
+    -- NÚT "XÓA KEY"
+    local DeleteBtn = Instance.new("TextButton")
+    DeleteBtn.Size = UDim2.new(0, 90, 0, 26)
+    DeleteBtn.Position = UDim2.new(1, -96, 0, 6)
+    DeleteBtn.BackgroundColor3 = Palette.Danger
+    DeleteBtn.BackgroundTransparency = 0.1
+    DeleteBtn.TextColor3 = Palette.White
+    DeleteBtn.Text = "🗑 " .. t.deleteBtn
+    DeleteBtn.TextSize = 10
+    DeleteBtn.Font = Enum.Font.GothamBold
+    DeleteBtn.AutoButtonColor = false
+    DeleteBtn.Parent = Frame
+    Instance.new("UICorner", DeleteBtn).CornerRadius = UDim.new(0, 7)
+
+    local delStroke = Instance.new("UIStroke")
+    delStroke.Color = Palette.White
+    delStroke.Transparency = 0.7
+    delStroke.Parent = DeleteBtn
+
+    DeleteBtn.MouseEnter:Connect(function()
+        TweenService:Create(DeleteBtn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(220, 38, 38),
+            BackgroundTransparency = 0
+        }):Play()
+        TweenService:Create(delStroke, TweenInfo.new(0.2), { Transparency = 0.3 }):Play()
+    end)
+    DeleteBtn.MouseLeave:Connect(function()
+        TweenService:Create(DeleteBtn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Palette.Danger,
+            BackgroundTransparency = 0.1
+        }):Play()
+        TweenService:Create(delStroke, TweenInfo.new(0.2), { Transparency = 0.7 }):Play()
+    end)
+
+    DeleteBtn.MouseButton1Click:Connect(function()
+        showCancelDialog(lang)
+    end)
 
     makeDraggable(Frame)
+
+    -- Glow
+    local glowImage = Instance.new("ImageLabel")
+    glowImage.BackgroundTransparency = 1
+    glowImage.Image = "rbxassetid://5028857084"
+    glowImage.ImageColor3 = Palette.Accent
+    glowImage.ImageTransparency = 0.85
+    glowImage.ScaleType = Enum.ScaleType.Slice
+    glowImage.SliceCenter = Rect.new(24, 24, 276, 276)
+    glowImage.Size = UDim2.new(1, 24, 1, 24)
+    glowImage.Position = UDim2.new(0, -12, 0, -12)
+    glowImage.ZIndex = -1
+    glowImage.Parent = Frame
+
+    task.spawn(function()
+        while glowImage and glowImage.Parent do
+            TweenService:Create(glowImage, TweenInfo.new(2), { ImageTransparency = 0.6 }):Play()
+            task.wait(2)
+            if not (glowImage and glowImage.Parent) then break end
+            TweenService:Create(glowImage, TweenInfo.new(2), { ImageTransparency = 0.9 }):Play()
+            task.wait(2)
+        end
+    end)
+
+    -- Entrance animation (trượt từ dưới lên)
+    Frame.Position = UDim2.new(0, 20, 1, 20)
+    TweenService:Create(Frame, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 20, 1, -58)
+    }):Play()
 
     task.spawn(function()
         while WatermarkGui and WatermarkGui.Parent do
             local now = os.time() * 1000
             local distance = expireTimestamp - now
-
             if distance <= 0 then
-                TextLabel.Text = "EXPIRED"
-                TextLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+                TimerLabel.Text = "EXPIRED"
+                TimerLabel.TextColor3 = Palette.Danger
                 break
             else
                 local hours = math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
                 local minutes = math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
                 local seconds = math.floor((distance % (1000 * 60)) / 1000)
-                
-                TextLabel.Text = string.format("%02dh %02dm %02ds", hours, minutes, seconds)
+                TimerLabel.Text = string.format("%02d:%02d:%02d", hours, minutes, seconds)
             end
             task.wait(1)
         end
     end)
 end
 
--- ==========================================
--- KIỂM TRA TỰ ĐỘNG ĐĂNG NHẬP KHI KHỞI ĐỘNG
--- ==========================================
+-- ══════════════════════════════════════════════════════════════
+-- AUTO-LOGIN
+-- ══════════════════════════════════════════════════════════════
 local savedSession = loadSessionData()
 if savedSession and savedSession.expire and savedSession.expire > (os.time() * 1000) then
-    -- Nếu key vẫn còn hạn, tự động bật thẳng script luôn không cần hiện bảng key
     createFloatingTimer(savedSession.expire)
     launchMainScript(savedSession.expire)
-    return -- Dừng script luôn, không hiện giao diện nhập key nữa
+    return
 end
 
--- ==========================================
--- GIAO DIỆN NHẬP KEY CHÍNH (NẾU HẾT HẠN HOẶC CHƯA CÓ)
--- ==========================================
-if CoreGui:FindFirstChild("THUB_KeySystem") then
-    CoreGui.THUB_KeySystem:Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "THUB_KeySystem"
-ScreenGui.Parent = CoreGui
-ScreenGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 420, 0, 240)
-MainFrame.Position = UDim2.new(0.5, -210, 0.5, -120)
-MainFrame.BackgroundColor3 = Color3.fromRGB(6, 12, 26)
-MainFrame.BackgroundTransparency = 0.15
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
-
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(56, 189, 248)
-UIStroke.Transparency = 0.4
-UIStroke.Parent = MainFrame
-
--- Nút ngôn ngữ góc trái phía trên
-local LangBtn = Instance.new("TextButton")
-LangBtn.Size = UDim2.new(0, 65, 0, 26)
-LangBtn.Position = UDim2.new(0, 310, 0, 12)
-LangBtn.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
-LangBtn.BackgroundTransparency = 0.2
-LangBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LangBtn.TextSize = 11
-LangBtn.Font = Enum.Font.GothamBold
-LangBtn.Text = "🇬🇧 ENG"
-LangBtn.TextTransparency = 1
-LangBtn.Parent = MainFrame
-
-Instance.new("UICorner", LangBtn).CornerRadius = UDim.new(0, 6)
-local LangStroke = Instance.new("UIStroke")
-LangStroke.Color = Color3.fromRGB(56, 189, 248)
-LangStroke.Transparency = 0.5
-LangStroke.Parent = LangBtn
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(0, 290, 0, 45)
-Title.Position = UDim2.new(0, 15, 0, -3)
-Title.BackgroundTransparency = 1
-Title.Text = texts[currentLang].title
-Title.TextColor3 = Color3.fromRGB(56, 189, 248)
-Title.TextTransparency = 1
-Title.TextSize = 15
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Font = Enum.Font.GothamBold
-Title.Parent = MainFrame
-
-local TextBox = Instance.new("TextBox")
-TextBox.Size = UDim2.new(0, 390, 0, 42)
-TextBox.Position = UDim2.new(0, 15, 0, 50)
-TextBox.BackgroundColor3 = Color3.fromRGB(11, 19, 43)
-TextBox.BackgroundTransparency = 0.2
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.TextTransparency = 1
-TextBox.Text = ""
-TextBox.PlaceholderText = texts[currentLang].placeholder
-TextBox.PlaceholderColor3 = Color3.fromRGB(148, 163, 184)
-TextBox.TextSize = 13
-TextBox.Font = Enum.Font.Gotham
-TextBox.ClearTextOnFocus = false
-TextBox.Parent = MainFrame
-
-Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 8)
-local BoxStroke = Instance.new("UIStroke")
-BoxStroke.Color = Color3.fromRGB(56, 189, 248)
-BoxStroke.Transparency = 0.5
-BoxStroke.Parent = TextBox
-
-local GetKeyBtn = Instance.new("TextButton")
-GetKeyBtn.Size = UDim2.new(0, 185, 0, 38)
-GetKeyBtn.Position = UDim2.new(0, 15, 0, 120)
-GetKeyBtn.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
-GetKeyBtn.BackgroundTransparency = 0.1
-GetKeyBtn.TextColor3 = Color3.fromRGB(56, 189, 248)
-GetKeyBtn.TextTransparency = 1
-GetKeyBtn.Text = texts[currentLang].getBtn
-GetKeyBtn.TextSize = 13
-GetKeyBtn.Font = Enum.Font.GothamBold
-GetKeyBtn.Parent = MainFrame
-
-Instance.new("UICorner", GetKeyBtn).CornerRadius = UDim.new(0, 8)
-
-local VerifyBtn = Instance.new("TextButton")
-VerifyBtn.Size = UDim2.new(0, 185, 0, 38)
-VerifyBtn.Position = UDim2.new(0, 220, 0, 120)
-VerifyBtn.BackgroundColor3 = Color3.fromRGB(56, 189, 248)
-VerifyBtn.BackgroundTransparency = 0
-VerifyBtn.TextColor3 = Color3.fromRGB(6, 12, 26)
-VerifyBtn.TextTransparency = 1
-VerifyBtn.Text = texts[currentLang].verifyBtn
-VerifyBtn.TextSize = 13
-VerifyBtn.Font = Enum.Font.GothamBold
-VerifyBtn.Parent = MainFrame
-
-Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 8)
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 390, 0, 30)
-StatusLabel.Position = UDim2.new(0, 15, 0, 180)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.TextColor3 = Color3.fromRGB(148, 163, 184)
-StatusLabel.TextTransparency = 1
-StatusLabel.Text = texts[currentLang].statusReady
-StatusLabel.TextSize = 12
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Parent = MainFrame
-
-makeDraggable(MainFrame)
-
-LangBtn.MouseButton1Click:Connect(function()
-    if currentLang == "EN" then
-        currentLang = "VI"
-        LangBtn.Text = "🇻🇳 VIE"
-    else
-        currentLang = "EN"
-        LangBtn.Text = "🇬🇧 ENG"
+-- ══════════════════════════════════════════════════════════════
+-- MAIN UI BUILDER
+-- ══════════════════════════════════════════════════════════════
+local function buildMainUI()
+    if CoreGui:FindFirstChild("THUB_KeySystem") then
+        CoreGui.THUB_KeySystem:Destroy()
     end
-    
-    local t = texts[currentLang]
-    Title.Text = t.title
-    TextBox.PlaceholderText = t.placeholder
-    GetKeyBtn.Text = t.getBtn
-    VerifyBtn.Text = t.verifyBtn
-    StatusLabel.Text = t.statusReady
-end)
 
--- Hiệu ứng khởi động (Delay 0.2s + Xoáy chậm)
-task.spawn(function()
-    task.wait(0.2)
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "THUB_KeySystem"
+    ScreenGui.Parent = CoreGui
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.IgnoreGuiInset = true
 
-    MainFrame.Rotation = 720
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    
-    TweenService:Create(MainFrame, TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 420, 0, 240),
-        Rotation = 0
-    }):Play()
+    local Backdrop = Instance.new("Frame")
+    Backdrop.Size = UDim2.new(1, 0, 1, 0)
+    Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Backdrop.BackgroundTransparency = 1
+    Backdrop.BorderSizePixel = 0
+    Backdrop.ZIndex = 1
+    Backdrop.Parent = ScreenGui
+    TweenService:Create(Backdrop, TweenInfo.new(0.6), { BackgroundTransparency = 0.5 }):Play()
 
+    -- Particles
     task.spawn(function()
-        Title.Rotation = -180
-        TweenService:Create(Title, TweenInfo.new(1.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 15, 0, -3),
-            Rotation = 0,
-            TextTransparency = 0
-        }):Play()
+        for i = 1, 25 do
+            local p = Instance.new("Frame")
+            p.Size = UDim2.new(0, math.random(2, 5), 0, math.random(2, 5))
+            p.Position = UDim2.new(math.random(), 0, math.random(), 0)
+            p.BackgroundColor3 = Palette.Accent
+            p.BackgroundTransparency = math.random(30, 70) / 100
+            p.BorderSizePixel = 0
+            p.ZIndex = 2
+            p.Parent = ScreenGui
+            Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
+            task.spawn(function()
+                while p and p.Parent do
+                    local tween = TweenService:Create(p, TweenInfo.new(math.random(6, 12), Enum.EasingStyle.Linear), {
+                        Position = UDim2.new(p.Position.X.Scale, 0, -0.1, 0),
+                        BackgroundTransparency = 1
+                    })
+                    tween:Play()
+                    tween.Completed:Wait()
+                    if p and p.Parent then
+                        p.Position = UDim2.new(math.random(), 0, 1.1, 0)
+                        p.BackgroundTransparency = math.random(30, 70) / 100
+                    end
+                end
+            end)
+            task.wait(0.05)
+        end
     end)
 
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 460, 0, 300)
+    MainFrame.Position = UDim2.new(0.5, -230, 0.5, -150)
+    MainFrame.BackgroundColor3 = Palette.BgMain
+    MainFrame.BackgroundTransparency = 0.05
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ZIndex = 10
+    MainFrame.Parent = ScreenGui
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 18)
+
+    local BgGradient = Instance.new("UIGradient")
+    BgGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.BgMain),
+        ColorSequenceKeypoint.new(0.5, Palette.BgPanel),
+        ColorSequenceKeypoint.new(1, Palette.BgDeep)
+    }
+    BgGradient.Rotation = 45
+    BgGradient.Parent = MainFrame
     task.spawn(function()
-        task.wait(0.05)
-        LangBtn.Rotation = 180
-        TweenService:Create(LangBtn, TweenInfo.new(1.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 310, 0, 12),
-            Rotation = 0,
-            TextTransparency = 0
-        }):Play()
+        while MainFrame and MainFrame.Parent do
+            TweenService:Create(BgGradient, TweenInfo.new(6, Enum.EasingStyle.Linear), { Rotation = 405 }):Play()
+            task.wait(6)
+        end
     end)
 
+    local MainStroke = Instance.new("UIStroke")
+    MainStroke.Color = Palette.Accent
+    MainStroke.Thickness = 2
+    MainStroke.Transparency = 0.2
+    MainStroke.Parent = MainFrame
+
+    local OuterGlow = Instance.new("ImageLabel")
+    OuterGlow.BackgroundTransparency = 1
+    OuterGlow.Image = "rbxassetid://5028857084"
+    OuterGlow.ImageColor3 = Palette.Accent
+    OuterGlow.ImageTransparency = 0.8
+    OuterGlow.ScaleType = Enum.ScaleType.Slice
+    OuterGlow.SliceCenter = Rect.new(24, 24, 276, 276)
+    OuterGlow.Size = UDim2.new(1, 60, 1, 60)
+    OuterGlow.Position = UDim2.new(0, -30, 0, -30)
+    OuterGlow.ZIndex = 9
+    OuterGlow.Parent = MainFrame
+    task.spawn(function()
+        while OuterGlow and OuterGlow.Parent do
+            TweenService:Create(OuterGlow, TweenInfo.new(2.5), { ImageTransparency = 0.6 }):Play()
+            task.wait(2.5)
+            if not (OuterGlow and OuterGlow.Parent) then break end
+            TweenService:Create(OuterGlow, TweenInfo.new(2.5), { ImageTransparency = 0.9 }):Play()
+            task.wait(2.5)
+        end
+    end)
+
+    local LogoFrame = Instance.new("Frame")
+    LogoFrame.Size = UDim2.new(0, 46, 0, 46)
+    LogoFrame.Position = UDim2.new(0, 18, 0, 18)
+    LogoFrame.BackgroundColor3 = Palette.Accent
+    LogoFrame.BorderSizePixel = 0
+    LogoFrame.ZIndex = 11
+    LogoFrame.Parent = MainFrame
+    Instance.new("UICorner", LogoFrame).CornerRadius = UDim.new(0, 12)
+
+    local LogoGrad = Instance.new("UIGradient")
+    LogoGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.Accent),
+        ColorSequenceKeypoint.new(0.5, Palette.Accent2),
+        ColorSequenceKeypoint.new(1, Palette.Accent3)
+    }
+    LogoGrad.Rotation = 45
+    LogoGrad.Parent = LogoFrame
+    task.spawn(function()
+        while LogoGrad and LogoGrad.Parent do
+            TweenService:Create(LogoGrad, TweenInfo.new(4, Enum.EasingStyle.Linear), { Rotation = 405 }):Play()
+            task.wait(4)
+        end
+    end)
+
+    local LogoText = Instance.new("TextLabel")
+    LogoText.Size = UDim2.new(1, 0, 1, 0)
+    LogoText.BackgroundTransparency = 1
+    LogoText.Text = "T"
+    LogoText.TextColor3 = Palette.White
+    LogoText.TextSize = 26
+    LogoText.Font = Enum.Font.GothamBlack
+    LogoText.ZIndex = 12
+    LogoText.Parent = LogoFrame
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(0, 260, 0, 20)
+    Title.Position = UDim2.new(0, 74, 0, 22)
+    Title.BackgroundTransparency = 1
+    Title.Text = texts[currentLang].title
+    Title.TextColor3 = Palette.White
+    Title.TextSize = 16
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.ZIndex = 11
+    Title.TextTransparency = 1
+    Title.Parent = MainFrame
+
+    local Subtitle = Instance.new("TextLabel")
+    Subtitle.Size = UDim2.new(0, 260, 0, 14)
+    Subtitle.Position = UDim2.new(0, 74, 0, 42)
+    Subtitle.BackgroundTransparency = 1
+    Subtitle.Text = texts[currentLang].subtitle
+    Subtitle.TextColor3 = Palette.TextDim
+    Subtitle.TextSize = 10
+    Subtitle.Font = Enum.Font.GothamMedium
+    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    Subtitle.ZIndex = 11
+    Subtitle.TextTransparency = 1
+    Subtitle.Parent = MainFrame
+
+    local LangBtn = Instance.new("TextButton")
+    LangBtn.Size = UDim2.new(0, 76, 0, 30)
+    LangBtn.Position = UDim2.new(1, -94, 0, 22)
+    LangBtn.BackgroundColor3 = Palette.BgPanel
+    LangBtn.BackgroundTransparency = 0.1
+    LangBtn.TextColor3 = Palette.Text
+    LangBtn.TextSize = 11
+    LangBtn.Font = Enum.Font.GothamBold
+    LangBtn.Text = "🇬🇧 ENG"
+    LangBtn.TextTransparency = 1
+    LangBtn.ZIndex = 11
+    LangBtn.AutoButtonColor = false
+    LangBtn.Parent = MainFrame
+    Instance.new("UICorner", LangBtn).CornerRadius = UDim.new(0, 8)
+    local LangStroke = Instance.new("UIStroke")
+    LangStroke.Color = Palette.Accent
+    LangStroke.Transparency = 0.5
+    LangStroke.Parent = LangBtn
+    addHover(LangBtn, Palette.BgPanel, Palette.BgInput)
+    addRipple(LangBtn, Palette.Accent)
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Size = UDim2.new(0, 424, 0, 46)
+    TextBox.Position = UDim2.new(0, 18, 0, 86)
+    TextBox.BackgroundColor3 = Palette.BgInput
+    TextBox.BackgroundTransparency = 0.1
+    TextBox.TextColor3 = Palette.White
+    TextBox.TextTransparency = 1
+    TextBox.Text = ""
+    TextBox.PlaceholderText = texts[currentLang].placeholder
+    TextBox.PlaceholderColor3 = Palette.TextDim
+    TextBox.TextSize = 13
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.ClearTextOnFocus = false
+    TextBox.TextXAlignment = Enum.TextXAlignment.Left
+    TextBox.ZIndex = 11
+    TextBox.Parent = MainFrame
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 10)
+
+    local paddingLeft = Instance.new("UIPadding")
+    paddingLeft.PaddingLeft = UDim.new(0, 14)
+    paddingLeft.PaddingRight = UDim.new(0, 14)
+    paddingLeft.Parent = TextBox
+
+    local BoxStroke = Instance.new("UIStroke")
+    BoxStroke.Color = Palette.Accent
+    BoxStroke.Transparency = 0.6
+    BoxStroke.Thickness = 1.5
+    BoxStroke.Parent = TextBox
+
+    TextBox.Focused:Connect(function()
+        TweenService:Create(BoxStroke, TweenInfo.new(0.25), { Color = Palette.Accent2, Transparency = 0.1, Thickness = 2 }):Play()
+    end)
+    TextBox.FocusLost:Connect(function()
+        TweenService:Create(BoxStroke, TweenInfo.new(0.25), { Color = Palette.Accent, Transparency = 0.6, Thickness = 1.5 }):Play()
+    end)
+
+    local GetKeyBtn = Instance.new("TextButton")
+    GetKeyBtn.Size = UDim2.new(0, 205, 0, 44)
+    GetKeyBtn.Position = UDim2.new(0, 18, 0, 148)
+    GetKeyBtn.BackgroundColor3 = Palette.BgPanel
+    GetKeyBtn.BackgroundTransparency = 0.1
+    GetKeyBtn.TextColor3 = Palette.Accent
+    GetKeyBtn.TextTransparency = 1
+    GetKeyBtn.Text = texts[currentLang].getBtn
+    GetKeyBtn.TextSize = 13
+    GetKeyBtn.Font = Enum.Font.GothamBold
+    GetKeyBtn.AutoButtonColor = false
+    GetKeyBtn.ZIndex = 11
+    GetKeyBtn.Parent = MainFrame
+    Instance.new("UICorner", GetKeyBtn).CornerRadius = UDim.new(0, 10)
+    local GetStroke = Instance.new("UIStroke")
+    GetStroke.Color = Palette.Accent
+    GetStroke.Transparency = 0.4
+    GetStroke.Parent = GetKeyBtn
+    addHover(GetKeyBtn, Palette.BgPanel, Palette.BgInput)
+    addRipple(GetKeyBtn, Palette.Accent)
+
+    local GetIcon = Instance.new("TextLabel")
+    GetIcon.Size = UDim2.new(0, 20, 0, 20)
+    GetIcon.Position = UDim2.new(0, 14, 0.5, -10)
+    GetIcon.BackgroundTransparency = 1
+    GetIcon.Text = "🔗"
+    GetIcon.TextSize = 14
+    GetIcon.Font = Enum.Font.GothamBold
+    GetIcon.ZIndex = 12
+    GetIcon.Parent = GetKeyBtn
+
+    local VerifyBtn = Instance.new("TextButton")
+    VerifyBtn.Size = UDim2.new(0, 205, 0, 44)
+    VerifyBtn.Position = UDim2.new(0, 237, 0, 148)
+    VerifyBtn.BackgroundColor3 = Palette.Accent
+    VerifyBtn.TextColor3 = Palette.White
+    VerifyBtn.TextTransparency = 1
+    VerifyBtn.Text = texts[currentLang].verifyBtn
+    VerifyBtn.TextSize = 13
+    VerifyBtn.Font = Enum.Font.GothamBold
+    VerifyBtn.AutoButtonColor = false
+    VerifyBtn.ZIndex = 11
+    VerifyBtn.Parent = MainFrame
+    Instance.new("UICorner", VerifyBtn).CornerRadius = UDim.new(0, 10)
+
+    local VerifyGrad = Instance.new("UIGradient")
+    VerifyGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Palette.Accent),
+        ColorSequenceKeypoint.new(0.5, Palette.Accent2),
+        ColorSequenceKeypoint.new(1, Palette.Accent3)
+    }
+    VerifyGrad.Parent = VerifyBtn
+    task.spawn(function()
+        while VerifyGrad and VerifyGrad.Parent do
+            TweenService:Create(VerifyGrad, TweenInfo.new(3, Enum.EasingStyle.Linear), { Rotation = 360 }):Play()
+            task.wait(3)
+        end
+    end)
+
+    local VerifyStroke = Instance.new("UIStroke")
+    VerifyStroke.Color = Palette.White
+    VerifyStroke.Transparency = 0.7
+    VerifyStroke.Parent = VerifyBtn
+    addRipple(VerifyBtn, Palette.White)
+
+    local VerifyIcon = Instance.new("TextLabel")
+    VerifyIcon.Size = UDim2.new(0, 20, 0, 20)
+    VerifyIcon.Position = UDim2.new(0, 14, 0.5, -10)
+    VerifyIcon.BackgroundTransparency = 1
+    VerifyIcon.Text = "✓"
+    VerifyIcon.TextColor3 = Palette.White
+    VerifyIcon.TextSize = 16
+    VerifyIcon.Font = Enum.Font.GothamBlack
+    VerifyIcon.ZIndex = 12
+    VerifyIcon.Parent = VerifyBtn
+
+    VerifyBtn.MouseEnter:Connect(function()
+        TweenService:Create(VerifyStroke, TweenInfo.new(0.25), { Transparency = 0.2 }):Play()
+    end)
+    VerifyBtn.MouseLeave:Connect(function()
+        TweenService:Create(VerifyStroke, TweenInfo.new(0.25), { Transparency = 0.7 }):Play()
+    end)
+
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Size = UDim2.new(0, 424, 0, 34)
+    StatusFrame.Position = UDim2.new(0, 18, 0, 208)
+    StatusFrame.BackgroundColor3 = Palette.BgDeep
+    StatusFrame.BackgroundTransparency = 0.3
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.ZIndex = 11
+    StatusFrame.Parent = MainFrame
+    Instance.new("UICorner", StatusFrame).CornerRadius = UDim.new(0, 8)
+
+    local StatusStroke = Instance.new("UIStroke")
+    StatusStroke.Color = Palette.Accent
+    StatusStroke.Transparency = 0.7
+    StatusStroke.Parent = StatusFrame
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Size = UDim2.new(1, -20, 1, 0)
+    StatusLabel.Position = UDim2.new(0, 12, 0, 0)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.TextColor3 = Palette.TextDim
+    StatusLabel.TextTransparency = 1
+    StatusLabel.Text = texts[currentLang].statusReady
+    StatusLabel.TextSize = 11
+    StatusLabel.Font = Enum.Font.GothamMedium
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.ZIndex = 12
+    StatusLabel.Parent = StatusFrame
+
+    local LoadingBar = Instance.new("Frame")
+    LoadingBar.Size = UDim2.new(0, 0, 0, 2)
+    LoadingBar.Position = UDim2.new(0, 0, 1, -2)
+    LoadingBar.BackgroundColor3 = Palette.Accent
+    LoadingBar.BorderSizePixel = 0
+    LoadingBar.ZIndex = 13
+    LoadingBar.Parent = StatusFrame
+    Instance.new("UICorner", LoadingBar).CornerRadius = UDim.new(1, 0)
+
+    local Footer = Instance.new("TextLabel")
+    Footer.Size = UDim2.new(0, 424, 0, 16)
+    Footer.Position = UDim2.new(0, 18, 1, -26)
+    Footer.BackgroundTransparency = 1
+    Footer.Text = "◈ Protected by T-HUB Security  ◈"
+    Footer.TextColor3 = Palette.TextDim
+    Footer.TextSize = 9
+    Footer.Font = Enum.Font.GothamMedium
+    Footer.ZIndex = 11
+    Footer.TextTransparency = 1
+    Footer.Parent = MainFrame
+
+    makeDraggable(MainFrame)
+
+    LangBtn.MouseButton1Click:Connect(function()
+        if currentLang == "EN" then
+            currentLang = "VI"
+            LangBtn.Text = "🇻🇳 VIE"
+        else
+            currentLang = "EN"
+            LangBtn.Text = "🇬🇧 ENG"
+        end
+        local t = texts[currentLang]
+        Title.Text = t.title
+        Subtitle.Text = t.subtitle
+        TextBox.PlaceholderText = t.placeholder
+        GetKeyBtn.Text = t.getBtn
+        VerifyBtn.Text = t.verifyBtn
+        StatusLabel.Text = t.statusReady
+    end)
+
+    -- Entrance animation
     task.spawn(function()
         task.wait(0.1)
-        TextBox.Rotation = 180
-        TweenService:Create(TextBox, TweenInfo.new(1.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 15, 0, 50),
-            Rotation = 0,
-            TextTransparency = 0
-        }):Play()
-    end)
+        MainFrame.Rotation = 20
+        MainFrame.Size = UDim2.new(0, 0, 0, 0)
+        MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        MainFrame.BackgroundTransparency = 1
 
-    task.spawn(function()
+        TweenService:Create(MainFrame, TweenInfo.new(0.85, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 460, 0, 300),
+            Position = UDim2.new(0.5, -230, 0.5, -150),
+            Rotation = 0,
+            BackgroundTransparency = 0.05
+        }):Play()
+
+        LogoFrame.Rotation = 360
+        TweenService:Create(LogoFrame, TweenInfo.new(1.0, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Rotation = 0
+        }):Play()
+
         task.wait(0.15)
-        GetKeyBtn.Rotation = -90
-        TweenService:Create(GetKeyBtn, TweenInfo.new(1.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 15, 0, 120),
+        Title.Position = UDim2.new(0, 74, 0, 42)
+        TweenService:Create(Title, TweenInfo.new(0.65, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 74, 0, 22),
+            TextTransparency = 0
+        }):Play()
+
+        task.wait(0.08)
+        TweenService:Create(Subtitle, TweenInfo.new(0.65, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            TextTransparency = 0
+        }):Play()
+
+        task.wait(0.08)
+        LangBtn.Rotation = -90
+        LangBtn.Position = UDim2.new(1, -94, 0, 10)
+        TweenService:Create(LangBtn, TweenInfo.new(0.75, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, -94, 0, 22),
             Rotation = 0,
             TextTransparency = 0
         }):Play()
-    end)
 
-    task.spawn(function()
-        task.wait(0.2)
-        VerifyBtn.Rotation = 90
-        TweenService:Create(VerifyBtn, TweenInfo.new(1.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 220, 0, 120),
+        task.wait(0.12)
+        TextBox.Position = UDim2.new(0, 18, 0, 66)
+        TweenService:Create(TextBox, TweenInfo.new(0.65, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 18, 0, 86),
+            TextTransparency = 0
+        }):Play()
+
+        task.wait(0.12)
+        GetKeyBtn.Rotation = -8
+        GetKeyBtn.Position = UDim2.new(0, 18, 0, 128)
+        TweenService:Create(GetKeyBtn, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 18, 0, 148),
             Rotation = 0,
             TextTransparency = 0
         }):Play()
-    end)
 
-    task.spawn(function()
-        task.wait(0.25)
-        TweenService:Create(StatusLabel, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 15, 0, 180),
+        task.wait(0.08)
+        VerifyBtn.Rotation = 8
+        VerifyBtn.Position = UDim2.new(0, 237, 0, 128)
+        TweenService:Create(VerifyBtn, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 237, 0, 148),
+            Rotation = 0,
             TextTransparency = 0
         }):Play()
+
+        task.wait(0.12)
+        TweenService:Create(StatusLabel, TweenInfo.new(0.55, Enum.EasingStyle.Sine), { TextTransparency = 0 }):Play()
+        TweenService:Create(Footer, TweenInfo.new(0.55, Enum.EasingStyle.Sine), { TextTransparency = 0 }):Play()
     end)
-end)
 
-GetKeyBtn.MouseButton1Click:Connect(function()
-    local t = texts[currentLang]
-    if setclipboard then
-        setclipboard(KEY_LINK)
-        StatusLabel.TextColor3 = Color3.fromRGB(56, 189, 248)
-        StatusLabel.Text = t.copied
-    end
-end)
-
-local isVerifyingCooldown = false
-
-VerifyBtn.MouseButton1Click:Connect(function()
-    local t = texts[currentLang]
-    if isVerifyingCooldown then return end
-
-    local userKey = TextBox.Text
-    if not userKey or not userKey:match("%S") then
-        StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-        StatusLabel.Text = t.statusEmpty
-        return
-    end
-
-    StatusLabel.TextColor3 = Color3.fromRGB(245, 158, 11)
-    StatusLabel.Text = t.statusVerifying
-
-    -- Cooldown chống spam 3 giây
-    isVerifyingCooldown = true
-    task.spawn(function()
-        for i = 3, 1, -1 do
-            VerifyBtn.Text = string.format("%ds", i)
-            task.wait(1)
+    GetKeyBtn.MouseButton1Click:Connect(function()
+        local t = texts[currentLang]
+        if setclipboard then
+            setclipboard(KEY_LINK)
+            StatusLabel.TextColor3 = Palette.Accent
+            StatusLabel.Text = t.copied
+            StatusStroke.Color = Palette.Accent
+            TweenService:Create(StatusLabel, TweenInfo.new(0.2), { TextTransparency = 0.3 }):Play()
+            task.wait(0.15)
+            TweenService:Create(StatusLabel, TweenInfo.new(0.2), { TextTransparency = 0 }):Play()
         end
-        VerifyBtn.Text = t.verifyBtn
-        isVerifyingCooldown = false
     end)
 
-    task.spawn(function()
-        local response = safeRequest(NPOINT_URL, "GET")
-        if not response or not response.Body then
-            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-            StatusLabel.Text = t.statusError
+    local isVerifyingCooldown = false
+
+    local function setStatus(text, color, strokeColor)
+        StatusLabel.Text = text
+        StatusLabel.TextColor3 = color
+        StatusStroke.Color = strokeColor or color
+    end
+
+    VerifyBtn.MouseButton1Click:Connect(function()
+        local t = texts[currentLang]
+        if isVerifyingCooldown then return end
+
+        local userKey = TextBox.Text
+        if not userKey or not userKey:match("%S") then
+            setStatus(t.statusEmpty, Palette.Danger)
+            local origPos = MainFrame.Position
+            for i = 1, 4 do
+                TweenService:Create(MainFrame, TweenInfo.new(0.05), {
+                    Position = origPos + UDim2.new(0, (i % 2 == 0 and 8 or -8), 0, 0)
+                }):Play()
+                task.wait(0.05)
+            end
+            TweenService:Create(MainFrame, TweenInfo.new(0.1), { Position = origPos }):Play()
             return
         end
 
-        local successDecode, result = pcall(function()
-            return HttpService:JSONDecode(response.Body)
+        setStatus(t.statusVerifying, Palette.Warning)
+        VerifyIcon.Text = "⟳"
+        task.spawn(function()
+            while isVerifyingCooldown and VerifyIcon and VerifyIcon.Parent do
+                VerifyIcon.Rotation = (VerifyIcon.Rotation or 0) + 15
+                task.wait(0.03)
+            end
+            if VerifyIcon and VerifyIcon.Parent then VerifyIcon.Rotation = 0 end
         end)
 
-        if not successDecode or not result or not result.devices then
-            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-            StatusLabel.Text = t.statusDecode
-            return
-        end
+        LoadingBar.Size = UDim2.new(0, 0, 0, 2)
+        TweenService:Create(LoadingBar, TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1, 0, 0, 2)
+        }):Play()
 
-        local currentTime = os.time() * 1000
-        local keyIndex = nil
-        local targetDevice = nil
-
-        for i, device in ipairs(result.devices) do
-            if device.key == userKey then
-                keyIndex = i
-                targetDevice = device
-                break
+        isVerifyingCooldown = true
+        task.spawn(function()
+            for i = 3, 1, -1 do
+                VerifyBtn.Text = string.format("VERIFYING %ds", i)
+                task.wait(1)
             end
-        end
-
-        if not keyIndex or not targetDevice then
-            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-            StatusLabel.Text = t.statusNotFound
-            return
-        end
-
-        if targetDevice.expireTimestamp <= currentTime then
-            StatusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-            StatusLabel.Text = t.statusExpired
-            return
-        end
-
-        local expireTimestamp = targetDevice.expireTimestamp
-        table.remove(result.devices, keyIndex)
+            VerifyBtn.Text = t.verifyBtn
+            VerifyIcon.Text = "✓"
+            isVerifyingCooldown = false
+        end)
 
         task.spawn(function()
-            safeRequest(NPOINT_URL, "POST", HttpService:JSONEncode(result))
+            local response = safeRequest(NPOINT_URL, "GET")
+            if not response or not response.Body then
+                setStatus(t.statusError, Palette.Danger)
+                LoadingBar.Size = UDim2.new(0, 0, 0, 2)
+                return
+            end
+
+            local successDecode, result = pcall(function()
+                return HttpService:JSONDecode(response.Body)
+            end)
+
+            if not successDecode or not result or not result.devices then
+                setStatus(t.statusDecode, Palette.Danger)
+                LoadingBar.Size = UDim2.new(0, 0, 0, 2)
+                return
+            end
+
+            local currentTime = os.time() * 1000
+            local keyIndex, targetDevice = nil, nil
+            for i, device in ipairs(result.devices) do
+                if device.key == userKey then
+                    keyIndex, targetDevice = i, device
+                    break
+                end
+            end
+
+            if not keyIndex or not targetDevice then
+                setStatus(t.statusNotFound, Palette.Danger)
+                LoadingBar.Size = UDim2.new(0, 0, 0, 2)
+                return
+            end
+
+            if targetDevice.expireTimestamp <= currentTime then
+                setStatus(t.statusExpired, Palette.Danger)
+                LoadingBar.Size = UDim2.new(0, 0, 0, 2)
+                return
+            end
+
+            local expireTimestamp = targetDevice.expireTimestamp
+            table.remove(result.devices, keyIndex)
+
+            task.spawn(function()
+                safeRequest(NPOINT_URL, "POST", HttpService:JSONEncode(result))
+            end)
+
+            saveSessionData(expireTimestamp, userKey)
+            setStatus(t.statusSuccess, Palette.Success)
+            LoadingBar.BackgroundColor3 = Palette.Success
+
+            task.wait(0.8)
+
+            for i = 1, 20 do
+                task.spawn(function()
+                    local p = Instance.new("Frame")
+                    p.Size = UDim2.new(0, 6, 0, 6)
+                    p.Position = UDim2.new(0.5, 0, 0.5, 0)
+                    p.BackgroundColor3 = i % 2 == 0 and Palette.Success or Palette.Accent
+                    p.BorderSizePixel = 0
+                    p.ZIndex = 50
+                    p.Parent = ScreenGui
+                    Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
+                    local angle = math.rad(i * 18)
+                    local dist = math.random(150, 350)
+                    TweenService:Create(p, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Position = UDim2.new(0.5, math.cos(angle) * dist, 0.5, math.sin(angle) * dist),
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(0, 0, 0, 0),
+                        Rotation = 720
+                    }):Play()
+                    task.wait(1.3)
+                    p:Destroy()
+                end)
+            end
+
+            task.wait(0.9)
+
+            local fadeOut = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Rotation = -30,
+                BackgroundTransparency = 1
+            })
+            fadeOut:Play()
+            TweenService:Create(Backdrop, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+            fadeOut.Completed:Wait()
+
+            ScreenGui:Destroy()
+            createFloatingTimer(expireTimestamp, currentLang)
+            launchMainScript(expireTimestamp)
         end)
-
-        -- Lưu phiên làm việc tự động
-        saveSessionData(expireTimestamp, userKey)
-
-        StatusLabel.TextColor3 = Color3.fromRGB(16, 185, 129)
-        StatusLabel.Text = t.statusSuccess
-        task.wait(1)
-        
-        local fadeOut = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 0, 0, 0),
-            Rotation = -720,
-            BackgroundTransparency = 1
-        })
-        fadeOut:Play()
-        fadeOut.Completed:Wait()
-        
-        ScreenGui:Destroy()
-        createFloatingTimer(expireTimestamp)
-        launchMainScript(expireTimestamp)
     end)
+end
+
+-- ══════════════════════════════════════════════════════════════
+-- KHỞI CHẠY: INTRO → MAIN UI
+-- ══════════════════════════════════════════════════════════════
+playIntro(currentLang, function()
+    buildMainUI()
 end)
