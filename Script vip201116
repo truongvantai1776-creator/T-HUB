@@ -1215,7 +1215,7 @@ makeGameBtn("RIDE A PET",
 makeGameBtn("+1 LOOT TO FORGE",
     "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/lootforge.luau")
 
-makeGameBtn("Heavyweight Fishing",
+makeGameBtn("Build An Ant Empire",
     "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Build%20an%20ant%20%3A)")
 
 makeGameBtn("Blox Fruit",
