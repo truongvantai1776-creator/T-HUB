@@ -1206,7 +1206,7 @@ makeGameBtn("Ball vs Ball",
 makeGameBtn("Build And Kill Zombie",
     "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Build%20and%20kill%20zombie0905517")
 
-makeGameBtn("Fishing Master  🆕",
+makeGameBtn("Fishing Master",
     "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Fishing%20master775889")
 
 makeGameBtn("RIDE A PET",
@@ -1216,7 +1216,7 @@ makeGameBtn("+1 LOOT TO FORGE",
     "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/lootforge.luau")
 
 makeGameBtn("Heavyweight Fishing",
-    "https://raw.githubusercontent.com/joustingmatch/Ouroboros/main/games/heavyweightfishing.lua")
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Build%20an%20ant%20%3A)")
 
 makeGameBtn("Blox Fruit",
     "https://raw.githubusercontent.com/duczsitink/DUCKHUB/refs/heads/main/main.lua")
