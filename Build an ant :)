@@ -1,0 +1,855 @@
+-- ============================================
+-- T HUB v5.8 | Anti AFK in Auto Farm
+-- ============================================
+
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+end)
+
+if not success or not WindUI then
+    warn("Failed to load WindUI!")
+    return
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ============================================
+-- AUTO REMOVE "Items Shop" PROMPT
+-- ============================================
+local function removeItemsShopPrompt()
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                if at:find("items shop") or at:find("item shop")
+                   or ot:find("items shop") or ot:find("item shop") then
+                    obj.Enabled = false
+                    obj:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+removeItemsShopPrompt()
+
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then
+        task.wait(0.1)
+        pcall(function()
+            local at = string.lower(obj.ActionText or "")
+            local ot = string.lower(obj.ObjectText or "")
+            if at:find("items shop") or at:find("item shop")
+               or ot:find("items shop") or ot:find("item shop") then
+                obj.Enabled = false
+                obj:Destroy()
+            end
+        end)
+    end
+end)
+
+-- State
+local autoRollState = false
+local autoSellState = false
+local autoEquipState = false
+local autoClaimStarState = false
+local autoBuyAllAntState = false
+local autoBuyAntState = false
+local autoBuyItemState = false
+local antiAfkState = false
+local buyAntMinPrice = 13000
+local selectedItems = {}
+
+-- ============================================
+-- MONEY FORMAT
+-- ============================================
+local function formatMoney(n)
+    n = tonumber(n) or 0
+    if n >= 1e12 then
+        local v = n / 1e12
+        if v == math.floor(v) then return math.floor(v) .. "T" end
+        return (string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "")) .. "T"
+    elseif n >= 1e9 then
+        local v = n / 1e9
+        if v == math.floor(v) then return math.floor(v) .. "B" end
+        return (string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "")) .. "B"
+    elseif n >= 1e6 then
+        local v = n / 1e6
+        if v == math.floor(v) then return math.floor(v) .. "M" end
+        return (string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "")) .. "M"
+    elseif n >= 1e3 then
+        local v = n / 1e3
+        if v == math.floor(v) then return math.floor(v) .. "K" end
+        return (string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "")) .. "K"
+    else
+        return tostring(math.floor(n))
+    end
+end
+
+-- ============================================
+-- RARITY COLORS
+-- ============================================
+local function getRarityColor(rarity)
+    local r = string.lower(rarity or "")
+    if r:find("common") then return "#C0C0C0"
+    elseif r:find("uncommon") then return "#4ADE80"
+    elseif r:find("rare") then return "#3B82F6"
+    elseif r:find("epic") then return "#A855F7"
+    elseif r:find("legendary") or r:find("legend") then return "#F59E0B"
+    elseif r:find("mythic") then return "#EF4444"
+    elseif r:find("godly") or r:find("divine") then return "#EC4899"
+    elseif r:find("secret") then return "#FBBF24"
+    else return "#FFFFFF"
+    end
+end
+
+local function getRarityEmoji(rarity)
+    local r = string.lower(rarity or "")
+    if r:find("common") then return "⚪"
+    elseif r:find("uncommon") then return "🟢"
+    elseif r:find("rare") then return "🔵"
+    elseif r:find("epic") then return "🟣"
+    elseif r:find("legendary") or r:find("legend") then return "🟡"
+    elseif r:find("mythic") then return "🔴"
+    elseif r:find("godly") or r:find("divine") then return "💗"
+    elseif r:find("secret") then return "⭐"
+    else return "⚫"
+    end
+end
+
+-- ============================================
+-- SCAN ITEM SHOP
+-- ============================================
+local function getGearShopFrame()
+    for _, gui in ipairs(playerGui:GetDescendants()) do
+        if gui.Name == "GearShopFrame" then return gui end
+    end
+    return nil
+end
+
+local function readItemInfo(folder)
+    local displayName = folder.Name
+    local price = "?"
+    local rarity = ""
+    local forSale = true
+    
+    pcall(function()
+        local gearName = folder:FindFirstChild("GearName", true)
+        if gearName then
+            if gearName:IsA("TextLabel") then
+                displayName = gearName.Text
+            elseif gearName:IsA("StringValue") then
+                displayName = gearName.Value
+            end
+        end
+        
+        local cost = folder:FindFirstChild("Cost", true)
+        if cost then
+            if cost:IsA("TextLabel") then
+                price = cost.Text
+            elseif cost:IsA("StringValue") then
+                price = cost.Value
+            elseif cost:IsA("IntValue") then
+                price = formatMoney(cost.Value)
+            end
+        end
+        
+        local stats = folder:FindFirstChild("Stats", true)
+        if stats then
+            for _, s in ipairs(stats:GetDescendants()) do
+                if s:IsA("TextLabel") and (s.Name:lower():find("rarity") or s.Name:lower():find("tier")) then
+                    rarity = s.Text
+                    break
+                end
+            end
+        end
+        
+        local noStock = folder:FindFirstChild("NoStock", true)
+        if noStock and noStock:IsA("GuiObject") and noStock.Visible then
+            forSale = false
+        end
+        
+        local buyBtn = folder:FindFirstChild("BuyBtn", true)
+        if buyBtn then
+            if buyBtn:IsA("GuiObject") and (not buyBtn.Visible or not buyBtn.Active) then
+                forSale = false
+            end
+        end
+    end)
+    
+    return displayName, price, rarity, forSale
+end
+
+local function scanShopItems()
+    local items = {}
+    pcall(function()
+        local gearShop = getGearShopFrame()
+        if not gearShop then return end
+        
+        local scrolling = nil
+        for _, child in ipairs(gearShop:GetDescendants()) do
+            if child:IsA("ScrollingFrame") then
+                scrolling = child
+                break
+            end
+        end
+        if not scrolling then return end
+        
+        for _, folder in ipairs(scrolling:GetChildren()) do
+            if folder:IsA("GuiObject") or folder:IsA("Folder") then
+                local displayName, price, rarity, forSale = readItemInfo(folder)
+                local buyBtn = folder:FindFirstChild("BuyBtn", true)
+                
+                if buyBtn then
+                    local rarityStr = (rarity ~= "") and (" [" .. rarity .. "]") or ""
+                    local display = displayName .. rarityStr .. " - " .. tostring(price)
+                    
+                    table.insert(items, {
+                        Name = displayName,
+                        Display = display,
+                        Price = price,
+                        Rarity = rarity,
+                        ForSale = forSale,
+                        Folder = folder,
+                        BuyBtn = buyBtn,
+                    })
+                end
+            end
+        end
+    end)
+    return items
+end
+
+-- ============================================
+-- WINDOW
+-- ============================================
+local Window = WindUI:CreateWindow({
+    Title = "T HUB | Ultimate Auto",
+    Icon = "shield-check",
+    Author = "Official T HUB",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(720, 600),
+    Transparent = false,
+})
+
+Window:EditOpenButton({
+    Title = "Open T HUB",
+    Icon = "zap",
+    CornerRadius = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromHex("0052D4"), Color3.fromHex("6FB1FC")),
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ============================================
+-- FIND BUTTONS (Ants)
+-- ============================================
+local function findRollAntObject()
+    local r = nil
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and string.lower(obj.ActionText):find("roll") then
+                r = obj; break
+            end
+        end
+    end)
+    return r
+end
+
+local function findSellObjects()
+    local t = {}
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local at = string.lower(obj.ActionText)
+                if at:find("sell food") or at == "get" then table.insert(t, obj) end
+            end
+        end
+    end)
+    return t
+end
+
+local function findClaimStarObject()
+    local r = nil
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local at = string.lower(obj.ActionText)
+                if at:find("claim") or at == "free" then r = obj; break end
+            end
+        end
+    end)
+    return r
+end
+
+local function findBuyAllAntObjects()
+    local t = {}
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and string.lower(obj.ActionText):find("purchase") then
+                table.insert(t, obj)
+            end
+        end
+    end)
+    return t
+end
+
+local function findBuyAntObjectsMin()
+    local t = {}
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local at = string.lower(obj.ActionText)
+                local ot = string.lower(obj.ObjectText or "")
+                if at:find("purchase") then
+                    local priceStr = ot:match("%$(%d+)") or at:match("%$(%d+)") or ""
+                    local price = tonumber(priceStr) or 0
+                    if price >= buyAntMinPrice then
+                        table.insert(t, obj)
+                    end
+                end
+            end
+        end
+    end)
+    return t
+end
+
+local function clickUIButton(btn)
+    if not btn then return end
+    pcall(function()
+        if getconnections then
+            for _, c in ipairs(getconnections(btn.Activated)) do c:Fire() end
+            for _, c in ipairs(getconnections(btn.MouseButton1Click)) do c:Fire() end
+        elseif firesignal then
+            firesignal(btn.Activated)
+            firesignal(btn.MouseButton1Click)
+        else
+            btn:Activate()
+        end
+    end)
+end
+
+local function clickEquipBest()
+    pcall(function()
+        local btn = nil
+        local hud = playerGui:FindFirstChild("HUDContainer")
+        if hud then
+            local panel = hud:FindFirstChild("HUDPanel")
+            local top = panel and panel:FindFirstChild("Top")
+            if top then btn = top:FindFirstChild("EquipBestBtn") end
+        end
+        if btn then clickUIButton(btn) end
+    end)
+end
+
+local function activateObject(target)
+    if not target then return end
+    pcall(function()
+        if fireproximityprompt then fireproximityprompt(target) end
+    end)
+end
+
+-- ============================================
+-- ANTI AFK - PRESS W KEY
+-- ============================================
+local function pressW()
+    pcall(function()
+        if keypress and keyrelease then
+            keypress(0x57)
+            task.wait(1.5)
+            keyrelease(0x57)
+        else
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+            task.wait(1.5)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+        end
+    end)
+end
+
+task.spawn(function()
+    while true do
+        if antiAfkState then
+            pressW()
+            for i = 1, 900 do
+                if not antiAfkState then break end
+                task.wait(1)
+            end
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- ============================================
+-- AUTO LOOPS
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoRollState then
+                local t = findRollAntObject()
+                if t then activateObject(t) end
+            end
+        end)
+        task.wait(6)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoSellState then
+                for _, t in ipairs(findSellObjects()) do
+                    if not autoSellState then break end
+                    activateObject(t)
+                    task.wait(0.1)
+                end
+            end
+        end)
+        task.wait(0.8)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoEquipState then clickEquipBest() end
+        end)
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoClaimStarState then
+                local t = findClaimStarObject()
+                if t then activateObject(t) end
+            end
+        end)
+        task.wait(0.5)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoBuyAllAntState then
+                for _, t in ipairs(findBuyAllAntObjects()) do
+                    if not autoBuyAllAntState then break end
+                    activateObject(t)
+                    task.wait(0.15)
+                end
+            end
+        end)
+        task.wait(1.5)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoBuyAntState then
+                for _, t in ipairs(findBuyAntObjectsMin()) do
+                    if not autoBuyAntState then break end
+                    activateObject(t)
+                    task.wait(0.15)
+                end
+            end
+        end)
+        task.wait(1.5)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoBuyItemState and next(selectedItems) then
+                local items = scanShopItems()
+                for _, item in ipairs(items) do
+                    if not autoBuyItemState then break end
+                    if item.ForSale and selectedItems[item.Display] then
+                        clickUIButton(item.BuyBtn)
+                        task.wait(0.4)
+                    end
+                end
+            end
+        end)
+        task.wait(1)
+    end
+end)
+
+-- ============================================
+-- TAB 1: HOME
+-- ============================================
+local HomeTab = Window:Tab({ Title = "Home", Icon = "home" })
+
+HomeTab:Button({
+    Title = "Copy Discord Link",
+    Icon = "copy",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://discord.gg/5kNdBzNWk8")
+            WindUI:Notify({ Title = "T HUB", Content = "Copied!", Duration = 3 })
+        end
+    end
+})
+
+-- ============================================
+-- TAB 2: AUTO FARM
+-- ============================================
+local FarmTab = Window:Tab({ Title = "Auto Farm", Icon = "target" })
+
+-- Section Anti AFK (đặt trên)
+FarmTab:Section({ Title = "Anti AFK", Icon = "clock" })
+
+FarmTab:Toggle({
+    Title = "Anti AFK",
+    Icon = "keyboard",
+    Default = false,
+    Callback = function(s)
+        antiAfkState = s
+        if s then
+            WindUI:Notify({
+                Title = "Anti AFK",
+                Content = "Activated!",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "Anti AFK",
+                Content = "Deactivated",
+                Duration = 2
+            })
+        end
+    end
+})
+
+-- Section chính
+FarmTab:Section({ Title = "Farm Features", Icon = "zap" })
+
+FarmTab:Toggle({
+    Title = "Auto Roll Ant",
+    Icon = "dices",
+    Default = false,
+    Callback = function(s)
+        autoRollState = s
+        WindUI:Notify({ Title = "Auto Roll", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+FarmTab:Toggle({
+    Title = "Auto Sell Food",
+    Icon = "coins",
+    Default = false,
+    Callback = function(s)
+        autoSellState = s
+        WindUI:Notify({ Title = "Auto Sell", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+FarmTab:Toggle({
+    Title = "Auto Equip Best",
+    Icon = "shield",
+    Default = false,
+    Callback = function(s)
+        autoEquipState = s
+        WindUI:Notify({ Title = "Auto Equip", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+-- ============================================
+-- TAB 3: AUTO EXTRA
+-- ============================================
+local ExtraTab = Window:Tab({ Title = "Auto Extra", Icon = "sparkles" })
+
+ExtraTab:Toggle({
+    Title = "Auto Claim Star",
+    Icon = "star",
+    Default = false,
+    Callback = function(s)
+        autoClaimStarState = s
+        WindUI:Notify({ Title = "Claim Star", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+ExtraTab:Toggle({
+    Title = "Auto Buy All Ant",
+    Icon = "shopping-cart",
+    Default = false,
+    Callback = function(s)
+        autoBuyAllAntState = s
+        WindUI:Notify({ Title = "Buy All Ant", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+ExtraTab:Toggle({
+    Title = "Auto Buy Ant (check price)",
+    Icon = "tag",
+    Default = false,
+    Callback = function(s)
+        autoBuyAntState = s
+        WindUI:Notify({ Title = "Buy Ant", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+local displayParagraph = ExtraTab:Paragraph({
+    Title = "Applied Price",
+    Desc = "Format: " .. formatMoney(buyAntMinPrice),
+})
+
+ExtraTab:Input({
+    Title = "Enter Ant Price ($)",
+    Desc = "Enter number, e.g. 10000 → 10K",
+    Icon = "dollar-sign",
+    Value = tostring(buyAntMinPrice),
+    Callback = function(text)
+        local num = tonumber(text)
+        if num and num >= 0 then
+            buyAntMinPrice = num
+            pcall(function()
+                displayParagraph:SetDesc("Format: " .. formatMoney(num))
+            end)
+            WindUI:Notify({
+                Title = "Buy Ant",
+                Content = "Set: " .. formatMoney(num),
+                Duration = 2
+            })
+        else
+            WindUI:Notify({ Title = "Buy Ant", Content = "Invalid number!", Duration = 2 })
+        end
+    end
+})
+
+-- ============================================
+-- TAB 4: ITEM SHOP
+-- ============================================
+local ItemShopTab = Window:Tab({ Title = "Item Shop", Icon = "store" })
+
+ItemShopTab:Paragraph({
+    Title = "Select items to buy",
+    Desc = "Multi-select supported. Click Refresh to update.",
+})
+
+local selectedParagraph = ItemShopTab:Paragraph({
+    Title = "Selected Items",
+    Desc = "No items selected",
+})
+
+local itemDropdown = nil
+local currentScanDisplay = {}
+
+local statusBoard = ItemShopTab:Paragraph({
+    Title = "📋 Shop Status Board",
+    Desc = "Click Refresh to load items...",
+})
+
+task.spawn(function()
+    task.wait(1)
+    pcall(function()
+        for _, d in ipairs(statusBoard:GetDescendants()) do
+            if d:IsA("TextLabel") or d:IsA("TextButton") then
+                d.RichText = true
+            end
+        end
+    end)
+end)
+
+local function buildStatusBoard(items)
+    if #items == 0 then
+        return "No items in shop.\nClick Refresh to reload."
+    end
+    
+    local lines = {}
+    for _, item in ipairs(items) do
+        local color = getRarityColor(item.Rarity)
+        local emoji = getRarityEmoji(item.Rarity)
+        local statusIcon = item.ForSale and "🟢 In Stock" or "🔴 Out of Stock"
+        
+        local line = string.format(
+            '%s <font color="%s"><b>%s</b></font> [%s]\n     💰 %s  |  %s',
+            emoji,
+            color,
+            item.Name,
+            (item.Rarity ~= "" and item.Rarity or "?"),
+            tostring(item.Price),
+            statusIcon
+        )
+        table.insert(lines, line)
+    end
+    
+    return table.concat(lines, "\n\n")
+end
+
+local function refreshItemList()
+    local items = scanShopItems()
+    currentScanDisplay = {}
+    local displays = {}
+    
+    for _, item in ipairs(items) do
+        table.insert(displays, item.Display)
+        currentScanDisplay[item.Display] = item
+    end
+    
+    if #displays == 0 then
+        displays = { "(No items in shop)" }
+    end
+    
+    if itemDropdown then
+        pcall(function()
+            itemDropdown:Refresh(displays)
+        end)
+    end
+    
+    pcall(function()
+        statusBoard:SetDesc(buildStatusBoard(items))
+    end)
+    
+    WindUI:Notify({
+        Title = "Item Shop",
+        Content = "Found " .. #items .. " items",
+        Duration = 3
+    })
+end
+
+pcall(function()
+    itemDropdown = ItemShopTab:Dropdown({
+        Title = "Select Item (multi)",
+        Icon = "list",
+        Values = { "(Click Refresh to load)" },
+        Value = {},
+        Multi = true,
+        Callback = function(selected)
+            selectedItems = {}
+            local list = {}
+            
+            if type(selected) == "table" then
+                for _, v in ipairs(selected) do
+                    local name = tostring(v)
+                    if name ~= "(No items in shop)" and name ~= "(Click Refresh to load)" then
+                        selectedItems[name] = true
+                        table.insert(list, name)
+                    end
+                end
+            elseif selected then
+                local name = tostring(selected)
+                if name ~= "(No items in shop)" and name ~= "(Click Refresh to load)" then
+                    selectedItems[name] = true
+                    table.insert(list, name)
+                end
+            end
+            
+            local listStr = (#list > 0) and table.concat(list, "\n") or "No items selected"
+            pcall(function()
+                selectedParagraph:SetDesc(listStr)
+            end)
+        end
+    })
+end)
+
+ItemShopTab:Button({
+    Title = "Refresh Item List",
+    Icon = "refresh-cw",
+    Callback = function()
+        refreshItemList()
+    end
+})
+
+ItemShopTab:Toggle({
+    Title = "Auto Buy Item",
+    Icon = "shopping-bag",
+    Default = false,
+    Callback = function(s)
+        autoBuyItemState = s
+        if s and not next(selectedItems) then
+            WindUI:Notify({
+                Title = "Item Shop",
+                Content = "No items selected!",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "Auto Buy Item",
+                Content = s and "ON" or "OFF",
+                Duration = 2
+            })
+        end
+    end
+})
+
+task.spawn(function()
+    task.wait(3)
+    refreshItemList()
+    
+    while true do
+        task.wait(5)
+        if not autoBuyItemState then
+            pcall(function()
+                local items = scanShopItems()
+                pcall(function()
+                    statusBoard:SetDesc(buildStatusBoard(items))
+                end)
+            end)
+        end
+    end
+end)
+
+-- ============================================
+-- TAB 5: SERVER
+-- ============================================
+local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
+
+local ServerParagraph = ServerTab:Paragraph({
+    Title = "Server Status",
+    Desc = "Loading...",
+})
+
+local fps, frames, last = 0, 0, os.clock()
+RunService.RenderStepped:Connect(function()
+    frames += 1
+    if os.clock() - last >= 1 then fps, frames, last = frames, 0, os.clock() end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+            ServerParagraph:SetDesc(string.format(
+                "Players: %d/%d\nJob ID: %s\nPing: %s\nFPS: %d",
+                #Players:GetPlayers(), Players.MaxPlayers, game.JobId, ping, fps))
+        end)
+    end
+end)
+
+ServerTab:Button({
+    Title = "Copy Job ID",
+    Icon = "clipboard",
+    Callback = function()
+        if setclipboard then
+            setclipboard(game.JobId)
+            WindUI:Notify({ Title = "T HUB", Content = "Copied Job ID!", Duration = 3 })
+        end
+    end
+})
+
+ServerTab:Button({
+    Title = "Rejoin Server",
+    Icon = "rotate-cw",
+    Callback = function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+    end
+})
+
+WindUI:Notify({
+    Title = "T HUB v5.8",
+    Content = "Loaded! Anti AFK moved to Auto Farm.",
+    Duration = 5
+})
