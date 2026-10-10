@@ -17,7 +17,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local NPOINT_URL = "https://api.npoint.io/cd54b4bf2ab3d1bcfa13"
-local KEY_LINK = "https://link4m.net/5oXKcUz"
+local KEY_LINK = "https://thubchinh.vercel.app/"
 local SAVED_DATA_FILENAME = "THUB_AutoLoginData.json"
 
 -- ══════════════════════════════════════════════════════════════
