@@ -1,0 +1,490 @@
+-- =======================================================
+-- AUTO FARM HUB - WINDUI (BẮT BUỘC AUTO USE ITEM)
+-- =======================================================
+
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+end)
+
+if not success or not WindUI then
+    warn("Không thể tải WindUI, vui lòng kiểm tra lại executor.")
+    return
+end
+
+local Window = WindUI:CreateWindow({
+    Title = "AUTO FARM HUB",
+    Icon = "crosshair",
+    Author = "T HUB",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(600, 420),
+    Transparent = false,
+})
+
+Window:EditOpenButton({
+    Title = "Mở Auto Farm",
+    Icon = "zap",
+    CornerRadius = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromHex("0052D4"), Color3.fromHex("6FB1FC")),
+    Enabled = true,
+    Draggable = true,
+})
+
+-- ==================== BIẾN TOÀN CỤC ====================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local autoFarmEnabled = false
+local autoFireEnabled = false
+local autoStartEnabled = false
+local autoUseItemEnabled = false
+local selectedItemName = ""
+local targetEnemy = nil
+local MAX_DISTANCE = 50
+local FLY_HEIGHT = 36
+local CAM_DISTANCE = 8
+local lastValidPos = nil
+
+local EXCLUDED_ITEMS = {
+    ["Pickaxe"] = true,
+    ["Build"] = true,
+}
+
+local farmToggle = nil
+local itemToggle = nil
+local itemDropdown = nil
+
+-- ==================== HÀM TÌM QUÁI ====================
+local function isEnemy(model)
+    if not model:IsA("Model") then return false end
+    if model == LocalPlayer.Character then return false end
+    if not model:FindFirstChild("Humanoid") or not model:FindFirstChild("HumanoidRootPart") then return false end
+    if model.Humanoid.Health <= 0 then return false end
+    local player = Players:GetPlayerFromCharacter(model)
+    if player then return false end
+    return true
+end
+
+local function getAllEnemies()
+    local list = {}
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return list end
+    local myPos = char.HumanoidRootPart.Position
+
+    local function scanFolder(folder)
+        for _, obj in pairs(folder:GetChildren()) do
+            if isEnemy(obj) then
+                local enemyPos = obj.HumanoidRootPart.Position
+                local dx = myPos.X - enemyPos.X
+                local dz = myPos.Z - enemyPos.Z
+                local horizontalDist = math.sqrt(dx*dx + dz*dz)
+                if horizontalDist <= MAX_DISTANCE then
+                    table.insert(list, obj)
+                end
+            end
+            if obj:IsA("Folder") or obj:IsA("Model") then
+                scanFolder(obj)
+            end
+        end
+    end
+    scanFolder(workspace)
+    return list
+end
+
+local function getClosestEnemy()
+    local list = getAllEnemies()
+    local closest = nil
+    local minDist = math.huge
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = char.HumanoidRootPart.Position
+    for _, enemy in pairs(list) do
+        local enemyPos = enemy.HumanoidRootPart.Position
+        local dx = myPos.X - enemyPos.X
+        local dz = myPos.Z - enemyPos.Z
+        local dist = math.sqrt(dx*dx + dz*dz)
+        if dist < minDist then
+            minDist = dist
+            closest = enemy
+        end
+    end
+    return closest
+end
+
+-- ==================== AUTO FIRE ====================
+local function autoFire()
+    if not autoFireEnabled then return end
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+end
+
+-- ==================== AUTO START ====================
+local function fireButtonSignal(button)
+    if not button then return end
+    pcall(function()
+        if getconnections then
+            for _, connection in ipairs(getconnections(button.Activated)) do
+                connection:Fire()
+            end
+            for _, connection in ipairs(getconnections(button.MouseButton1Click)) do
+                connection:Fire()
+            end
+        elseif firesignal then
+            firesignal(button.MouseButton1Click)
+            firesignal(button.Activated)
+        end
+    end)
+end
+
+local function triggerStartButton()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+    local bunkerMenus = playerGui:FindFirstChild("BunkerMenus")
+    if not bunkerMenus then return false end
+    local startRaid = bunkerMenus:FindFirstChild("StartRaid")
+    if not startRaid then return false end
+    local body = startRaid:FindFirstChild("Body")
+    if not body then return false end
+    local startButton = body:FindFirstChild("Start")
+    if not startButton or not startButton.Visible then return false end
+    fireButtonSignal(startButton)
+    return true
+end
+
+-- ==================== RESET TRẠNG THÁI ====================
+local function resetCharacterState()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Humanoid") then return end
+    local hum = char.Humanoid
+
+    hum.PlatformStand = false
+    hum.AutoRotate = true
+    hum.WalkSpeed = 16
+    hum.JumpPower = 50
+    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+    task.wait(0.1)
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        for _, obj in pairs(hrp:GetChildren()) do
+            if obj:IsA("BodyPosition") or obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
+                obj:Destroy()
+            end
+        end
+    end
+end
+
+-- ==================== AUTO USE ITEM ====================
+local function activateTool(tool)
+    if not tool then return end
+
+    pcall(function()
+        if getconnections then
+            for _, conn in ipairs(getconnections(tool.Activated)) do
+                conn:Fire()
+            end
+        end
+    end)
+
+    pcall(function()
+        tool:Activate()
+    end)
+end
+
+local function autoUseItemLoop()
+    while task.wait(0.1) do
+        if not autoUseItemEnabled or selectedItemName == "" then continue end
+
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("Humanoid") then continue end
+
+        local hum = char.Humanoid
+        local equippedTool = char:FindFirstChildOfClass("Tool")
+
+        if not equippedTool or equippedTool.Name ~= selectedItemName then
+            local backpack = LocalPlayer:FindFirstChild("Backpack")
+            if backpack then
+                local targetTool = backpack:FindFirstChild(selectedItemName)
+                if targetTool then
+                    pcall(function()
+                        hum:EquipTool(targetTool)
+                    end)
+                    task.wait(0.05)
+                    if targetTool.Parent ~= char then
+                        pcall(function()
+                            targetTool.Parent = char
+                        end)
+                    end
+                end
+            end
+        end
+
+        task.wait(0.05)
+        local currentTool = char:FindFirstChildOfClass("Tool")
+        if currentTool and currentTool.Name == selectedItemName then
+            activateTool(currentTool)
+        end
+    end
+end
+
+-- ==================== LOGIC AUTO FARM ====================
+local function autoFarmLoop()
+    while task.wait() do
+        -- KIỂM TRA ĐIỀU KIỆN: Nếu Auto Farm bật nhưng Auto Use Item tắt hoặc chưa chọn item → tự tắt
+        if autoFarmEnabled then
+            if not autoUseItemEnabled or selectedItemName == "" then
+                autoFarmEnabled = false
+                if farmToggle then
+                    pcall(function() farmToggle:Set(false) end)
+                end
+                targetEnemy = nil
+                lastValidPos = nil
+                resetCharacterState()
+                Camera.CameraType = Enum.CameraType.Custom
+                WindUI:Notify({ Title = "Auto Farm", Content = "Đã tắt vì thiếu điều kiện!", Duration = 3 })
+                continue
+            end
+        end
+
+        if not autoFarmEnabled then continue end
+
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then continue end
+
+        local root = char.HumanoidRootPart
+        char.Humanoid.AutoRotate = false
+
+        if targetEnemy then
+            local enemyPos = targetEnemy.HumanoidRootPart.Position
+            local dx = root.Position.X - enemyPos.X
+            local dz = root.Position.Z - enemyPos.Z
+            local horizontalDist = math.sqrt(dx*dx + dz*dz)
+            if not targetEnemy.Parent or targetEnemy.Humanoid.Health <= 0 or horizontalDist > MAX_DISTANCE then
+                targetEnemy = nil
+            end
+        end
+
+        if not targetEnemy then
+            targetEnemy = getClosestEnemy()
+        end
+
+        if targetEnemy then
+            local enemyRoot = targetEnemy.HumanoidRootPart
+
+            local targetPos = enemyRoot.Position + Vector3.new(0, FLY_HEIGHT, 0)
+            local lookDir = (enemyRoot.Position - targetPos).Unit
+            root.CFrame = CFrame.lookAt(targetPos, targetPos + lookDir)
+            root.Velocity = Vector3.new(0, 0, 0)
+
+            lastValidPos = root.CFrame
+
+            Camera.CameraType = Enum.CameraType.Scriptable
+            local forwardDir = (enemyRoot.Position - root.Position).Unit
+            local camPos = root.Position + forwardDir * CAM_DISTANCE + Vector3.new(0, 1.5, 0)
+            Camera.CFrame = CFrame.new(camPos, enemyRoot.Position)
+
+            if autoFireEnabled then autoFire() end
+        else
+            if lastValidPos then
+                root.CFrame = lastValidPos
+                root.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end
+end
+
+-- ==================== THREAD RIÊNG CHO AUTO START ====================
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoStartEnabled then
+            local ok = triggerStartButton()
+            if ok then
+                task.wait(1.5)
+            end
+        end
+    end
+end)
+
+-- ==================== TAB DUY NHẤT ====================
+local MainTab = Window:Tab({
+    Title = "Auto Farm",
+    Icon = "crosshair",
+})
+
+local function getBackpackItems()
+    local items = {}
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, child in pairs(backpack:GetChildren()) do
+            if child:IsA("Tool") then
+                if not EXCLUDED_ITEMS[child.Name] then
+                    table.insert(items, child.Name)
+                end
+            end
+        end
+    end
+    if #items == 0 then
+        table.insert(items, "Không có item")
+    end
+    return items
+end
+
+local function isDifferent(list1, list2)
+    if #list1 ~= #list2 then return true end
+    for i = 1, #list1 do
+        if list1[i] ~= list2[i] then return true end
+    end
+    return false
+end
+
+-- 1. Auto Use Item
+itemToggle = MainTab:Toggle({
+    Title = "Auto Use Item",
+    Default = false,
+    Callback = function(state)
+        autoUseItemEnabled = state
+        WindUI:Notify({ Title = "Auto Use Item", Content = state and "BẬT" or "TẮT", Duration = 2 })
+
+        -- Nếu tắt Auto Use Item mà Auto Farm đang bật → tự tắt Auto Farm
+        if not state and autoFarmEnabled then
+            autoFarmEnabled = false
+            if farmToggle then
+                pcall(function() farmToggle:Set(false) end)
+            end
+            targetEnemy = nil
+            lastValidPos = nil
+            resetCharacterState()
+            Camera.CameraType = Enum.CameraType.Custom
+            WindUI:Notify({ Title = "Auto Farm", Content = "Đã tắt vì Auto Use Item bị tắt", Duration = 3 })
+        end
+    end
+})
+
+-- 2. Ô chọn Item
+itemDropdown = MainTab:Dropdown({
+    Title = "Chọn Item để dùng",
+    Values = getBackpackItems(),
+    Value = nil,
+    Callback = function(option)
+        selectedItemName = option
+    end
+})
+
+-- 3. Auto Farm (yêu cầu Auto Use Item phải bật + đã chọn item)
+farmToggle = MainTab:Toggle({
+    Title = "Auto Farm",
+    Default = false,
+    Callback = function(state)
+        -- Kiểm tra điều kiện khi bật
+        if state then
+            if not autoUseItemEnabled then
+                WindUI:Notify({ Title = "Auto Farm", Content = "Phải BẬT Auto Use Item trước!", Duration = 3 })
+                if farmToggle then
+                    pcall(function() farmToggle:Set(false) end)
+                end
+                return
+            end
+
+            if selectedItemName == "" then
+                WindUI:Notify({ Title = "Auto Farm", Content = "Phải CHỌN Item trước!", Duration = 3 })
+                if farmToggle then
+                    pcall(function() farmToggle:Set(false) end)
+                end
+                return
+            end
+        end
+
+        autoFarmEnabled = state
+        local char = LocalPlayer.Character
+
+        if state then
+            resetCharacterState()
+            targetEnemy = nil
+            lastValidPos = nil
+
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                char.Humanoid.PlatformStand = true
+                char.Humanoid.AutoRotate = false
+                char.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                lastValidPos = char.HumanoidRootPart.CFrame + Vector3.new(0, FLY_HEIGHT, 0)
+            end
+            WindUI:Notify({ Title = "Auto Farm", Content = "Đã BẬT", Duration = 2 })
+        else
+            targetEnemy = nil
+            lastValidPos = nil
+            resetCharacterState()
+            Camera.CameraType = Enum.CameraType.Custom
+            WindUI:Notify({ Title = "Auto Farm", Content = "Đã TẮT", Duration = 2 })
+        end
+    end
+})
+
+-- 4. Độ cao bay
+MainTab:Input({
+    Title = "Độ cao bay",
+    Value = "36",
+    Placeholder = "36",
+    Callback = function(text)
+        local num = tonumber(text)
+        if num and num >= 1 and num <= 500 then
+            FLY_HEIGHT = num
+        end
+    end
+})
+
+-- 5. Bán kính quét
+MainTab:Input({
+    Title = "Bán kính quét",
+    Value = "50",
+    Placeholder = "50",
+    Callback = function(text)
+        local num = tonumber(text)
+        if num and num >= 1 and num <= 1000 then
+            MAX_DISTANCE = num
+        end
+    end
+})
+
+-- 6. Auto Fire
+MainTab:Toggle({
+    Title = "Auto Fire",
+    Default = false,
+    Callback = function(state)
+        autoFireEnabled = state
+        WindUI:Notify({ Title = "Auto Fire", Content = state and "BẬT" or "TẮT", Duration = 2 })
+    end
+})
+
+-- 7. Auto Start
+MainTab:Toggle({
+    Title = "Auto Start",
+    Default = false,
+    Callback = function(state)
+        autoStartEnabled = state
+        WindUI:Notify({ Title = "Auto Start", Content = state and "BẬT" or "TẮT", Duration = 2 })
+    end
+})
+
+-- ==================== THREAD TỰ ĐỘNG CẬP NHẬT DROPDOWN ====================
+task.spawn(function()
+    local lastItems = getBackpackItems()
+    while task.wait(1) do
+        local newItems = getBackpackItems()
+        if isDifferent(lastItems, newItems) then
+            lastItems = newItems
+            if itemDropdown then
+                pcall(function()
+                    itemDropdown:SetValues(newItems)
+                end)
+            end
+        end
+    end
+end)
+
+-- ==================== KHỞI CHẠY ====================
+task.spawn(autoFarmLoop)
+task.spawn(autoUseItemLoop)
