@@ -377,7 +377,7 @@ end
 -- WINDOW
 -- ============================================
 local Window = WindUI:CreateWindow({
-    Title = "T HUB | Ultimate Auto",
+    Title = "T HUB | Build An Ant Empire",
     Icon = "shield-check",
     Author = "Official T HUB",
     Theme = "Dark",
@@ -1358,9 +1358,9 @@ task.spawn(function()
 end)
 
 -- ============================================
--- TAB 6: AUTO EXTRA
+-- TAB 6: AUTO Buy&Claim
 -- ============================================
-local ExtraTab = Window:Tab({ Title = "Auto Extra", Icon = "zap" })
+local ExtraTab = Window:Tab({ Title = "Auto Buy&Claim", Icon = "zap" })
 
 ExtraTab:Toggle({
     Title = "Auto Claim Star",
