@@ -1,5 +1,5 @@
 -- ============================================
--- T HUB v8.5 | Star Event có lưu ý
+-- T HUB v8.7 | Auto Roll Interval auto-fix input
 -- ============================================
 
 local success, WindUI = pcall(function()
@@ -71,6 +71,7 @@ local autoStartState = false
 local autoX4SpeedState = false
 local enterTeleported = false
 local buyAntMinPrice = 13000
+local rollInterval = 7
 local selectedItems = {}
 
 -- ============================================
@@ -437,7 +438,7 @@ local function findFlipStarUIButton()
 end
 
 -- ============================================
--- FIND ENTER DUNGEON PROMPT (skip đã đi)
+-- FIND ENTER DUNGEON PROMPT
 -- ============================================
 local function findEnterDungeonPrompt()
     local best = nil
@@ -587,9 +588,11 @@ task.spawn(function()
             if autoRollState then
                 local t = findRollAntObject()
                 if t then activateObject(t) end
+                task.wait(rollInterval)
+            else
+                task.wait(0.5)
             end
         end)
-        task.wait(6)
     end
 end)
 
@@ -735,7 +738,7 @@ task.spawn(function()
 end)
 
 -- ============================================
--- DUNGEON EXIT DETECTION (reset enterTeleported)
+-- DUNGEON EXIT DETECTION
 -- ============================================
 task.spawn(function()
     while true do
@@ -902,6 +905,96 @@ FarmTab:Toggle({
     end
 })
 
+-- Input điều chỉnh thời gian auto roll (tự đổi giá trị nếu ngoài range)
+local rollInputElement = FarmTab:Input({
+    Title = "Auto Roll Interval (seconds)",
+    Desc = "Range: 6 - 20s. Dưới 6 → 6, trên 20 → 20.",
+    Icon = "clock",
+    Value = "7",
+    Callback = function(text)
+        local num = tonumber(text)
+        if not num then
+            WindUI:Notify({
+                Title = "Auto Roll",
+                Content = "Số không hợp lệ! Dùng 7s mặc định.",
+                Duration = 3
+            })
+            rollInterval = 7
+            -- Đổi input thành "7"
+            pcall(function()
+                if rollInputElement and rollInputElement.SetValue then
+                    rollInputElement:SetValue("7")
+                end
+            end)
+            task.spawn(function()
+                task.wait(0.1)
+                pcall(function()
+                    for _, gui in ipairs(playerGui:GetDescendants()) do
+                        if gui:IsA("TextBox") and tonumber(gui.Text) == nil then
+                            -- không đổi
+                        end
+                    end
+                end)
+            end)
+            return
+        end
+        
+        local newVal = num
+        local clamped = false
+        
+        if num < 6 then
+            newVal = 6
+            clamped = true
+            WindUI:Notify({
+                Title = "Auto Roll",
+                Content = "Quá nhỏ! Tự động điều chỉnh thành 6s.",
+                Duration = 3
+            })
+        elseif num > 20 then
+            newVal = 20
+            clamped = true
+            WindUI:Notify({
+                Title = "Auto Roll",
+                Content = "Quá lớn! Tự động điều chỉnh thành 20s.",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "Auto Roll",
+                Content = "Đã đặt thời gian: " .. num .. "s",
+                Duration = 2
+            })
+        end
+        
+        rollInterval = newVal
+        
+        -- Cập nhật input hiển thị số mới
+        if clamped then
+            task.spawn(function()
+                task.wait(0.05)
+                pcall(function()
+                    if rollInputElement and rollInputElement.SetValue then
+                        rollInputElement:SetValue(tostring(newVal))
+                    end
+                end)
+                -- Fallback: tìm TextBox và đổi trực tiếp
+                task.wait(0.1)
+                pcall(function()
+                    for _, gui in ipairs(playerGui:GetDescendants()) do
+                        if gui:IsA("TextBox") then
+                            local cur = tonumber(gui.Text)
+                            if cur == num then
+                                gui.Text = tostring(newVal)
+                                break
+                            end
+                        end
+                    end
+                end)
+            end)
+        end
+    end
+})
+
 FarmTab:Toggle({
     Title = "Auto Sell Food",
     Icon = "coins",
@@ -923,7 +1016,7 @@ FarmTab:Toggle({
 })
 
 -- ============================================
--- TAB 3: STAR EVENT (có lưu ý)
+-- TAB 3: STAR EVENT
 -- ============================================
 local StarEventTab = Window:Tab({ Title = "Star Event", Icon = "star" })
 
@@ -1273,7 +1366,7 @@ ServerTab:Button({
 })
 
 WindUI:Notify({
-    Title = "T HUB v8.5",
-    Content = "Loaded! Star Event có lưu ý.",
+    Title = "T HUB v8.7",
+    Content = "Loaded! Auto Roll Interval auto-fix.",
     Duration = 5
 })
