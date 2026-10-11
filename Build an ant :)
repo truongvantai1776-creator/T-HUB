@@ -1,5 +1,5 @@
 -- ============================================
--- T HUB v5.8 | Anti AFK in Auto Farm
+-- T HUB v8.5 | Star Event có lưu ý
 -- ============================================
 
 local success, WindUI = pcall(function()
@@ -62,10 +62,75 @@ local autoEquipState = false
 local autoClaimStarState = false
 local autoBuyAllAntState = false
 local autoBuyAntState = false
+local ignoreCashCheck = false
 local autoBuyItemState = false
 local antiAfkState = false
+local autoFlipStarState = false
+local autoEnterDungeonState = false
+local autoStartState = false
+local autoX4SpeedState = false
+local enterTeleported = false
 local buyAntMinPrice = 13000
 local selectedItems = {}
+
+-- ============================================
+-- DUNGEON TRACKER SYSTEM
+-- ============================================
+local visitedDungeons = {}
+local completedDungeons = {}
+local DUNGEON_TELEPORT_THRESHOLD = 30
+
+local dungeonCheckPending = false
+local dungeonCheckStartPos = nil
+local dungeonCheckPromptKey = nil
+local dungeonCheckPromptName = ""
+
+local wasInDungeon = false
+local lastDungeonExitTime = 0
+
+local function getPromptPos(prompt)
+    if not prompt or not prompt.Parent then return nil end
+    local pos = nil
+    pcall(function()
+        if prompt.Parent:IsA("BasePart") then
+            pos = prompt.Parent.Position
+        elseif prompt.Parent:IsA("Attachment") then
+            pos = prompt.Parent.WorldPosition
+        else
+            for _, p in ipairs(prompt.Parent:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    pos = p.Position; break
+                end
+            end
+        end
+    end)
+    return pos
+end
+
+local function getPromptKey(prompt)
+    if not prompt or not prompt.Parent then return nil end
+    local pos = getPromptPos(prompt)
+    if pos then
+        return string.format("%s (%d,%d,%d)",
+            prompt.Parent.Name,
+            math.floor(pos.X / 5),
+            math.floor(pos.Y / 5),
+            math.floor(pos.Z / 5))
+    end
+    return prompt.Parent.Name
+end
+
+local function getVisitedCount()
+    local c = 0
+    for _ in pairs(visitedDungeons) do c = c + 1 end
+    return c
+end
+
+local function getCompletedCount()
+    local c = 0
+    for _ in pairs(completedDungeons) do c = c + 1 end
+    return c
+end
 
 -- ============================================
 -- MONEY FORMAT
@@ -93,8 +158,56 @@ local function formatMoney(n)
     end
 end
 
+local function parseMoneyStr(text)
+    if not text then return 0 end
+    text = tostring(text):gsub("%s", ""):gsub("%$", ""):gsub(",", ""):lower()
+    local mult = 1
+    if text:find("t") then mult = 1e12; text = text:gsub("t", "")
+    elseif text:find("b") then mult = 1e9; text = text:gsub("b", "")
+    elseif text:find("m") then mult = 1e6; text = text:gsub("m", "")
+    elseif text:find("k") then mult = 1e3; text = text:gsub("k", "")
+    end
+    local num = tonumber(text)
+    if num then return math.floor(num * mult) end
+    return 0
+end
+
+local function getPlayerCash()
+    local ls = player:FindFirstChild("leaderstats")
+    if ls then
+        for _, v in ipairs(ls:GetChildren()) do
+            if v:IsA("IntValue") or v:IsA("NumberValue") or v:IsA("StringValue") then
+                local n = string.lower(v.Name)
+                if n:find("cash") or n:find("money") or n:find("coin") or n:find("$") then
+                    return parseMoneyStr(v.Value)
+                end
+            end
+        end
+    end
+    for _, attr in ipairs(player:GetAttributes()) do
+        local n = string.lower(attr)
+        if n:find("cash") or n:find("money") or n:find("coin") then
+            return parseMoneyStr(player:GetAttribute(attr))
+        end
+    end
+    local bestVal = 0
+    for _, gui in ipairs(playerGui:GetDescendants()) do
+        if gui:IsA("TextLabel") then
+            local txt = gui.Text or ""
+            if txt:find("%$") then
+                local cleaned = txt:gsub("%s", ""):gsub("%$", "")
+                if cleaned:match("%d") and (#cleaned <= 15) then
+                    local val = parseMoneyStr(txt)
+                    if val > bestVal then bestVal = val end
+                end
+            end
+        end
+    end
+    return bestVal
+end
+
 -- ============================================
--- RARITY COLORS
+-- RARITY
 -- ============================================
 local function getRarityColor(rarity)
     local r = string.lower(rarity or "")
@@ -106,8 +219,7 @@ local function getRarityColor(rarity)
     elseif r:find("mythic") then return "#EF4444"
     elseif r:find("godly") or r:find("divine") then return "#EC4899"
     elseif r:find("secret") then return "#FBBF24"
-    else return "#FFFFFF"
-    end
+    else return "#FFFFFF" end
 end
 
 local function getRarityEmoji(rarity)
@@ -120,8 +232,7 @@ local function getRarityEmoji(rarity)
     elseif r:find("mythic") then return "🔴"
     elseif r:find("godly") or r:find("divine") then return "💗"
     elseif r:find("secret") then return "⭐"
-    else return "⚫"
-    end
+    else return "⚫" end
 end
 
 -- ============================================
@@ -139,51 +250,33 @@ local function readItemInfo(folder)
     local price = "?"
     local rarity = ""
     local forSale = true
-    
     pcall(function()
         local gearName = folder:FindFirstChild("GearName", true)
         if gearName then
-            if gearName:IsA("TextLabel") then
-                displayName = gearName.Text
-            elseif gearName:IsA("StringValue") then
-                displayName = gearName.Value
-            end
+            if gearName:IsA("TextLabel") then displayName = gearName.Text
+            elseif gearName:IsA("StringValue") then displayName = gearName.Value end
         end
-        
         local cost = folder:FindFirstChild("Cost", true)
         if cost then
-            if cost:IsA("TextLabel") then
-                price = cost.Text
-            elseif cost:IsA("StringValue") then
-                price = cost.Value
-            elseif cost:IsA("IntValue") then
-                price = formatMoney(cost.Value)
-            end
+            if cost:IsA("TextLabel") then price = cost.Text
+            elseif cost:IsA("StringValue") then price = cost.Value
+            elseif cost:IsA("IntValue") then price = formatMoney(cost.Value) end
         end
-        
         local stats = folder:FindFirstChild("Stats", true)
         if stats then
             for _, s in ipairs(stats:GetDescendants()) do
                 if s:IsA("TextLabel") and (s.Name:lower():find("rarity") or s.Name:lower():find("tier")) then
-                    rarity = s.Text
-                    break
+                    rarity = s.Text; break
                 end
             end
         end
-        
         local noStock = folder:FindFirstChild("NoStock", true)
-        if noStock and noStock:IsA("GuiObject") and noStock.Visible then
-            forSale = false
-        end
-        
+        if noStock and noStock:IsA("GuiObject") and noStock.Visible then forSale = false end
         local buyBtn = folder:FindFirstChild("BuyBtn", true)
         if buyBtn then
-            if buyBtn:IsA("GuiObject") and (not buyBtn.Visible or not buyBtn.Active) then
-                forSale = false
-            end
+            if buyBtn:IsA("GuiObject") and (not buyBtn.Visible or not buyBtn.Active) then forSale = false end
         end
     end)
-    
     return displayName, price, rarity, forSale
 end
 
@@ -192,33 +285,22 @@ local function scanShopItems()
     pcall(function()
         local gearShop = getGearShopFrame()
         if not gearShop then return end
-        
         local scrolling = nil
         for _, child in ipairs(gearShop:GetDescendants()) do
-            if child:IsA("ScrollingFrame") then
-                scrolling = child
-                break
-            end
+            if child:IsA("ScrollingFrame") then scrolling = child; break end
         end
         if not scrolling then return end
-        
         for _, folder in ipairs(scrolling:GetChildren()) do
             if folder:IsA("GuiObject") or folder:IsA("Folder") then
                 local displayName, price, rarity, forSale = readItemInfo(folder)
                 local buyBtn = folder:FindFirstChild("BuyBtn", true)
-                
                 if buyBtn then
                     local rarityStr = (rarity ~= "") and (" [" .. rarity .. "]") or ""
                     local display = displayName .. rarityStr .. " - " .. tostring(price)
-                    
                     table.insert(items, {
-                        Name = displayName,
-                        Display = display,
-                        Price = price,
-                        Rarity = rarity,
-                        ForSale = forSale,
-                        Folder = folder,
-                        BuyBtn = buyBtn,
+                        Name = displayName, Display = display, Price = price,
+                        PriceNum = parseMoneyStr(price), Rarity = rarity,
+                        ForSale = forSale, Folder = folder, BuyBtn = buyBtn,
                     })
                 end
             end
@@ -250,7 +332,7 @@ Window:EditOpenButton({
 })
 
 -- ============================================
--- FIND BUTTONS (Ants)
+-- FIND BUTTONS
 -- ============================================
 local function findRollAntObject()
     local r = nil
@@ -322,6 +404,97 @@ local function findBuyAntObjectsMin()
     return t
 end
 
+local function findFlipStarPrompt()
+    local r = nil
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                local pn = string.lower(obj.Parent.Name or "")
+                if at:find("flip") or ot:find("flip") or pn:find("flip")
+                   or at:find("flip star") or pn:find("flipstar") then
+                    r = obj; break
+                end
+            end
+        end
+    end)
+    return r
+end
+
+local function findFlipStarUIButton()
+    local r = nil
+    pcall(function()
+        for _, gui in ipairs(playerGui:GetDescendants()) do
+            if gui:IsA("TextButton") or gui:IsA("ImageButton") then
+                local n = string.lower(gui.Name or "")
+                local txt = string.lower(gui.Text or "")
+                if n:find("flip") or txt:find("flip") then r = gui; break end
+            end
+        end
+    end)
+    return r
+end
+
+-- ============================================
+-- FIND ENTER DUNGEON PROMPT (skip đã đi)
+-- ============================================
+local function findEnterDungeonPrompt()
+    local best = nil
+    local bestScore = 0
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local key = getPromptKey(obj)
+                local isVisited = key and visitedDungeons[key]
+                
+                if not isVisited then
+                    local at = string.lower(obj.ActionText or "")
+                    local ot = string.lower(obj.ObjectText or "")
+                    local pn = string.lower(obj.Parent.Name or "")
+                    local score = 0
+                    if at == "enter" then score = 100
+                    elseif at:find("enter dungeon") then score = 90
+                    elseif at:find("enter") then score = 80
+                    elseif ot:find("enter") then score = 50
+                    elseif pn:find("dungeon") or pn:find("enter") or pn:find("portal") then score = 40 end
+                    if score > bestScore then bestScore = score; best = obj end
+                end
+            end
+        end
+    end)
+    return best
+end
+
+local function findStartButton()
+    local r = nil
+    pcall(function()
+        local hudContainer = playerGui:FindFirstChild("HUDContainer")
+        if hudContainer then
+            local dungeonPanel = hudContainer:FindFirstChild("DungeonPanel")
+            if dungeonPanel then
+                local visible = false
+                pcall(function() visible = dungeonPanel.Visible end)
+                if visible then
+                    r = dungeonPanel:FindFirstChild("StartBtn", true)
+                end
+            end
+        end
+    end)
+    return r
+end
+
+local function isInDungeon()
+    local hudContainer = playerGui:FindFirstChild("HUDContainer")
+    if hudContainer then
+        local dungeonPanel = hudContainer:FindFirstChild("DungeonPanel")
+        if dungeonPanel and dungeonPanel.Visible then
+            return true
+        end
+    end
+    return false
+end
+
 local function clickUIButton(btn)
     if not btn then return end
     pcall(function()
@@ -358,14 +531,12 @@ local function activateObject(target)
 end
 
 -- ============================================
--- ANTI AFK - PRESS W KEY
+-- ANTI AFK
 -- ============================================
 local function pressW()
     pcall(function()
         if keypress and keyrelease then
-            keypress(0x57)
-            task.wait(1.5)
-            keyrelease(0x57)
+            keypress(0x57); task.wait(1.5); keyrelease(0x57)
         else
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
             task.wait(1.5)
@@ -385,6 +556,25 @@ task.spawn(function()
         else
             task.wait(0.5)
         end
+    end
+end)
+
+-- ============================================
+-- AUTO x4 SPEED ATTACK
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoX4SpeedState and isInDungeon() then
+                local posX = 50
+                local posY = 50
+                VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, true, game, 1)
+                VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, false, game, 1)
+                task.wait(0.01)
+            else
+                task.wait(0.2)
+            end
+        end)
     end
 end)
 
@@ -409,8 +599,7 @@ task.spawn(function()
             if autoSellState then
                 for _, t in ipairs(findSellObjects()) do
                     if not autoSellState then break end
-                    activateObject(t)
-                    task.wait(0.1)
+                    activateObject(t); task.wait(0.1)
                 end
             end
         end)
@@ -445,8 +634,7 @@ task.spawn(function()
             if autoBuyAllAntState then
                 for _, t in ipairs(findBuyAllAntObjects()) do
                     if not autoBuyAllAntState then break end
-                    activateObject(t)
-                    task.wait(0.15)
+                    activateObject(t); task.wait(0.15)
                 end
             end
         end)
@@ -458,10 +646,19 @@ task.spawn(function()
     while true do
         pcall(function()
             if autoBuyAntState then
+                local myCash = 0
+                if not ignoreCashCheck then myCash = getPlayerCash() end
                 for _, t in ipairs(findBuyAntObjectsMin()) do
                     if not autoBuyAntState then break end
-                    activateObject(t)
-                    task.wait(0.15)
+                    local ot = string.lower(t.ObjectText or "")
+                    local at = string.lower(t.ActionText or "")
+                    local priceStr = ot:match("%$(%d+)") or at:match("%$(%d+)") or ""
+                    local price = tonumber(priceStr) or 0
+                    if ignoreCashCheck or myCash >= price then
+                        activateObject(t); task.wait(0.3)
+                    else
+                        task.wait(0.05)
+                    end
                 end
             end
         end)
@@ -477,10 +674,179 @@ task.spawn(function()
                 for _, item in ipairs(items) do
                     if not autoBuyItemState then break end
                     if item.ForSale and selectedItems[item.Display] then
-                        clickUIButton(item.BuyBtn)
-                        task.wait(0.4)
+                        clickUIButton(item.BuyBtn); task.wait(3)
                     end
                 end
+            end
+        end)
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoFlipStarState then
+                local prompt = findFlipStarPrompt()
+                if prompt then activateObject(prompt)
+                else
+                    local btn = findFlipStarUIButton()
+                    if btn then clickUIButton(btn) end
+                end
+            end
+        end)
+        task.wait(0.5)
+    end
+end)
+
+-- ============================================
+-- DUNGEON VISIT DETECTION
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            if dungeonCheckPending and dungeonCheckStartPos and dungeonCheckPromptKey then
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local dist = (hrp.Position - dungeonCheckStartPos).Magnitude
+                    if dist > DUNGEON_TELEPORT_THRESHOLD then
+                        visitedDungeons[dungeonCheckPromptKey] = {
+                            name = dungeonCheckPromptName,
+                            pos = dungeonCheckStartPos,
+                            time = os.time()
+                        }
+                        print("[T HUB] ✓ Dungeon visited: " .. dungeonCheckPromptName)
+                        WindUI:Notify({
+                            Title = "🏰 Đã vào dungeon",
+                            Content = dungeonCheckPromptName .. " (#" .. getVisitedCount() .. ")",
+                            Duration = 3
+                        })
+                        dungeonCheckPending = false
+                        dungeonCheckStartPos = nil
+                        dungeonCheckPromptKey = nil
+                        dungeonCheckPromptName = ""
+                    end
+                end
+            end
+        end)
+        task.wait(0.15)
+    end
+end)
+
+-- ============================================
+-- DUNGEON EXIT DETECTION (reset enterTeleported)
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            local inDungeon = isInDungeon()
+            
+            if inDungeon and not wasInDungeon then
+                wasInDungeon = true
+                print("[T HUB] Đang trong dungeon...")
+            elseif not inDungeon and wasInDungeon then
+                wasInDungeon = false
+                enterTeleported = false
+                local key = tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
+                completedDungeons[key] = { time = os.time() }
+                lastDungeonExitTime = os.clock()
+                print("[T HUB] ✓ Đã rời xong dungeon! Chờ 5s...")
+                WindUI:Notify({
+                    Title = "✅ Đã rời xong dungeon!",
+                    Content = "Hoàn thành #" .. getCompletedCount() .. " - Chờ 5s...",
+                    Duration = 3
+                })
+            end
+        end)
+        task.wait(0.3)
+    end
+end)
+
+-- ============================================
+-- AUTO ENTER DUNGEON
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoEnterDungeonState then
+                local now = os.clock()
+                
+                if wasInDungeon then
+                    task.wait(1)
+                else
+                    local canEnter = false
+                    if lastDungeonExitTime == 0 then
+                        canEnter = true
+                    elseif (now - lastDungeonExitTime) >= 5 then
+                        canEnter = true
+                    end
+                    
+                    if canEnter then
+                        local prompt = findEnterDungeonPrompt()
+                        if prompt and prompt.Parent then
+                            local key = getPromptKey(prompt)
+                            
+                            local char = player.Character
+                            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                            
+                            if hrp then
+                                local targetPos = getPromptPos(prompt)
+                                
+                                if targetPos then
+                                    hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))
+                                    task.wait(0.3)
+                                    
+                                    local posBeforeEnter = hrp.Position
+                                    local promptName = prompt.Parent.Name
+                                    if prompt.ObjectText and prompt.ObjectText ~= "" then
+                                        promptName = prompt.ObjectText .. " / " .. prompt.Parent.Name
+                                    end
+                                    
+                                    if fireproximityprompt then
+                                        pcall(function() fireproximityprompt(prompt) end)
+                                    end
+                                    
+                                    dungeonCheckStartPos = posBeforeEnter
+                                    dungeonCheckPromptKey = key
+                                    dungeonCheckPromptName = promptName
+                                    dungeonCheckPending = true
+                                    lastDungeonExitTime = 0
+                                    
+                                    print("[T HUB] Đã tele và fire prompt: " .. promptName)
+                                    
+                                    task.wait(3)
+                                    
+                                    if dungeonCheckPending then
+                                        dungeonCheckPending = false
+                                        dungeonCheckStartPos = nil
+                                        dungeonCheckPromptKey = nil
+                                        dungeonCheckPromptName = ""
+                                    end
+                                end
+                            end
+                        else
+                            task.wait(1)
+                        end
+                    end
+                end
+            else
+                enterTeleported = false
+            end
+        end)
+        task.wait(0.8)
+    end
+end)
+
+-- ============================================
+-- AUTO START DUNGEON
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoStartState then
+                local btn = findStartButton()
+                if btn then clickUIButton(btn) end
             end
         end)
         task.wait(1)
@@ -508,7 +874,6 @@ HomeTab:Button({
 -- ============================================
 local FarmTab = Window:Tab({ Title = "Auto Farm", Icon = "target" })
 
--- Section Anti AFK (đặt trên)
 FarmTab:Section({ Title = "Anti AFK", Icon = "clock" })
 
 FarmTab:Toggle({
@@ -517,23 +882,14 @@ FarmTab:Toggle({
     Default = false,
     Callback = function(s)
         antiAfkState = s
-        if s then
-            WindUI:Notify({
-                Title = "Anti AFK",
-                Content = "Activated!",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Anti AFK",
-                Content = "Deactivated",
-                Duration = 2
-            })
-        end
+        WindUI:Notify({
+            Title = "Anti AFK",
+            Content = s and "Activated!" or "Deactivated",
+            Duration = 2
+        })
     end
 })
 
--- Section chính
 FarmTab:Section({ Title = "Farm Features", Icon = "zap" })
 
 FarmTab:Toggle({
@@ -567,9 +923,101 @@ FarmTab:Toggle({
 })
 
 -- ============================================
--- TAB 3: AUTO EXTRA
+-- TAB 3: STAR EVENT (có lưu ý)
 -- ============================================
-local ExtraTab = Window:Tab({ Title = "Auto Extra", Icon = "sparkles" })
+local StarEventTab = Window:Tab({ Title = "Star Event", Icon = "star" })
+
+StarEventTab:Toggle({
+    Title = "Auto Flip Star",
+    Icon = "refresh-cw",
+    Default = false,
+    Callback = function(s)
+        autoFlipStarState = s
+        WindUI:Notify({
+            Title = "Auto Flip Star",
+            Content = s and "ON - Flipping stars..." or "OFF",
+            Duration = 2
+        })
+    end
+})
+
+StarEventTab:Paragraph({
+    Title = "⚠️ Lưu ý",
+    Desc = "• Cần cầm item Star lên để auto flip star\n• Đây chỉ là flip star. Nếu muốn vào cổng đánh boss star thì cần vào mục Dungeon và bật các chức năng trong đó lên.",
+})
+
+-- ============================================
+-- TAB 4: DUNGEON
+-- ============================================
+local DungeonTab = Window:Tab({ Title = "Dungeon", Icon = "map" })
+
+DungeonTab:Toggle({
+    Title = "Auto Enter Dungeon",
+    Icon = "door-open",
+    Default = false,
+    Callback = function(s)
+        autoEnterDungeonState = s
+        if s then enterTeleported = false end
+        WindUI:Notify({
+            Title = "Auto Enter Dungeon",
+            Content = s and "ON - Entering dungeon..." or "OFF",
+            Duration = 2
+        })
+    end
+})
+
+DungeonTab:Toggle({
+    Title = "Auto Start",
+    Icon = "play",
+    Default = false,
+    Callback = function(s)
+        autoStartState = s
+        WindUI:Notify({
+            Title = "Auto Start",
+            Content = s and "ON - Starting dungeon..." or "OFF",
+            Duration = 2
+        })
+    end
+})
+
+DungeonTab:Toggle({
+    Title = "Auto x4 Speed Attack",
+    Icon = "zap",
+    Default = false,
+    Callback = function(s)
+        autoX4SpeedState = s
+        WindUI:Notify({
+            Title = "Auto x4 Speed",
+            Content = s and "ON - Chỉ hoạt động trong dungeon" or "OFF",
+            Duration = 3
+        })
+    end
+})
+
+local visitedCountParagraph = DungeonTab:Paragraph({
+    Title = "🏰 Dungeon đã đi",
+    Desc = "0 dungeon",
+})
+
+local completedCountParagraph = DungeonTab:Paragraph({
+    Title = "✅ Đã rời xong dungeon",
+    Desc = "0 dungeon",
+})
+
+task.spawn(function()
+    while true do
+        task.wait(2)
+        pcall(function()
+            visitedCountParagraph:SetDesc(tostring(getVisitedCount()) .. " dungeon")
+            completedCountParagraph:SetDesc(tostring(getCompletedCount()) .. " dungeon")
+        end)
+    end
+end)
+
+-- ============================================
+-- TAB 5: AUTO EXTRA
+-- ============================================
+local ExtraTab = Window:Tab({ Title = "Auto Extra", Icon = "zap" })
 
 ExtraTab:Toggle({
     Title = "Auto Claim Star",
@@ -598,6 +1046,20 @@ ExtraTab:Toggle({
     Callback = function(s)
         autoBuyAntState = s
         WindUI:Notify({ Title = "Buy Ant", Content = s and "ON" or "OFF", Duration = 2 })
+    end
+})
+
+ExtraTab:Toggle({
+    Title = "Ignore Cash Check",
+    Icon = "shield-off",
+    Default = false,
+    Callback = function(s)
+        ignoreCashCheck = s
+        WindUI:Notify({
+            Title = "Ignore Cash Check",
+            Content = s and "ON - Mua bất chấp" or "OFF - Chỉ mua khi đủ tiền",
+            Duration = 3
+        })
     end
 })
 
@@ -630,7 +1092,7 @@ ExtraTab:Input({
 })
 
 -- ============================================
--- TAB 4: ITEM SHOP
+-- TAB 6: ITEM SHOP
 -- ============================================
 local ItemShopTab = Window:Tab({ Title = "Item Shop", Icon = "store" })
 
@@ -656,36 +1118,26 @@ task.spawn(function()
     task.wait(1)
     pcall(function()
         for _, d in ipairs(statusBoard:GetDescendants()) do
-            if d:IsA("TextLabel") or d:IsA("TextButton") then
-                d.RichText = true
-            end
+            if d:IsA("TextLabel") or d:IsA("TextButton") then d.RichText = true end
         end
     end)
 end)
 
 local function buildStatusBoard(items)
-    if #items == 0 then
-        return "No items in shop.\nClick Refresh to reload."
-    end
-    
+    if #items == 0 then return "No items in shop.\nClick Refresh to reload." end
     local lines = {}
     for _, item in ipairs(items) do
         local color = getRarityColor(item.Rarity)
         local emoji = getRarityEmoji(item.Rarity)
         local statusIcon = item.ForSale and "🟢 In Stock" or "🔴 Out of Stock"
-        
         local line = string.format(
             '%s <font color="%s"><b>%s</b></font> [%s]\n     💰 %s  |  %s',
-            emoji,
-            color,
-            item.Name,
+            emoji, color, item.Name,
             (item.Rarity ~= "" and item.Rarity or "?"),
-            tostring(item.Price),
-            statusIcon
+            tostring(item.Price), statusIcon
         )
         table.insert(lines, line)
     end
-    
     return table.concat(lines, "\n\n")
 end
 
@@ -693,26 +1145,15 @@ local function refreshItemList()
     local items = scanShopItems()
     currentScanDisplay = {}
     local displays = {}
-    
     for _, item in ipairs(items) do
         table.insert(displays, item.Display)
         currentScanDisplay[item.Display] = item
     end
-    
-    if #displays == 0 then
-        displays = { "(No items in shop)" }
-    end
-    
+    if #displays == 0 then displays = { "(No items in shop)" } end
     if itemDropdown then
-        pcall(function()
-            itemDropdown:Refresh(displays)
-        end)
+        pcall(function() itemDropdown:Refresh(displays) end)
     end
-    
-    pcall(function()
-        statusBoard:SetDesc(buildStatusBoard(items))
-    end)
-    
+    pcall(function() statusBoard:SetDesc(buildStatusBoard(items)) end)
     WindUI:Notify({
         Title = "Item Shop",
         Content = "Found " .. #items .. " items",
@@ -730,7 +1171,6 @@ pcall(function()
         Callback = function(selected)
             selectedItems = {}
             local list = {}
-            
             if type(selected) == "table" then
                 for _, v in ipairs(selected) do
                     local name = tostring(v)
@@ -746,11 +1186,8 @@ pcall(function()
                     table.insert(list, name)
                 end
             end
-            
             local listStr = (#list > 0) and table.concat(list, "\n") or "No items selected"
-            pcall(function()
-                selectedParagraph:SetDesc(listStr)
-            end)
+            pcall(function() selectedParagraph:SetDesc(listStr) end)
         end
     })
 end)
@@ -758,9 +1195,7 @@ end)
 ItemShopTab:Button({
     Title = "Refresh Item List",
     Icon = "refresh-cw",
-    Callback = function()
-        refreshItemList()
-    end
+    Callback = function() refreshItemList() end
 })
 
 ItemShopTab:Toggle({
@@ -770,17 +1205,9 @@ ItemShopTab:Toggle({
     Callback = function(s)
         autoBuyItemState = s
         if s and not next(selectedItems) then
-            WindUI:Notify({
-                Title = "Item Shop",
-                Content = "No items selected!",
-                Duration = 3
-            })
+            WindUI:Notify({ Title = "Item Shop", Content = "No items selected!", Duration = 3 })
         else
-            WindUI:Notify({
-                Title = "Auto Buy Item",
-                Content = s and "ON" or "OFF",
-                Duration = 2
-            })
+            WindUI:Notify({ Title = "Auto Buy Item", Content = s and "ON" or "OFF", Duration = 2 })
         end
     end
 })
@@ -788,22 +1215,19 @@ ItemShopTab:Toggle({
 task.spawn(function()
     task.wait(3)
     refreshItemList()
-    
     while true do
         task.wait(5)
         if not autoBuyItemState then
             pcall(function()
                 local items = scanShopItems()
-                pcall(function()
-                    statusBoard:SetDesc(buildStatusBoard(items))
-                end)
+                pcall(function() statusBoard:SetDesc(buildStatusBoard(items)) end)
             end)
         end
     end
 end)
 
 -- ============================================
--- TAB 5: SERVER
+-- TAB 7: SERVER
 -- ============================================
 local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
 
@@ -849,7 +1273,7 @@ ServerTab:Button({
 })
 
 WindUI:Notify({
-    Title = "T HUB v5.8",
-    Content = "Loaded! Anti AFK moved to Auto Farm.",
+    Title = "T HUB v8.5",
+    Content = "Loaded! Star Event có lưu ý.",
     Duration = 5
 })
