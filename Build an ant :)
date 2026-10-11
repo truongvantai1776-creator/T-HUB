@@ -1,5 +1,5 @@
 -- ============================================
--- T HUB v8.7 | Auto Roll Interval auto-fix input
+-- T HUB v9.7 | Threshold 300 studs | Fail-skip + slow strawberry
 -- ============================================
 
 local success, WindUI = pcall(function()
@@ -69,6 +69,7 @@ local autoFlipStarState = false
 local autoEnterDungeonState = false
 local autoStartState = false
 local autoX4SpeedState = false
+local autoPickStrawberryState = false
 local enterTeleported = false
 local buyAntMinPrice = 13000
 local rollInterval = 7
@@ -77,17 +78,28 @@ local selectedItems = {}
 -- ============================================
 -- DUNGEON TRACKER SYSTEM
 -- ============================================
-local visitedDungeons = {}
+local visitedPositions = {}
+local positionMissingTime = {}
+local POSITION_MISSING_THRESHOLD = 60
+
+local visitedCount = 0
 local completedDungeons = {}
-local DUNGEON_TELEPORT_THRESHOLD = 30
+local DUNGEON_TELEPORT_THRESHOLD = 300
 
 local dungeonCheckPending = false
 local dungeonCheckStartPos = nil
-local dungeonCheckPromptKey = nil
 local dungeonCheckPromptName = ""
 
 local wasInDungeon = false
 local lastDungeonExitTime = 0
+
+-- Theo dõi cổng tele nhiều lần mà không vào được
+local dungeonCheckKey = nil
+local failCounts = {}
+local MAX_FAIL_ATTEMPTS = 2 -- số lần tele+Enter thất bại trước khi bỏ qua cổng đó
+
+-- Strawberry: thời gian chờ sau khi tele / sau khi bấm
+local strawberryDelay = 0.4
 
 local function getPromptPos(prompt)
     if not prompt or not prompt.Parent then return nil end
@@ -108,23 +120,16 @@ local function getPromptPos(prompt)
     return pos
 end
 
-local function getPromptKey(prompt)
-    if not prompt or not prompt.Parent then return nil end
-    local pos = getPromptPos(prompt)
-    if pos then
-        return string.format("%s (%d,%d,%d)",
-            prompt.Parent.Name,
-            math.floor(pos.X / 5),
-            math.floor(pos.Y / 5),
-            math.floor(pos.Z / 5))
-    end
-    return prompt.Parent.Name
+local function getPositionKey(pos)
+    if not pos then return nil end
+    return string.format("%d_%d_%d",
+        math.floor(pos.X / 5),
+        math.floor(pos.Y / 5),
+        math.floor(pos.Z / 5))
 end
 
 local function getVisitedCount()
-    local c = 0
-    for _ in pairs(visitedDungeons) do c = c + 1 end
-    return c
+    return visitedCount
 end
 
 local function getCompletedCount()
@@ -132,6 +137,64 @@ local function getCompletedCount()
     for _ in pairs(completedDungeons) do c = c + 1 end
     return c
 end
+
+-- ============================================
+-- VERIFY VISITED POSITIONS
+-- ============================================
+task.spawn(function()
+    while true do
+        task.wait(2)
+        pcall(function()
+            local activePositions = {}
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and obj.Enabled then
+                    local at = string.lower(obj.ActionText or "")
+                    local pn = string.lower(obj.Parent.Name or "")
+                    if at == "enter" or at:find("enter")
+                       or pn:find("dungeon") or pn:find("enter") or pn:find("portal") then
+                        local pos = nil
+                        if obj.Parent:IsA("BasePart") then
+                            pos = obj.Parent.Position
+                        else
+                            for _, p in ipairs(obj.Parent:GetDescendants()) do
+                                if p:IsA("BasePart") then
+                                    pos = p.Position; break
+                                end
+                            end
+                        end
+                        if pos then
+                            local key = getPositionKey(pos)
+                            if key then activePositions[key] = true end
+                        end
+                    end
+                end
+            end
+            
+            local toRemove = {}
+            for key, _ in pairs(visitedPositions) do
+                if activePositions[key] then
+                    if positionMissingTime[key] then
+                        positionMissingTime[key] = nil
+                        print("[T HUB] Cổng còn tại " .. key .. " → reset timer")
+                    end
+                else
+                    if not positionMissingTime[key] then
+                        positionMissingTime[key] = os.clock()
+                        print("[T HUB] Cổng mất tại " .. key .. " → bắt đầu đếm 60s")
+                    elseif (os.clock() - positionMissingTime[key]) >= POSITION_MISSING_THRESHOLD then
+                        table.insert(toRemove, key)
+                        print("[T HUB] Cổng mất > 1p tại " .. key .. " → xóa khỏi visited")
+                    end
+                end
+            end
+            
+            for _, key in ipairs(toRemove) do
+                visitedPositions[key] = nil
+                positionMissingTime[key] = nil
+            end
+        end)
+    end
+end)
 
 -- ============================================
 -- MONEY FORMAT
@@ -438,6 +501,26 @@ local function findFlipStarUIButton()
 end
 
 -- ============================================
+-- STRAWBERRY COIN FINDER
+-- ============================================
+local function findAllStrawberryPrompts()
+    local t = {}
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                
+                if ot:find("strawberry") and at:find("pick") then
+                    table.insert(t, obj)
+                end
+            end
+        end
+    end)
+    return t
+end
+
+-- ============================================
 -- FIND ENTER DUNGEON PROMPT
 -- ============================================
 local function findEnterDungeonPrompt()
@@ -446,20 +529,32 @@ local function findEnterDungeonPrompt()
     pcall(function()
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("ProximityPrompt") and obj.Enabled then
-                local key = getPromptKey(obj)
-                local isVisited = key and visitedDungeons[key]
+                local pos = nil
+                if obj.Parent:IsA("BasePart") then
+                    pos = obj.Parent.Position
+                else
+                    for _, p in ipairs(obj.Parent:GetDescendants()) do
+                        if p:IsA("BasePart") then
+                            pos = p.Position; break
+                        end
+                    end
+                end
                 
-                if not isVisited then
-                    local at = string.lower(obj.ActionText or "")
-                    local ot = string.lower(obj.ObjectText or "")
-                    local pn = string.lower(obj.Parent.Name or "")
-                    local score = 0
-                    if at == "enter" then score = 100
-                    elseif at:find("enter dungeon") then score = 90
-                    elseif at:find("enter") then score = 80
-                    elseif ot:find("enter") then score = 50
-                    elseif pn:find("dungeon") or pn:find("enter") or pn:find("portal") then score = 40 end
-                    if score > bestScore then bestScore = score; best = obj end
+                if pos then
+                    local key = getPositionKey(pos)
+                    
+                    if not visitedPositions[key] then
+                        local at = string.lower(obj.ActionText or "")
+                        local ot = string.lower(obj.ObjectText or "")
+                        local pn = string.lower(obj.Parent.Name or "")
+                        local score = 0
+                        if at == "enter" then score = 100
+                        elseif at:find("enter dungeon") then score = 90
+                        elseif at:find("enter") then score = 80
+                        elseif ot:find("enter") then score = 50
+                        elseif pn:find("dungeon") or pn:find("enter") or pn:find("portal") then score = 40 end
+                        if score > bestScore then bestScore = score; best = obj end
+                    end
                 end
             end
         end
@@ -574,6 +669,67 @@ task.spawn(function()
                 task.wait(0.01)
             else
                 task.wait(0.2)
+            end
+        end)
+    end
+end)
+
+-- ============================================
+-- AUTO PICK STRAWBERRY COIN
+-- ============================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoPickStrawberryState then
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if hrp then
+                    local prompts = findAllStrawberryPrompts()
+                    
+                    if #prompts > 0 then
+                        for _, prompt in ipairs(prompts) do
+                            if not autoPickStrawberryState then break end
+                            
+                            local targetPos = nil
+                            
+                            if prompt.Parent then
+                                if prompt.Parent:IsA("BasePart") then
+                                    targetPos = prompt.Parent.Position
+                                elseif prompt.Parent:IsA("Attachment") then
+                                    targetPos = prompt.Parent.WorldPosition
+                                else
+                                    for _, p in ipairs(prompt.Parent:GetDescendants()) do
+                                        if p:IsA("BasePart") then
+                                            targetPos = p.Position
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            
+                            if targetPos and targetPos.Magnitude > 5 then
+                                pcall(function()
+                                    hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                                end)
+                                
+                                task.wait(strawberryDelay) -- chờ ổn định sau khi tele
+                                
+                                if prompt.Parent and prompt.Enabled and fireproximityprompt then
+                                    pcall(function() fireproximityprompt(prompt) end)
+                                end
+                                
+                                task.wait(strawberryDelay)
+                            end
+                        end
+                        
+                        task.wait(0.1)
+                    else
+                        task.wait(0.3)
+                    end
+                end
+            else
+                task.wait(0.5)
             end
         end)
     end
@@ -708,26 +864,30 @@ end)
 task.spawn(function()
     while true do
         pcall(function()
-            if dungeonCheckPending and dungeonCheckStartPos and dungeonCheckPromptKey then
+            if dungeonCheckPending and dungeonCheckStartPos then
                 local char = player.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp then
                     local dist = (hrp.Position - dungeonCheckStartPos).Magnitude
                     if dist > DUNGEON_TELEPORT_THRESHOLD then
-                        visitedDungeons[dungeonCheckPromptKey] = {
-                            name = dungeonCheckPromptName,
-                            pos = dungeonCheckStartPos,
-                            time = os.time()
-                        }
-                        print("[T HUB] ✓ Dungeon visited: " .. dungeonCheckPromptName)
+                        local key = dungeonCheckKey or getPositionKey(dungeonCheckStartPos)
+                        if key then
+                            visitedPositions[key] = true
+                            positionMissingTime[key] = nil
+                            failCounts[key] = nil
+                            print("[T HUB] Đánh dấu đã đi: " .. key .. " (dist " .. math.floor(dist) .. ")")
+                        end
+                        visitedCount = visitedCount + 1
+                        
+                        print("[T HUB] ✓ Dungeon visited: " .. dungeonCheckPromptName .. " (#" .. visitedCount .. ")")
                         WindUI:Notify({
                             Title = "🏰 Đã vào dungeon",
-                            Content = dungeonCheckPromptName .. " (#" .. getVisitedCount() .. ")",
+                            Content = dungeonCheckPromptName .. " (#" .. visitedCount .. ")",
                             Duration = 3
                         })
                         dungeonCheckPending = false
                         dungeonCheckStartPos = nil
-                        dungeonCheckPromptKey = nil
+                        dungeonCheckKey = nil
                         dungeonCheckPromptName = ""
                     end
                 end
@@ -751,13 +911,14 @@ task.spawn(function()
             elseif not inDungeon and wasInDungeon then
                 wasInDungeon = false
                 enterTeleported = false
+                
                 local key = tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
                 completedDungeons[key] = { time = os.time() }
                 lastDungeonExitTime = os.clock()
-                print("[T HUB] ✓ Đã rời xong dungeon! Chờ 5s...")
+                print("[T HUB] ✓ Đã rời dungeon! Cổng cũ vẫn SKIP (reset nếu mất > 1p)")
                 WindUI:Notify({
                     Title = "✅ Đã rời xong dungeon!",
-                    Content = "Hoàn thành #" .. getCompletedCount() .. " - Chờ 5s...",
+                    Content = "Hoàn thành #" .. getCompletedCount(),
                     Duration = 3
                 })
             end
@@ -775,21 +936,24 @@ task.spawn(function()
             if autoEnterDungeonState then
                 local now = os.clock()
                 
+                if wasInDungeon and not isInDungeon() then
+                    print("[T HUB] Force reset wasInDungeon")
+                    wasInDungeon = false
+                end
+                
                 if wasInDungeon then
                     task.wait(1)
                 else
                     local canEnter = false
                     if lastDungeonExitTime == 0 then
                         canEnter = true
-                    elseif (now - lastDungeonExitTime) >= 5 then
+                    elseif (now - lastDungeonExitTime) >= 2 then
                         canEnter = true
                     end
                     
                     if canEnter then
                         local prompt = findEnterDungeonPrompt()
                         if prompt and prompt.Parent then
-                            local key = getPromptKey(prompt)
-                            
                             local char = player.Character
                             local hrp = char and char:FindFirstChild("HumanoidRootPart")
                             
@@ -805,26 +969,47 @@ task.spawn(function()
                                     if prompt.ObjectText and prompt.ObjectText ~= "" then
                                         promptName = prompt.ObjectText .. " / " .. prompt.Parent.Name
                                     end
-                                    
-                                    if fireproximityprompt then
-                                        pcall(function() fireproximityprompt(prompt) end)
-                                    end
-                                    
+                                    local promptKey = getPositionKey(targetPos)
+
                                     dungeonCheckStartPos = posBeforeEnter
-                                    dungeonCheckPromptKey = key
+                                    dungeonCheckKey = promptKey
                                     dungeonCheckPromptName = promptName
                                     dungeonCheckPending = true
                                     lastDungeonExitTime = 0
-                                    
-                                    print("[T HUB] Đã tele và fire prompt: " .. promptName)
-                                    
-                                    task.wait(3)
-                                    
-                                    if dungeonCheckPending then
+
+                                    print("[T HUB] Đã tele: " .. promptName .. " (" .. tostring(promptKey) .. ")")
+
+                                    -- Nhấn Enter nhiều lần trong ~3s, vào được thì dừng
+                                    local entered = false
+                                    for i = 1, 6 do
+                                        if fireproximityprompt then
+                                            pcall(function() fireproximityprompt(prompt) end)
+                                        end
+                                        task.wait(0.5)
+                                        if not dungeonCheckPending then entered = true; break end
+                                    end
+
+                                    if not entered then
                                         dungeonCheckPending = false
                                         dungeonCheckStartPos = nil
-                                        dungeonCheckPromptKey = nil
+                                        dungeonCheckKey = nil
                                         dungeonCheckPromptName = ""
+    
+                                        if promptKey then
+                                            failCounts[promptKey] = (failCounts[promptKey] or 0) + 1
+                                            print("[T HUB] ✗ Không vào được " .. promptKey .. " (lần " .. failCounts[promptKey] .. ")")
+                                            if failCounts[promptKey] >= MAX_FAIL_ATTEMPTS then
+                                                visitedPositions[promptKey] = true
+                                                positionMissingTime[promptKey] = nil
+                                                failCounts[promptKey] = nil
+                                                print("[T HUB] → Tính là đã đi, chuyển cổng khác: " .. promptKey)
+                                                WindUI:Notify({
+                                                    Title = "⏭️ Bỏ qua cổng",
+                                                    Content = "Không vào được " .. promptName .. " → qua cổng khác",
+                                                    Duration = 3
+                                                })
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -905,7 +1090,6 @@ FarmTab:Toggle({
     end
 })
 
--- Input điều chỉnh thời gian auto roll (tự đổi giá trị nếu ngoài range)
 local rollInputElement = FarmTab:Input({
     Title = "Auto Roll Interval (seconds)",
     Desc = "Range: 6 - 20s. Dưới 6 → 6, trên 20 → 20.",
@@ -920,21 +1104,10 @@ local rollInputElement = FarmTab:Input({
                 Duration = 3
             })
             rollInterval = 7
-            -- Đổi input thành "7"
             pcall(function()
                 if rollInputElement and rollInputElement.SetValue then
                     rollInputElement:SetValue("7")
                 end
-            end)
-            task.spawn(function()
-                task.wait(0.1)
-                pcall(function()
-                    for _, gui in ipairs(playerGui:GetDescendants()) do
-                        if gui:IsA("TextBox") and tonumber(gui.Text) == nil then
-                            -- không đổi
-                        end
-                    end
-                end)
             end)
             return
         end
@@ -968,7 +1141,6 @@ local rollInputElement = FarmTab:Input({
         
         rollInterval = newVal
         
-        -- Cập nhật input hiển thị số mới
         if clamped then
             task.spawn(function()
                 task.wait(0.05)
@@ -977,7 +1149,6 @@ local rollInputElement = FarmTab:Input({
                         rollInputElement:SetValue(tostring(newVal))
                     end
                 end)
-                -- Fallback: tìm TextBox và đổi trực tiếp
                 task.wait(0.1)
                 pcall(function()
                     for _, gui in ipairs(playerGui:GetDescendants()) do
@@ -1040,7 +1211,46 @@ StarEventTab:Paragraph({
 })
 
 -- ============================================
--- TAB 4: DUNGEON
+-- TAB 4: STRAWBERRY EVENT
+-- ============================================
+local StrawberryTab = Window:Tab({ Title = "Strawberry Event", Icon = "apple" })
+
+StrawberryTab:Toggle({
+    Title = "Auto Pick Strawberry Coin",
+    Icon = "circle-dot",
+    Default = false,
+    Callback = function(s)
+        autoPickStrawberryState = s
+        WindUI:Notify({
+            Title = "🍓 Strawberry Event",
+            Content = s and "ON - Đang tự động nhặt coin siêu nhanh..." or "OFF",
+            Duration = 3
+        })
+    end
+})
+
+StrawberryTab:Input({
+    Title = "Tele Delay (seconds)",
+    Desc = "Range: 0.2 - 2s. Tăng lên nếu bấm nhặt không dính.",
+    Icon = "clock",
+    Value = tostring(strawberryDelay),
+    Callback = function(text)
+        local num = tonumber(text)
+        if not num then
+            WindUI:Notify({ Title = "🍓 Strawberry", Content = "Số không hợp lệ!", Duration = 2 })
+            return
+        end
+        strawberryDelay = math.clamp(num, 0.2, 2)
+        WindUI:Notify({
+            Title = "🍓 Strawberry",
+            Content = "Tele delay: " .. strawberryDelay .. "s",
+            Duration = 2
+        })
+    end
+})
+
+-- ============================================
+-- TAB 5: DUNGEON
 -- ============================================
 local DungeonTab = Window:Tab({ Title = "Dungeon", Icon = "map" })
 
@@ -1050,12 +1260,31 @@ DungeonTab:Toggle({
     Default = false,
     Callback = function(s)
         autoEnterDungeonState = s
-        if s then enterTeleported = false end
-        WindUI:Notify({
-            Title = "Auto Enter Dungeon",
-            Content = s and "ON - Entering dungeon..." or "OFF",
-            Duration = 2
-        })
+        if s then
+            enterTeleported = false
+            wasInDungeon = false
+            lastDungeonExitTime = 0
+            failCounts = {}
+            dungeonCheckKey = nil
+            dungeonCheckPending = false
+            dungeonCheckStartPos = nil
+            dungeonCheckPromptName = ""
+            visitedPositions = {}
+            positionMissingTime = {}
+            visitedCount = 0
+            print("[T HUB] Reset dungeon state")
+            WindUI:Notify({
+                Title = "Auto Enter Dungeon",
+                Content = "ON - Đã reset, bắt đầu tìm dungeon...",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "Auto Enter Dungeon",
+                Content = "OFF",
+                Duration = 2
+            })
+        end
     end
 })
 
@@ -1087,6 +1316,27 @@ DungeonTab:Toggle({
     end
 })
 
+DungeonTab:Button({
+    Title = "Reset danh sách dungeon đã đi",
+    Icon = "trash-2",
+    Callback = function()
+        visitedPositions = {}
+        positionMissingTime = {}
+        visitedCount = 0
+        completedDungeons = {}
+        wasInDungeon = false
+        lastDungeonExitTime = 0
+        failCounts = {}
+        dungeonCheckKey = nil
+        enterTeleported = false
+        WindUI:Notify({
+            Title = "Dungeon",
+            Content = "Đã reset! Có thể vào lại dungeon cũ.",
+            Duration = 3
+        })
+    end
+})
+
 local visitedCountParagraph = DungeonTab:Paragraph({
     Title = "🏰 Dungeon đã đi",
     Desc = "0 dungeon",
@@ -1108,7 +1358,7 @@ task.spawn(function()
 end)
 
 -- ============================================
--- TAB 5: AUTO EXTRA
+-- TAB 6: AUTO EXTRA
 -- ============================================
 local ExtraTab = Window:Tab({ Title = "Auto Extra", Icon = "zap" })
 
@@ -1185,7 +1435,7 @@ ExtraTab:Input({
 })
 
 -- ============================================
--- TAB 6: ITEM SHOP
+-- TAB 7: ITEM SHOP
 -- ============================================
 local ItemShopTab = Window:Tab({ Title = "Item Shop", Icon = "store" })
 
@@ -1320,7 +1570,7 @@ task.spawn(function()
 end)
 
 -- ============================================
--- TAB 7: SERVER
+-- TAB 8: SERVER
 -- ============================================
 local ServerTab = Window:Tab({ Title = "Server", Icon = "server" })
 
@@ -1366,7 +1616,7 @@ ServerTab:Button({
 })
 
 WindUI:Notify({
-    Title = "T HUB v8.7",
-    Content = "Loaded! Auto Roll Interval auto-fix.",
+    Title = "T HUB v9.7",
+    Content = "Loaded! Fail-skip + slow strawberry.",
     Duration = 5
 })
