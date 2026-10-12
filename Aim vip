@@ -596,4 +596,4 @@ end)
 U.InputBegan:Connect(function(i,g) if not g and i.KeyCode==C.Key then setAim(true) end end)
 U.InputEnded:Connect(function(i) if i.KeyCode==C.Key then setAim(false) end end)
 
-print("[AimPro v33] Sliders for FOV / Rot Speed / 360 Range.")
+print("[AimPro v1] Sliders for FOV / Rot Speed / 360 Range.")
