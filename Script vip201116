@@ -1220,6 +1220,8 @@ makeGameBtn("Build An Ant Empire",
 
 makeGameBtn("Blox Fruit",
     "https://raw.githubusercontent.com/duczsitink/DUCKHUB/refs/heads/main/main.lua")
+makeGameBtn("Aim Vip",
+    "https://raw.githubusercontent.com/truongvantai1776-creator/T-HUB/refs/heads/main/Aim%20vip")
 
 -- ==================== CÀI ĐẶT ====================
 SettingTab:Section({ Title = L("Interface", "Giao diện"), Icon = "palette" })
