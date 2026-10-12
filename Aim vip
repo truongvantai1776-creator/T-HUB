@@ -366,7 +366,6 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
     holder.BackgroundTransparency = 1
     holder.LayoutOrder = order
 
-    -- Label hiển thị tên + giá trị
     local nameLbl = Instance.new("TextLabel", holder)
     nameLbl.Size = UDim2.new(1, 0, 0, 16)
     nameLbl.BackgroundTransparency = 1
@@ -376,7 +375,6 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
     nameLbl.TextColor3 = Color3.fromRGB(200,220,240)
     nameLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Track (thanh trượt)
     local track = Instance.new("Frame", holder)
     track.Size = UDim2.new(1, 0, 0, 10)
     track.Position = UDim2.fromOffset(0, 22)
@@ -384,7 +382,6 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
     track.BorderSizePixel = 0
     Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
 
-    -- Fill (phần đã kéo)
     local fill = Instance.new("Frame", track)
     fill.Size = UDim2.new((defV - minV) / (maxV - minV), 0, 1, 0)
     fill.BackgroundColor3 = Color3.fromRGB(0, 200, 120)
@@ -393,7 +390,6 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
     local fillGrad = Instance.new("UIGradient", fill)
     fillGrad.Color = ColorSequence.new(Color3.fromRGB(0,220,150), Color3.fromRGB(0,140,90))
 
-    -- Knob (nút kéo)
     local knob = Instance.new("Frame", track)
     knob.Size = UDim2.fromOffset(14, 14)
     knob.Position = UDim2.new((defV - minV) / (maxV - minV), -7, 0.5, -7)
@@ -405,7 +401,6 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
     knobStroke.Color = Color3.fromRGB(0, 200, 120)
     knobStroke.Thickness = 2
 
-    -- Vùng bấm rộng hơn cho dễ kéo
     local hitArea = Instance.new("TextButton", track)
     hitArea.Size = UDim2.new(1, 0, 3, 0)
     hitArea.Position = UDim2.new(0, 0, 0.5, -15)
@@ -417,7 +412,6 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
     local function setValue(alpha)
         alpha = math.clamp(alpha, 0, 1)
         local val = minV + alpha * (maxV - minV)
-        -- Làm tròn tùy range
         if maxV - minV > 100 then
             val = math.floor(val)
         elseif maxV - minV > 10 then
@@ -435,35 +429,27 @@ local function mkSlider(text, minV, maxV, defV, order, onChange)
         if input.UserInputType == Enum.UserInputType.MouseButton1 
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            local pos = U.InputChanged and input.Position
-            -- Tính ngay từ vị trí bấm
             local relX = input.Position.X - track.AbsolutePosition.X
-            local alpha = relX / track.AbsoluteSize.X
-            setValue(alpha)
+            setValue(relX / track.AbsoluteSize.X)
         end
     end)
-    
     U.InputChanged:Connect(function(input)
         if not dragging then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement 
         or input.UserInputType == Enum.UserInputType.Touch then
             local relX = input.Position.X - track.AbsolutePosition.X
-            local alpha = relX / track.AbsoluteSize.X
-            setValue(alpha)
+            setValue(relX / track.AbsoluteSize.X)
         end
     end)
-    
     U.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
-
     return {SetValue = setValue}
 end
 
--- Toggle buttons
 local yOrder = 1
 
 btn360 = mkBtn("360 SCAN: OFF", function()
@@ -496,7 +482,6 @@ btnAuto = mkBtn("AUTO PICK: ON", function()
 end, Color3.fromRGB(0,150,90))
 btnAuto.LayoutOrder = yOrder; yOrder = yOrder + 1
 
--- ⚡ SLIDERS thay cho nút cũ
 mkSlider("Rot Speed", 1, 100, C.RotSpeed, yOrder, function(v) C.RotSpeed = v end)
 yOrder = yOrder + 1
 
