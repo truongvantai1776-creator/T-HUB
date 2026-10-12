@@ -1,0 +1,614 @@
+--[[ AIM PRO v33 | Sliders for FOV, Rot Speed, 360 Range ]]
+
+local P,S,U,W = game:GetService("Players"),game:GetService("RunService"),game:GetService("UserInputService"),workspace
+local lp,cam = P.LocalPlayer,W.CurrentCamera
+
+local C = {
+    On=false, Target=nil,
+    AutoPick=true, LockTarget=false,
+    Scan360=false, WallCheck=false,
+    FOV=500, Range=500,
+    Team=true, RotSpeed=6,
+}
+local myHRP, myHum
+local H = {AimPos=nil, Frozen=false, FrozenLook=nil, CurYaw=nil, CurPitch=nil}
+
+local Cache = {
+    FindTargetAt=0, FindTargetCD=0.15,
+    VisAt={}, VisCD=0.2, VisResult={},
+    LabelAt=0, LabelCD=0.2,
+}
+
+local btnAim, btnPlus, mainFrame, lbl, btnAuto, btn360, btnWall, btnTeam, menuOpen
+
+local function isTeam(p) return lp.Team and p.Team == lp.Team end
+local function ch(p)
+    local c = p and p ~= lp and p.Character
+    local h = c and c:FindFirstChildOfClass("Humanoid")
+    return (h and h.Health > 0) and c or nil
+end
+local function head(p)
+    local c = ch(p)
+    return c and (c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart"))
+end
+local function isVisible(p, targetPart)
+    if not C.WallCheck then return true end
+    local now = os.clock()
+    local last = Cache.VisAt[p]
+    if last and (now - last) < Cache.VisCD then
+        return Cache.VisResult[p] ~= false
+    end
+    local origin = cam.CFrame.Position
+    local dir = targetPart.Position - origin
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {lp.Character, targetPart.Parent, cam}
+    params.IgnoreWater = true
+    local result = W:Raycast(origin, dir, params) == nil
+    Cache.VisAt[p] = now
+    Cache.VisResult[p] = result
+    return result
+end
+local function findTarget(force)
+    local now = os.clock()
+    if not force and (now - Cache.FindTargetAt) < Cache.FindTargetCD then return nil end
+    Cache.FindTargetAt = now
+    local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
+    local myPos = myHRP and myHRP.Position or cam.CFrame.Position
+    local best, bd = nil, math.huge
+    for _, p in ipairs(P:GetPlayers()) do
+        if p ~= lp and not (C.Team and isTeam(p)) then
+            local hp = head(p)
+            if hp and isVisible(p, hp) then
+                if C.Scan360 then
+                    local dist = (hp.Position - myPos).Magnitude
+                    if dist <= C.Range and dist < bd then bd, best = dist, p end
+                else
+                    local s, on = cam:WorldToViewportPoint(hp.Position)
+                    if on then
+                        local d = (Vector2.new(s.X, s.Y) - Vector2.new(cx, cy)).Magnitude
+                        if d <= C.FOV and d < bd then bd, best = d, p end
+                    end
+                end
+            end
+        end
+    end
+    return best, true
+end
+local function calcAngles(fromPos, toPos)
+    local dir = toPos - fromPos
+    if dir.Magnitude < 0.001 then return 0, 0 end
+    local yaw = math.atan2(-dir.X, -dir.Z)
+    local pitch = math.asin(math.clamp(dir.Y / dir.Magnitude, -1, 1))
+    return yaw, math.clamp(pitch, math.rad(-89), math.rad(89))
+end
+local function anglesToCF(pos, yaw, pitch)
+    return CFrame.new(pos) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+end
+
+local function bindChar()
+    myHRP = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    myHum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+    if myHum then myHum.AutoRotate = false end
+end
+bindChar()
+lp.CharacterAdded:Connect(function() task.wait(0.3) bindChar() end)
+
+pcall(function()
+    local mt = getrawmetatable(game)
+    if not (mt and setreadonly and newcclosure) then return end
+    local oldNI = mt.__newindex
+    setreadonly(mt, false)
+    mt.__newindex = newcclosure(function(self, k, v)
+        if self == cam and k == "CFrame" and typeof(v) == "CFrame" then
+            if H.AimPos and H.CurYaw and H.CurPitch then
+                return oldNI(self, k, anglesToCF(v.Position, H.CurYaw, H.CurPitch))
+            end
+            if H.Frozen and H.FrozenLook then
+                return oldNI(self, k, CFrame.new(v.Position, v.Position + H.FrozenLook))
+            end
+        end
+        if H.AimPos and myHRP and self == myHRP and k == "CFrame" and typeof(v) == "CFrame" then
+            local yaw, _ = calcAngles(v.Position, H.AimPos)
+            return oldNI(self, k, CFrame.new(v.Position) * CFrame.Angles(0, yaw, 0))
+        end
+        return oldNI(self, k, v)
+    end)
+    setreadonly(mt, true)
+end)
+
+U.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if H.Frozen and (input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        H.Frozen = false H.FrozenLook = nil
+        if myHum then myHum.AutoRotate = true end
+    end
+end)
+U.InputChanged:Connect(function(input)
+    if not H.Frozen then return end
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch)
+        and input.Delta and input.Delta.Magnitude > 0.5 then
+        H.Frozen = false H.FrozenLook = nil
+        if myHum then myHum.AutoRotate = true end
+    end
+end)
+
+S.RenderStepped:Connect(function(dt)
+    if not myHRP or not myHRP.Parent then bindChar() end
+    if not C.On then
+        if H.AimPos then
+            H.Frozen = true
+            H.FrozenLook = cam.CFrame.LookVector
+            H.AimPos = nil H.CurYaw = nil H.CurPitch = nil
+        end
+        return
+    end
+    if H.Frozen then H.Frozen = false H.FrozenLook = nil end
+
+    local targetDead = C.Target and not ch(C.Target)
+    local needNew = false
+    if C.LockTarget then
+        needNew = targetDead
+    else
+        needNew = C.AutoPick or targetDead
+        if C.Scan360 then needNew = true end
+    end
+
+    if needNew then
+        local newT, scanned = findTarget(C.Scan360 or targetDead or not C.Target)
+        if newT then
+            C.Target = newT
+            local hp = head(newT)
+            if hp then H.AimPos = hp.Position end
+            if targetDead then H.CurYaw = nil H.CurPitch = nil end
+        elseif C.Scan360 and scanned then
+            C.Target = nil
+            if H.AimPos then
+                H.Frozen = true
+                H.FrozenLook = cam.CFrame.LookVector
+                H.AimPos = nil H.CurYaw = nil H.CurPitch = nil
+            end
+            return
+        end
+    end
+
+    local t = C.Target
+    local hp = t and head(t)
+    if not hp then return end
+
+    if C.WallCheck and not isVisible(t, hp) then
+        if not H.AimPos then
+            H.Frozen = true
+            H.FrozenLook = cam.CFrame.LookVector
+        end
+        local now = os.clock()
+        if lbl and (now - Cache.LabelAt) > Cache.LabelCD then
+            Cache.LabelAt = now
+            lbl.Text = "[X] "..t.Name:sub(1,8).." BLOCKED"
+        end
+        return
+    end
+
+    H.AimPos = hp.Position
+    if myHum then myHum.AutoRotate = false end
+
+    local camPos = cam.CFrame.Position
+    local wantYaw, wantPitch = calcAngles(camPos, H.AimPos)
+
+    if not H.CurYaw then
+        local curLook = cam.CFrame.LookVector
+        H.CurYaw = math.atan2(-curLook.X, -curLook.Z)
+        H.CurPitch = math.asin(math.clamp(curLook.Y, -1, 1))
+    end
+
+    if C.RotSpeed >= 100 then
+        H.CurYaw = wantYaw
+        H.CurPitch = wantPitch
+    else
+        local maxStep = math.rad(C.RotSpeed) * dt * 60
+        local yawDiff = wantYaw - H.CurYaw
+        while yawDiff > math.pi do yawDiff = yawDiff - 2*math.pi end
+        while yawDiff < -math.pi do yawDiff = yawDiff + 2*math.pi end
+        local pitchDiff = wantPitch - H.CurPitch
+        H.CurYaw = H.CurYaw + math.clamp(yawDiff, -maxStep, maxStep)
+        H.CurPitch = H.CurPitch + math.clamp(pitchDiff, -maxStep, maxStep)
+    end
+    H.CurPitch = math.clamp(H.CurPitch, math.rad(-89), math.rad(89))
+
+    local now = os.clock()
+    if lbl and (now - Cache.LabelAt) > Cache.LabelCD then
+        Cache.LabelAt = now
+        if myHRP then
+            local dist = (hp.Position - myHRP.Position).Magnitude
+            lbl.Text = string.format("[O] %s %dm", t.Name:sub(1,10), math.floor(dist))
+        end
+    end
+end)
+
+S.Stepped:Connect(function()
+    if not H.AimPos or not H.CurYaw then return end
+    if not myHRP or not myHRP.Parent then return end
+    pcall(function()
+        myHRP.CFrame = CFrame.new(myHRP.Position) * CFrame.Angles(0, H.CurYaw, 0)
+    end)
+    if myHum and myHum.AutoRotate then myHum.AutoRotate = false end
+end)
+
+-- ==================== UI ====================
+local u = Instance.new("ScreenGui")
+u.Name, u.ResetOnSpawn = "AimCompact", false
+pcall(function() u.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
+if not u.Parent then u.Parent = lp:WaitForChild("PlayerGui") end
+
+local wrap = Instance.new("Frame", u)
+wrap.Size = UDim2.fromOffset(100, 36)
+wrap.Position = UDim2.new(0, 20, 0.4, 0)
+wrap.BackgroundTransparency = 1
+wrap.Active = true
+wrap.Draggable = true
+
+local aimBtn = Instance.new("TextButton", wrap)
+aimBtn.Size = UDim2.fromOffset(64, 36)
+aimBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+aimBtn.BorderSizePixel = 0
+aimBtn.Text = "AIM"
+aimBtn.Font = Enum.Font.GothamBold
+aimBtn.TextSize = 13
+aimBtn.TextColor3 = Color3.fromRGB(255,255,255)
+aimBtn.AutoButtonColor = false
+Instance.new("UICorner", aimBtn).CornerRadius = UDim.new(1, 0)
+local aimStroke = Instance.new("UIStroke", aimBtn)
+aimStroke.Color = Color3.fromRGB(255,255,255)
+aimStroke.Thickness = 1.5
+aimStroke.Transparency = 0.5
+
+local plusBtn = Instance.new("TextButton", wrap)
+plusBtn.Size = UDim2.fromOffset(32, 32)
+plusBtn.Position = UDim2.fromOffset(68, 2)
+plusBtn.BackgroundColor3 = Color3.fromRGB(25, 32, 50)
+plusBtn.BorderSizePixel = 0
+plusBtn.Text = "+"
+plusBtn.Font = Enum.Font.GothamBold
+plusBtn.TextSize = 20
+plusBtn.TextColor3 = Color3.fromRGB(0,220,120)
+Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(1, 0)
+local plusStroke = Instance.new("UIStroke", plusBtn)
+plusStroke.Color = Color3.fromRGB(0,220,120)
+plusStroke.Thickness = 1.5
+plusStroke.Transparency = 0.4
+
+local mainFrame = Instance.new("Frame", u)
+mainFrame.Size = UDim2.fromOffset(210, 340)
+mainFrame.Position = UDim2.new(0, 145, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15,18,28)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = false
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,8)
+local mStroke = Instance.new("UIStroke", mainFrame)
+mStroke.Color = Color3.fromRGB(0,220,120)
+mStroke.Thickness = 1.5
+
+local ttl = Instance.new("TextLabel", mainFrame)
+ttl.Size = UDim2.new(1, -40, 0, 26)
+ttl.Position = UDim2.fromOffset(10, 4)
+ttl.BackgroundTransparency = 1
+ttl.Text = "AIMBOT v33"
+ttl.Font = Enum.Font.GothamBold
+ttl.TextSize = 12
+ttl.TextColor3 = Color3.fromRGB(0,220,120)
+ttl.TextXAlignment = Enum.TextXAlignment.Left
+
+local closeBtn = Instance.new("TextButton", mainFrame)
+closeBtn.Size = UDim2.fromOffset(24, 24)
+closeBtn.Position = UDim2.new(1, -30, 0, 6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "X"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 12
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,6)
+
+lbl = Instance.new("TextLabel", mainFrame)
+lbl.Size = UDim2.new(1, -20, 0, 20)
+lbl.Position = UDim2.fromOffset(10, 32)
+lbl.BackgroundTransparency = 1
+lbl.Text = "Khong co muc tieu"
+lbl.Font = Enum.Font.GothamMedium
+lbl.TextSize = 11
+lbl.TextColor3 = Color3.fromRGB(255,200,50)
+lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local content = Instance.new("ScrollingFrame", mainFrame)
+content.Size = UDim2.new(1, -8, 1, -60)
+content.Position = UDim2.fromOffset(4, 56)
+content.BackgroundTransparency = 1
+content.BorderSizePixel = 0
+content.CanvasSize = UDim2.new(0, 0, 0, 0)
+content.ScrollBarThickness = 4
+content.ScrollBarImageColor3 = Color3.fromRGB(0,200,120)
+content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local contentLayout = Instance.new("UIListLayout", content)
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+contentLayout.Padding = UDim.new(0, 4)
+
+local pad = Instance.new("UIPadding", content)
+pad.PaddingLeft = UDim.new(0, 4)
+pad.PaddingRight = UDim.new(0, 4)
+pad.PaddingTop = UDim.new(0, 4)
+pad.PaddingBottom = UDim.new(0, 4)
+
+local function mkBtn(text, cb, accent)
+    local b = Instance.new("TextButton", content)
+    b.Size = UDim2.new(1, -8, 0, 28)
+    b.BackgroundColor3 = accent or Color3.fromRGB(35,44,65)
+    b.BorderSizePixel = 0
+    b.Text = text
+    b.Font = Enum.Font.GothamMedium
+    b.TextSize = 11
+    b.TextColor3 = Color3.fromRGB(230,240,255)
+    b.LayoutOrder = 100
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,5)
+    b.MouseButton1Click:Connect(cb)
+    return b
+end
+local cl = function(o) return o and Color3.fromRGB(0,150,90) or Color3.fromRGB(35,44,65) end
+
+-- ⚡ SLIDER FACTORY
+local function mkSlider(text, minV, maxV, defV, order, onChange)
+    local holder = Instance.new("Frame", content)
+    holder.Size = UDim2.new(1, -8, 0, 38)
+    holder.BackgroundTransparency = 1
+    holder.LayoutOrder = order
+
+    -- Label hiển thị tên + giá trị
+    local nameLbl = Instance.new("TextLabel", holder)
+    nameLbl.Size = UDim2.new(1, 0, 0, 16)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Text = text .. ": " .. tostring(defV)
+    nameLbl.Font = Enum.Font.GothamMedium
+    nameLbl.TextSize = 10
+    nameLbl.TextColor3 = Color3.fromRGB(200,220,240)
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Track (thanh trượt)
+    local track = Instance.new("Frame", holder)
+    track.Size = UDim2.new(1, 0, 0, 10)
+    track.Position = UDim2.fromOffset(0, 22)
+    track.BackgroundColor3 = Color3.fromRGB(40, 48, 65)
+    track.BorderSizePixel = 0
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    -- Fill (phần đã kéo)
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new((defV - minV) / (maxV - minV), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 200, 120)
+    fill.BorderSizePixel = 0
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+    local fillGrad = Instance.new("UIGradient", fill)
+    fillGrad.Color = ColorSequence.new(Color3.fromRGB(0,220,150), Color3.fromRGB(0,140,90))
+
+    -- Knob (nút kéo)
+    local knob = Instance.new("Frame", track)
+    knob.Size = UDim2.fromOffset(14, 14)
+    knob.Position = UDim2.new((defV - minV) / (maxV - minV), -7, 0.5, -7)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 2
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+    local knobStroke = Instance.new("UIStroke", knob)
+    knobStroke.Color = Color3.fromRGB(0, 200, 120)
+    knobStroke.Thickness = 2
+
+    -- Vùng bấm rộng hơn cho dễ kéo
+    local hitArea = Instance.new("TextButton", track)
+    hitArea.Size = UDim2.new(1, 0, 3, 0)
+    hitArea.Position = UDim2.new(0, 0, 0.5, -15)
+    hitArea.BackgroundTransparency = 1
+    hitArea.Text = ""
+    hitArea.ZIndex = 3
+
+    local dragging = false
+    local function setValue(alpha)
+        alpha = math.clamp(alpha, 0, 1)
+        local val = minV + alpha * (maxV - minV)
+        -- Làm tròn tùy range
+        if maxV - minV > 100 then
+            val = math.floor(val)
+        elseif maxV - minV > 10 then
+            val = math.floor(val)
+        else
+            val = math.floor(val * 10 + 0.5) / 10
+        end
+        fill.Size = UDim2.new((val - minV) / (maxV - minV), 0, 1, 0)
+        knob.Position = UDim2.new((val - minV) / (maxV - minV), -7, 0.5, -7)
+        nameLbl.Text = text .. ": " .. tostring(val)
+        onChange(val)
+    end
+
+    hitArea.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            local pos = U.InputChanged and input.Position
+            -- Tính ngay từ vị trí bấm
+            local relX = input.Position.X - track.AbsolutePosition.X
+            local alpha = relX / track.AbsoluteSize.X
+            setValue(alpha)
+        end
+    end)
+    
+    U.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement 
+        or input.UserInputType == Enum.UserInputType.Touch then
+            local relX = input.Position.X - track.AbsolutePosition.X
+            local alpha = relX / track.AbsoluteSize.X
+            setValue(alpha)
+        end
+    end)
+    
+    U.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    return {SetValue = setValue}
+end
+
+-- Toggle buttons
+local yOrder = 1
+
+btn360 = mkBtn("360 SCAN: OFF", function()
+    C.Scan360 = not C.Scan360
+    btn360.Text = "360 SCAN: "..(C.Scan360 and "ON" or "OFF")
+    btn360.BackgroundColor3 = C.Scan360 and Color3.fromRGB(150,0,200) or Color3.fromRGB(35,44,65)
+    C.Target = nil
+end)
+btn360.LayoutOrder = yOrder; yOrder = yOrder + 1
+
+btnWall = mkBtn("WALL CHECK: OFF", function()
+    C.WallCheck = not C.WallCheck
+    btnWall.Text = "WALL CHECK: "..(C.WallCheck and "ON" or "OFF")
+    btnWall.BackgroundColor3 = C.WallCheck and Color3.fromRGB(200,100,0) or Color3.fromRGB(35,44,65)
+    Cache.VisAt = {} Cache.VisResult = {}
+end)
+btnWall.LayoutOrder = yOrder; yOrder = yOrder + 1
+
+btnTeam = mkBtn("TEAM CHECK: ON", function()
+    C.Team = not C.Team
+    btnTeam.Text = "TEAM CHECK: "..(C.Team and "ON" or "OFF")
+    btnTeam.BackgroundColor3 = cl(C.Team)
+end, Color3.fromRGB(0,150,90))
+btnTeam.LayoutOrder = yOrder; yOrder = yOrder + 1
+
+btnAuto = mkBtn("AUTO PICK: ON", function()
+    C.AutoPick = not C.AutoPick
+    btnAuto.Text = "AUTO PICK: "..(C.AutoPick and "ON" or "OFF")
+    btnAuto.BackgroundColor3 = cl(C.AutoPick)
+end, Color3.fromRGB(0,150,90))
+btnAuto.LayoutOrder = yOrder; yOrder = yOrder + 1
+
+-- ⚡ SLIDERS thay cho nút cũ
+mkSlider("Rot Speed", 1, 100, C.RotSpeed, yOrder, function(v) C.RotSpeed = v end)
+yOrder = yOrder + 1
+
+mkSlider("FOV", 50, 1000, C.FOV, yOrder, function(v) C.FOV = v end)
+yOrder = yOrder + 1
+
+mkSlider("360 Range", 50, 2000, C.Range, yOrder, function(v) C.Range = v end)
+yOrder = yOrder + 1
+
+local pickLbl = Instance.new("TextLabel", content)
+pickLbl.Size = UDim2.new(1, -8, 0, 20)
+pickLbl.BackgroundTransparency = 1
+pickLbl.Text = "PLAYER:"
+pickLbl.Font = Enum.Font.GothamBold
+pickLbl.TextSize = 10
+pickLbl.TextColor3 = Color3.fromRGB(150,180,220)
+pickLbl.TextXAlignment = Enum.TextXAlignment.Left
+pickLbl.LayoutOrder = yOrder; yOrder = yOrder + 1
+
+local playerFrame = Instance.new("Frame", content)
+playerFrame.Size = UDim2.new(1, -8, 0, 0)
+playerFrame.BackgroundTransparency = 1
+playerFrame.AutomaticSize = Enum.AutomaticSize.Y
+playerFrame.LayoutOrder = yOrder
+
+local playerLayout = Instance.new("UIListLayout", playerFrame)
+playerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+playerLayout.Padding = UDim.new(0, 3)
+
+local selectedBtn = nil
+
+local function upd()
+    selectedBtn = nil
+    for _,b in pairs(playerFrame:GetChildren()) do if b:IsA("TextButton") then b:Destroy() end end
+    for _,p in ipairs(P:GetPlayers()) do
+        if p ~= lp then
+            local b = Instance.new("TextButton", playerFrame)
+            b.Size = UDim2.new(1, -4, 0, 26)
+            b.BackgroundColor3 = (C.Target == p) and Color3.fromRGB(0,150,90) or Color3.fromRGB(35,44,65)
+            b.BorderSizePixel = 0
+            b.Text = p.DisplayName
+            b.Font = Enum.Font.GothamMedium
+            b.TextSize = 11
+            b.TextColor3 = Color3.fromRGB(230,240,255)
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0,4)
+            if C.Target == p then selectedBtn = b end
+            b.MouseButton1Click:Connect(function()
+                if selectedBtn == b then
+                    C.Target = nil
+                    C.LockTarget = false
+                    C.AutoPick = true
+                    btnAuto.Text = "AUTO PICK: ON"
+                    btnAuto.BackgroundColor3 = cl(true)
+                    b.BackgroundColor3 = Color3.fromRGB(35,44,65)
+                    selectedBtn = nil
+                else
+                    C.Target = p
+                    C.LockTarget = true
+                    C.AutoPick = false
+                    C.Scan360 = false
+                    btn360.Text = "360 SCAN: OFF"
+                    btn360.BackgroundColor3 = Color3.fromRGB(35,44,65)
+                    btnAuto.Text = "AUTO PICK: OFF"
+                    btnAuto.BackgroundColor3 = cl(false)
+                    for _,o in pairs(playerFrame:GetChildren()) do
+                        if o:IsA("TextButton") then o.BackgroundColor3 = Color3.fromRGB(35,44,65) end
+                    end
+                    b.BackgroundColor3 = Color3.fromRGB(0,150,90)
+                    selectedBtn = b
+                end
+            end)
+        end
+    end
+end
+upd()
+P.PlayerAdded:Connect(upd)
+P.PlayerRemoving:Connect(function(p)
+    if C.Target == p then
+        C.Target = nil
+        C.LockTarget = false
+        C.AutoPick = true
+        btnAuto.Text = "AUTO PICK: ON"
+        btnAuto.BackgroundColor3 = cl(true)
+    end
+    upd()
+end)
+
+local function setAim(on)
+    C.On = on
+    aimBtn.Text = on and "AIM ✓" or "AIM"
+    aimBtn.BackgroundColor3 = on and Color3.fromRGB(0,180,90) or Color3.fromRGB(180,40,40)
+    aimStroke.Color = on and Color3.fromRGB(0,255,150) or Color3.fromRGB(255,255,255)
+end
+aimBtn.MouseButton1Click:Connect(function() setAim(not C.On) end)
+
+local function toggleMenu()
+    menuOpen = not menuOpen
+    mainFrame.Visible = menuOpen
+    plusBtn.Text = menuOpen and "−" or "+"
+    plusBtn.TextColor3 = menuOpen and Color3.fromRGB(255,100,100) or Color3.fromRGB(0,220,120)
+    plusStroke.Color = menuOpen and Color3.fromRGB(255,100,100) or Color3.fromRGB(0,220,120)
+    if menuOpen then
+        mainFrame.Position = UDim2.new(0, wrap.AbsolutePosition.X + 145, 0, wrap.AbsolutePosition.Y - 10)
+    end
+end
+plusBtn.MouseButton1Click:Connect(toggleMenu)
+closeBtn.MouseButton1Click:Connect(function()
+    menuOpen = true
+    toggleMenu()
+end)
+
+U.InputBegan:Connect(function(i,g) if not g and i.KeyCode==C.Key then setAim(true) end end)
+U.InputEnded:Connect(function(i) if i.KeyCode==C.Key then setAim(false) end end)
+
+print("[AimPro v33] Sliders for FOV / Rot Speed / 360 Range.")
