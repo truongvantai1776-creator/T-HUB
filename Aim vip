@@ -1,36 +1,91 @@
---[[ AIM PRO v33 | Sliders for FOV, Rot Speed, 360 Range ]]
+--[[ AIM PRO v33 | FULL FEATURES + SMART TEAM + AIM PART + FIXED TARGET DEATH SNAP ]]
 
-local P,S,U,W = game:GetService("Players"),game:GetService("RunService"),game:GetService("UserInputService"),workspace
-local lp,cam = P.LocalPlayer,W.CurrentCamera
+local P, S, U, W = game:GetService("Players"), game:GetService("RunService"), game:GetService("UserInputService"), workspace
+local lp, cam = P.LocalPlayer, W.CurrentCamera
 
 local C = {
-    On=false, Target=nil,
-    AutoPick=true, LockTarget=false,
-    Scan360=false, WallCheck=false,
-    FOV=500, Range=500,
-    Team=true, RotSpeed=6,
+    On = false, Target = nil,
+    AutoPick = true, LockTarget = false,
+    Scan360 = false, WallCheck = false,
+    FOV = 500, Range = 500,
+    Team = true, RotSpeed = 6,
+    AimMode = "HEAD", -- "HEAD", "BODY", "BOTH"
+    Key = Enum.KeyCode.E
 }
 local myHRP, myHum
-local H = {AimPos=nil, Frozen=false, FrozenLook=nil, CurYaw=nil, CurPitch=nil}
+local H = { AimPos = nil, CurYaw = nil, CurPitch = nil }
 
 local Cache = {
-    FindTargetAt=0, FindTargetCD=0.15,
-    VisAt={}, VisCD=0.2, VisResult={},
-    LabelAt=0, LabelCD=0.2,
+    FindTargetAt = 0, FindTargetCD = 0.1,
+    VisAt = {}, VisCD = 0.15, VisResult = {},
+    LabelAt = 0, LabelCD = 0.15,
 }
 
-local btnAim, btnPlus, mainFrame, lbl, btnAuto, btn360, btnWall, btnTeam, menuOpen
+local btnAim, btnPlus, mainFrame, lbl, btnAuto, btn360, btnWall, btnTeam, btnAimPart, menuOpen
 
-local function isTeam(p) return lp.Team and p.Team == lp.Team end
+-- 🛡️ SMART TEAM CHECK
+local function isTeam(p)
+    if not C.Team or not p or p == lp then return false end
+    
+    if lp.Team and p.Team and lp.Team == p.Team then return true end
+    if lp.TeamColor and p.TeamColor and lp.TeamColor == p.TeamColor then return true end
+    
+    local myLs, pLs = lp:FindFirstChild("leaderstats"), p:FindFirstChild("leaderstats")
+    if myLs and pLs then
+        local myT = myLs:FindFirstChild("Team") or myLs:FindFirstChild("Role") or myLs:FindFirstChild("Side")
+        local pT = pLs:FindFirstChild("Team") or pLs:FindFirstChild("Role") or pLs:FindFirstChild("Side")
+        if myT and pT and myT.Value == pT.Value then return true end
+    end
+    
+    local myAttr = lp:GetAttribute("Team") or lp:GetAttribute("Role") or lp:GetAttribute("Side")
+    local pAttr = p:GetAttribute("Team") or p:GetAttribute("Role") or p:GetAttribute("Side")
+    if myAttr and pAttr and myAttr == pAttr then return true end
+
+    if lp.Character and p.Character then
+        if lp.Character.Parent == p.Character.Parent and lp.Character.Parent ~= W then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function ch(p)
     local c = p and p ~= lp and p.Character
     local h = c and c:FindFirstChildOfClass("Humanoid")
     return (h and h.Health > 0) and c or nil
 end
-local function head(p)
-    local c = ch(p)
-    return c and (c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart"))
+
+-- 🎯 Reset góc quay về đúng hướng camera hiện tại (Chống văng hướng)
+local function resetCurAngles()
+    local curLook = cam.CFrame.LookVector
+    H.CurYaw = math.atan2(-curLook.X, -curLook.Z)
+    H.CurPitch = math.asin(math.clamp(curLook.Y, -1, 1))
 end
+
+-- 🎯 Lấy vị trí mục tiêu theo chế độ AimPart
+local function getTargetPart(p)
+    local c = ch(p)
+    if not c then return nil end
+    
+    local headPart = c:FindFirstChild("Head")
+    local bodyPart = c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso") or c:FindFirstChild("UpperTorso")
+    
+    if C.AimMode == "HEAD" then
+        return headPart or bodyPart
+    elseif C.AimMode == "BODY" then
+        return bodyPart or headPart
+    elseif C.AimMode == "BOTH" then
+        if headPart and bodyPart then
+            local t = os.clock()
+            return (math.floor(t * 1.6) % 2 == 0) and headPart or bodyPart
+        else
+            return headPart or bodyPart
+        end
+    end
+    return headPart or bodyPart
+end
+
 local function isVisible(p, targetPart)
     if not C.WallCheck then return true end
     local now = os.clock()
@@ -42,29 +97,35 @@ local function isVisible(p, targetPart)
     local dir = targetPart.Position - origin
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {lp.Character, targetPart.Parent, cam}
+    
+    local filterList = {cam}
+    if lp.Character then table.insert(filterList, lp.Character) end
+    if targetPart.Parent then table.insert(filterList, targetPart.Parent) end
+    params.FilterDescendantsInstances = filterList
     params.IgnoreWater = true
+    
     local result = W:Raycast(origin, dir, params) == nil
     Cache.VisAt[p] = now
     Cache.VisResult[p] = result
     return result
 end
+
 local function findTarget(force)
     local now = os.clock()
     if not force and (now - Cache.FindTargetAt) < Cache.FindTargetCD then return nil end
     Cache.FindTargetAt = now
     local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
-    local myPos = myHRP and myHRP.Position or cam.CFrame.Position
+    local myPos = (myHRP and myHRP.Position) or cam.CFrame.Position
     local best, bd = nil, math.huge
     for _, p in ipairs(P:GetPlayers()) do
-        if p ~= lp and not (C.Team and isTeam(p)) then
-            local hp = head(p)
-            if hp and isVisible(p, hp) then
+        if p ~= lp and not isTeam(p) then
+            local tp = getTargetPart(p)
+            if tp and isVisible(p, tp) then
                 if C.Scan360 then
-                    local dist = (hp.Position - myPos).Magnitude
+                    local dist = (tp.Position - myPos).Magnitude
                     if dist <= C.Range and dist < bd then bd, best = dist, p end
                 else
-                    local s, on = cam:WorldToViewportPoint(hp.Position)
+                    local s, on = cam:WorldToViewportPoint(tp.Position)
                     if on then
                         local d = (Vector2.new(s.X, s.Y) - Vector2.new(cx, cy)).Magnitude
                         if d <= C.FOV and d < bd then bd, best = d, p end
@@ -75,6 +136,7 @@ local function findTarget(force)
     end
     return best, true
 end
+
 local function calcAngles(fromPos, toPos)
     local dir = toPos - fromPos
     if dir.Magnitude < 0.001 then return 0, 0 end
@@ -82,6 +144,7 @@ local function calcAngles(fromPos, toPos)
     local pitch = math.asin(math.clamp(dir.Y / dir.Magnitude, -1, 1))
     return yaw, math.clamp(pitch, math.rad(-89), math.rad(89))
 end
+
 local function anglesToCF(pos, yaw, pitch)
     return CFrame.new(pos) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
 end
@@ -89,10 +152,10 @@ end
 local function bindChar()
     myHRP = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
     myHum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
-    if myHum then myHum.AutoRotate = false end
+    if myHum then myHum.AutoRotate = not C.On end
 end
 bindChar()
-lp.CharacterAdded:Connect(function() task.wait(0.3) bindChar() end)
+lp.CharacterAdded:Connect(function() task.wait(0.2) bindChar() end)
 
 pcall(function()
     local mt = getrawmetatable(game)
@@ -100,54 +163,41 @@ pcall(function()
     local oldNI = mt.__newindex
     setreadonly(mt, false)
     mt.__newindex = newcclosure(function(self, k, v)
-        if self == cam and k == "CFrame" and typeof(v) == "CFrame" then
-            if H.AimPos and H.CurYaw and H.CurPitch then
-                return oldNI(self, k, anglesToCF(v.Position, H.CurYaw, H.CurPitch))
+        if C.On then
+            if self == cam and k == "CFrame" and typeof(v) == "CFrame" then
+                if H.AimPos and H.CurYaw and H.CurPitch then
+                    return oldNI(self, k, anglesToCF(v.Position, H.CurYaw, H.CurPitch))
+                end
             end
-            if H.Frozen and H.FrozenLook then
-                return oldNI(self, k, CFrame.new(v.Position, v.Position + H.FrozenLook))
+            if H.AimPos and myHRP and self == myHRP and k == "CFrame" and typeof(v) == "CFrame" then
+                local yaw, _ = calcAngles(v.Position, H.AimPos)
+                return oldNI(self, k, CFrame.new(v.Position) * CFrame.Angles(0, yaw, 0))
             end
-        end
-        if H.AimPos and myHRP and self == myHRP and k == "CFrame" and typeof(v) == "CFrame" then
-            local yaw, _ = calcAngles(v.Position, H.AimPos)
-            return oldNI(self, k, CFrame.new(v.Position) * CFrame.Angles(0, yaw, 0))
         end
         return oldNI(self, k, v)
     end)
     setreadonly(mt, true)
 end)
 
-U.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if H.Frozen and (input.UserInputType == Enum.UserInputType.Touch
-        or input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        H.Frozen = false H.FrozenLook = nil
-        if myHum then myHum.AutoRotate = true end
-    end
-end)
-U.InputChanged:Connect(function(input)
-    if not H.Frozen then return end
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch)
-        and input.Delta and input.Delta.Magnitude > 0.5 then
-        H.Frozen = false H.FrozenLook = nil
-        if myHum then myHum.AutoRotate = true end
-    end
-end)
-
+-- 🔄 RENDER LOOP (ĐÃ FIX XỬ LÝ KHI ĐỊCH CHẾT)
 S.RenderStepped:Connect(function(dt)
     if not myHRP or not myHRP.Parent then bindChar() end
     if not C.On then
-        if H.AimPos then
-            H.Frozen = true
-            H.FrozenLook = cam.CFrame.LookVector
-            H.AimPos = nil H.CurYaw = nil H.CurPitch = nil
-        end
+        H.AimPos = nil H.CurYaw = nil H.CurPitch = nil
         return
     end
-    if H.Frozen then H.Frozen = false H.FrozenLook = nil end
 
-    local targetDead = C.Target and not ch(C.Target)
+    -- 🛡️ Xử lý ngay lập tức khi mục tiêu hiện tại chết hoặc biến mất
+    if C.Target and not ch(C.Target) then
+        C.Target = nil
+        C.LockTarget = false
+        C.AutoPick = true
+        H.AimPos = nil
+        resetCurAngles()
+        if myHum then myHum.AutoRotate = true end
+    end
+
+    local targetDead = (C.Target == nil)
     local needNew = false
     if C.LockTarget then
         needNew = targetDead
@@ -157,50 +207,47 @@ S.RenderStepped:Connect(function(dt)
     end
 
     if needNew then
-        local newT, scanned = findTarget(C.Scan360 or targetDead or not C.Target)
+        local newT, scanned = findTarget(C.Scan360 or targetDead)
         if newT then
-            C.Target = newT
-            local hp = head(newT)
-            if hp then H.AimPos = hp.Position end
-            if targetDead then H.CurYaw = nil H.CurPitch = nil end
-        elseif C.Scan360 and scanned then
-            C.Target = nil
-            if H.AimPos then
-                H.Frozen = true
-                H.FrozenLook = cam.CFrame.LookVector
-                H.AimPos = nil H.CurYaw = nil H.CurPitch = nil
+            if C.Target ~= newT then
+                C.Target = newT
+                resetCurAngles()
             end
+            local tp = getTargetPart(newT)
+            if tp then H.AimPos = tp.Position end
+        elseif C.Scan360 or scanned then
+            C.Target = nil
+            H.AimPos = nil
+            resetCurAngles()
             return
         end
     end
 
     local t = C.Target
-    local hp = t and head(t)
-    if not hp then return end
+    local tp = t and getTargetPart(t)
 
-    if C.WallCheck and not isVisible(t, hp) then
-        if not H.AimPos then
-            H.Frozen = true
-            H.FrozenLook = cam.CFrame.LookVector
-        end
+    -- Kiểm tra Wall Check
+    if not tp or (C.WallCheck and not isVisible(t, tp)) then
+        H.AimPos = nil
+        resetCurAngles()
+        if myHum then myHum.AutoRotate = true end
+        
         local now = os.clock()
-        if lbl and (now - Cache.LabelAt) > Cache.LabelCD then
+        if lbl and t and (now - Cache.LabelAt) > Cache.LabelCD then
             Cache.LabelAt = now
-            lbl.Text = "[X] "..t.Name:sub(1,8).." BLOCKED"
+            lbl.Text = "[X] " .. t.Name:sub(1,8) .. " BLOCKED"
         end
         return
     end
 
-    H.AimPos = hp.Position
+    H.AimPos = tp.Position
     if myHum then myHum.AutoRotate = false end
 
     local camPos = cam.CFrame.Position
     local wantYaw, wantPitch = calcAngles(camPos, H.AimPos)
 
     if not H.CurYaw then
-        local curLook = cam.CFrame.LookVector
-        H.CurYaw = math.atan2(-curLook.X, -curLook.Z)
-        H.CurPitch = math.asin(math.clamp(curLook.Y, -1, 1))
+        resetCurAngles()
     end
 
     if C.RotSpeed >= 100 then
@@ -221,14 +268,14 @@ S.RenderStepped:Connect(function(dt)
     if lbl and (now - Cache.LabelAt) > Cache.LabelCD then
         Cache.LabelAt = now
         if myHRP then
-            local dist = (hp.Position - myHRP.Position).Magnitude
+            local dist = (tp.Position - myHRP.Position).Magnitude
             lbl.Text = string.format("[O] %s %dm", t.Name:sub(1,10), math.floor(dist))
         end
     end
 end)
 
 S.Stepped:Connect(function()
-    if not H.AimPos or not H.CurYaw then return end
+    if not C.On or not H.AimPos or not H.CurYaw then return end
     if not myHRP or not myHRP.Parent then return end
     pcall(function()
         myHRP.CFrame = CFrame.new(myHRP.Position) * CFrame.Angles(0, H.CurYaw, 0)
@@ -236,7 +283,7 @@ S.Stepped:Connect(function()
     if myHum and myHum.AutoRotate then myHum.AutoRotate = false end
 end)
 
--- ==================== UI ====================
+-- ==================== FULL UI SYSTEM ====================
 local u = Instance.new("ScreenGui")
 u.Name, u.ResetOnSpawn = "AimCompact", false
 pcall(function() u.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
@@ -279,8 +326,8 @@ plusStroke.Color = Color3.fromRGB(0,220,120)
 plusStroke.Thickness = 1.5
 plusStroke.Transparency = 0.4
 
-local mainFrame = Instance.new("Frame", u)
-mainFrame.Size = UDim2.fromOffset(210, 340)
+mainFrame = Instance.new("Frame", u)
+mainFrame.Size = UDim2.fromOffset(210, 370)
 mainFrame.Position = UDim2.new(0, 145, 0.4, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15,18,28)
 mainFrame.BorderSizePixel = 0
@@ -296,7 +343,7 @@ local ttl = Instance.new("TextLabel", mainFrame)
 ttl.Size = UDim2.new(1, -40, 0, 26)
 ttl.Position = UDim2.fromOffset(10, 4)
 ttl.BackgroundTransparency = 1
-ttl.Text = "AIMBOT v1"
+ttl.Text = "AIMBOT v2"
 ttl.Font = Enum.Font.GothamBold
 ttl.TextSize = 12
 ttl.TextColor3 = Color3.fromRGB(0,220,120)
@@ -359,7 +406,6 @@ local function mkBtn(text, cb, accent)
 end
 local cl = function(o) return o and Color3.fromRGB(0,150,90) or Color3.fromRGB(35,44,65) end
 
--- ⚡ SLIDER FACTORY
 local function mkSlider(text, minV, maxV, defV, order, onChange)
     local holder = Instance.new("Frame", content)
     holder.Size = UDim2.new(1, -8, 0, 38)
@@ -475,6 +521,23 @@ btnTeam = mkBtn("TEAM CHECK: ON", function()
 end, Color3.fromRGB(0,150,90))
 btnTeam.LayoutOrder = yOrder; yOrder = yOrder + 1
 
+btnAimPart = mkBtn("AIM PART: HEAD", function()
+    if C.AimMode == "HEAD" then
+        C.AimMode = "BODY"
+        btnAimPart.Text = "AIM PART: BODY"
+        btnAimPart.BackgroundColor3 = Color3.fromRGB(180,100,0)
+    elseif C.AimMode == "BODY" then
+        C.AimMode = "BOTH"
+        btnAimPart.Text = "AIM PART: BOTH"
+        btnAimPart.BackgroundColor3 = Color3.fromRGB(130,0,180)
+    else
+        C.AimMode = "HEAD"
+        btnAimPart.Text = "AIM PART: HEAD"
+        btnAimPart.BackgroundColor3 = Color3.fromRGB(35,44,65)
+    end
+end)
+btnAimPart.LayoutOrder = yOrder; yOrder = yOrder + 1
+
 btnAuto = mkBtn("AUTO PICK: ON", function()
     C.AutoPick = not C.AutoPick
     btnAuto.Text = "AUTO PICK: "..(C.AutoPick and "ON" or "OFF")
@@ -574,6 +637,10 @@ local function setAim(on)
     aimBtn.Text = on and "AIM ✓" or "AIM"
     aimBtn.BackgroundColor3 = on and Color3.fromRGB(0,180,90) or Color3.fromRGB(180,40,40)
     aimStroke.Color = on and Color3.fromRGB(0,255,150) or Color3.fromRGB(255,255,255)
+    if not on then
+        H.AimPos = nil H.CurYaw = nil H.CurPitch = nil
+        if myHum then myHum.AutoRotate = true end
+    end
 end
 aimBtn.MouseButton1Click:Connect(function() setAim(not C.On) end)
 
@@ -596,4 +663,4 @@ end)
 U.InputBegan:Connect(function(i,g) if not g and i.KeyCode==C.Key then setAim(true) end end)
 U.InputEnded:Connect(function(i) if i.KeyCode==C.Key then setAim(false) end end)
 
-print("[AimPro v1] Sliders for FOV / Rot Speed / 360 Range.")
+print("[AimPro v33] Target death snap bug fixed.")
