@@ -1,5 +1,5 @@
 -- ============================================
--- T HUB v9.7 | Threshold 300 studs | Fail-skip + slow strawberry
+-- T HUB v10.3 | Bỏ Auto Spin
 -- ============================================
 
 local success, WindUI = pcall(function()
@@ -59,13 +59,12 @@ end)
 local autoRollState = false
 local autoSellState = false
 local autoEquipState = false
-local autoClaimStarState = false
+local autoClaimClockCoinState = false
 local autoBuyAllAntState = false
 local autoBuyAntState = false
 local ignoreCashCheck = false
 local autoBuyItemState = false
 local antiAfkState = false
-local autoFlipStarState = false
 local autoEnterDungeonState = false
 local autoStartState = false
 local autoX4SpeedState = false
@@ -93,12 +92,10 @@ local dungeonCheckPromptName = ""
 local wasInDungeon = false
 local lastDungeonExitTime = 0
 
--- Theo dõi cổng tele nhiều lần mà không vào được
 local dungeonCheckKey = nil
 local failCounts = {}
-local MAX_FAIL_ATTEMPTS = 2 -- số lần tele+Enter thất bại trước khi bỏ qua cổng đó
+local MAX_FAIL_ATTEMPTS = 2
 
--- Strawberry: thời gian chờ sau khi tele / sau khi bấm
 local strawberryDelay = 0.4
 
 local function getPromptPos(prompt)
@@ -423,13 +420,19 @@ local function findSellObjects()
     return t
 end
 
-local function findClaimStarObject()
+local function findClaimClockCoinObject()
     local r = nil
     pcall(function()
         for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("ProximityPrompt") then
-                local at = string.lower(obj.ActionText)
-                if at:find("claim") or at == "free" then r = obj; break end
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                local pn = string.lower(obj.Parent.Name or "")
+                if ot:find("clock") or pn:find("clock")
+                   or ot:find("clock coin") or at:find("claim")
+                   or (at:find("claim") and ot:find("coin")) then
+                    r = obj; break
+                end
             end
         end
     end)
@@ -466,38 +469,6 @@ local function findBuyAntObjectsMin()
         end
     end)
     return t
-end
-
-local function findFlipStarPrompt()
-    local r = nil
-    pcall(function()
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("ProximityPrompt") then
-                local at = string.lower(obj.ActionText or "")
-                local ot = string.lower(obj.ObjectText or "")
-                local pn = string.lower(obj.Parent.Name or "")
-                if at:find("flip") or ot:find("flip") or pn:find("flip")
-                   or at:find("flip star") or pn:find("flipstar") then
-                    r = obj; break
-                end
-            end
-        end
-    end)
-    return r
-end
-
-local function findFlipStarUIButton()
-    local r = nil
-    pcall(function()
-        for _, gui in ipairs(playerGui:GetDescendants()) do
-            if gui:IsA("TextButton") or gui:IsA("ImageButton") then
-                local n = string.lower(gui.Name or "")
-                local txt = string.lower(gui.Text or "")
-                if n:find("flip") or txt:find("flip") then r = gui; break end
-            end
-        end
-    end)
-    return r
 end
 
 -- ============================================
@@ -713,7 +684,7 @@ task.spawn(function()
                                     hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
                                 end)
                                 
-                                task.wait(strawberryDelay) -- chờ ổn định sau khi tele
+                                task.wait(strawberryDelay)
                                 
                                 if prompt.Parent and prompt.Enabled and fireproximityprompt then
                                     pcall(function() fireproximityprompt(prompt) end)
@@ -778,8 +749,8 @@ end)
 task.spawn(function()
     while true do
         pcall(function()
-            if autoClaimStarState then
-                local t = findClaimStarObject()
+            if autoClaimClockCoinState then
+                local t = findClaimClockCoinObject()
                 if t then activateObject(t) end
             end
         end)
@@ -839,22 +810,6 @@ task.spawn(function()
             end
         end)
         task.wait(1)
-    end
-end)
-
-task.spawn(function()
-    while true do
-        pcall(function()
-            if autoFlipStarState then
-                local prompt = findFlipStarPrompt()
-                if prompt then activateObject(prompt)
-                else
-                    local btn = findFlipStarUIButton()
-                    if btn then clickUIButton(btn) end
-                end
-            end
-        end)
-        task.wait(0.5)
     end
 end)
 
@@ -979,7 +934,6 @@ task.spawn(function()
 
                                     print("[T HUB] Đã tele: " .. promptName .. " (" .. tostring(promptKey) .. ")")
 
-                                    -- Nhấn Enter nhiều lần trong ~3s, vào được thì dừng
                                     local entered = false
                                     for i = 1, 6 do
                                         if fireproximityprompt then
@@ -1187,27 +1141,27 @@ FarmTab:Toggle({
 })
 
 -- ============================================
--- TAB 3: STAR EVENT
+-- TAB 3: CLOCK EVENT
 -- ============================================
-local StarEventTab = Window:Tab({ Title = "Star Event", Icon = "star" })
+local ClockEventTab = Window:Tab({ Title = "Clock Event", Icon = "clock" })
 
-StarEventTab:Toggle({
-    Title = "Auto Flip Star",
-    Icon = "refresh-cw",
+ClockEventTab:Toggle({
+    Title = "Auto Claim Clock Coin",
+    Icon = "circle-dot",
     Default = false,
     Callback = function(s)
-        autoFlipStarState = s
+        autoClaimClockCoinState = s
         WindUI:Notify({
-            Title = "Auto Flip Star",
-            Content = s and "ON - Flipping stars..." or "OFF",
-            Duration = 2
+            Title = "⏰ Clock Event",
+            Content = s and "ON - Đang tự động claim Clock Coin..." or "OFF",
+            Duration = 3
         })
     end
 })
 
-StarEventTab:Paragraph({
-    Title = "⚠️ Lưu ý",
-    Desc = "• Cần cầm item Star lên để auto flip star\n• Đây chỉ là flip star. Nếu muốn vào cổng đánh boss star thì cần vào mục Dungeon và bật các chức năng trong đó lên.",
+ClockEventTab:Paragraph({
+    Title = "⚠️ Cảnh báo",
+    Desc = "• Nếu muốn bật ổn định, ít bị lỗi nhất thì nên đặt thời gian Auto Roll là 7s hoặc trên 7s.",
 })
 
 -- ============================================
@@ -1361,16 +1315,6 @@ end)
 -- TAB 6: AUTO Buy&Claim
 -- ============================================
 local ExtraTab = Window:Tab({ Title = "Auto Buy&Claim", Icon = "zap" })
-
-ExtraTab:Toggle({
-    Title = "Auto Claim Star",
-    Icon = "star",
-    Default = false,
-    Callback = function(s)
-        autoClaimStarState = s
-        WindUI:Notify({ Title = "Claim Star", Content = s and "ON" or "OFF", Duration = 2 })
-    end
-})
 
 ExtraTab:Toggle({
     Title = "Auto Buy All Ant",
@@ -1616,7 +1560,7 @@ ServerTab:Button({
 })
 
 WindUI:Notify({
-    Title = "T HUB v9.7",
-    Content = "Loaded! Fail-skip + slow strawberry.",
+    Title = "T HUB v10.3",
+    Content = "Loaded! Đã bỏ Auto Spin.",
     Duration = 5
 })
