@@ -1,5 +1,5 @@
 -- =======================================================
--- AUTO FARM HUB - WINDUI (BẮT BUỘC AUTO USE ITEM)
+-- AUTO FARM HUB - WINDUI (QUÉT QUÁI THEO TỌA ĐỘ PLOT)
 -- =======================================================
 
 local success, WindUI = pcall(function()
@@ -43,10 +43,10 @@ local autoStartEnabled = false
 local autoUseItemEnabled = false
 local selectedItemName = ""
 local targetEnemy = nil
-local MAX_DISTANCE = 50
 local FLY_HEIGHT = 36
 local CAM_DISTANCE = 8
 local lastValidPos = nil
+local myPlot = nil
 
 local EXCLUDED_ITEMS = {
     ["Pickaxe"] = true,
@@ -56,37 +56,129 @@ local EXCLUDED_ITEMS = {
 local farmToggle = nil
 local itemToggle = nil
 local itemDropdown = nil
+local plotLabel = nil
 
--- ==================== HÀM TÌM QUÁI ====================
+-- ==================== HÀM CHECK PLOT ====================
+local function cleanStr(s)
+    if not s then return "" end
+    s = string.lower(s)
+    s = s:gsub("%s+", ""):gsub("'", ""):gsub("’", ""):gsub("_", "")
+    return s
+end
+
+local function findAllPlots()
+    local plots = {}
+    local function scan(folder)
+        for _, obj in pairs(folder:GetChildren()) do
+            if obj.Name:match("^Plot%d+$") then
+                table.insert(plots, obj)
+            end
+            if obj:IsA("Folder") or obj:IsA("Model") then
+                scan(obj)
+            end
+        end
+    end
+    scan(workspace)
+    return plots
+end
+
+local function checkPlotByPosition()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = char.HumanoidRootPart.Position
+
+    for _, plot in ipairs(findAllPlots()) do
+        local boundary = plot:FindFirstChild("BedrockBoundary")
+        if boundary and boundary:IsA("BasePart") then
+            local dx = math.abs(myPos.X - boundary.Position.X)
+            local dz = math.abs(myPos.Z - boundary.Position.Z)
+            if dx <= (boundary.Size.X / 2) + 15 and dz <= (boundary.Size.Z / 2) + 15 then
+                return plot
+            end
+        end
+        -- Fallback dùng GetBoundingBox
+        local success, cf, size = pcall(function() return plot:GetBoundingBox() end)
+        if success and size.X > 20 then
+            local rel = cf:PointToObjectSpace(myPos)
+            if math.abs(rel.X) <= (size.X / 2) + 15 and math.abs(rel.Z) <= (size.Z / 2) + 15 then
+                return plot
+            end
+        end
+    end
+    return nil
+end
+
+local function checkPlotByName()
+    local myName = cleanStr(LocalPlayer.Name)
+    local myDisplay = cleanStr(LocalPlayer.DisplayName)
+    for _, plot in ipairs(findAllPlots()) do
+        for _, v in ipairs(plot:GetDescendants()) do
+            if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+                local txt = cleanStr(v.Text)
+                local part = string.match(txt, "^(.-)sbunker")
+                if part and (part == myName or part == myDisplay) then
+                    return plot
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function checkMyPlot()
+    local byPos = checkPlotByPosition()
+    if byPos then return byPos end
+    return checkPlotByName()
+end
+
+-- ==================== HÀM TÌM QUÁI (THEO TỌA ĐỘ PLOT) ====================
 local function isEnemy(model)
     if not model:IsA("Model") then return false end
     if model == LocalPlayer.Character then return false end
     if not model:FindFirstChild("Humanoid") or not model:FindFirstChild("HumanoidRootPart") then return false end
     if model.Humanoid.Health <= 0 then return false end
-    local player = Players:GetPlayerFromCharacter(model)
-    if player then return false end
+    if Players:GetPlayerFromCharacter(model) then return false end
     return true
 end
 
 local function getAllEnemies()
     local list = {}
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return list end
-    local myPos = char.HumanoidRootPart.Position
+    if not myPlot then return list end
 
+    -- Lấy tâm và kích thước của Plot
+    local center, size
+    local boundary = myPlot:FindFirstChild("BedrockBoundary")
+    if boundary and boundary:IsA("BasePart") then
+        center = boundary.Position
+        size = boundary.Size
+    else
+        local success, cf, sz = pcall(function() return myPlot:GetBoundingBox() end)
+        if success then
+            center = cf.Position
+            size = sz
+        else
+            return list
+        end
+    end
+
+    -- Quét toàn bộ Workspace để tìm quái
     local function scanFolder(folder)
         for _, obj in pairs(folder:GetChildren()) do
             if isEnemy(obj) then
-                local enemyPos = obj.HumanoidRootPart.Position
-                local dx = myPos.X - enemyPos.X
-                local dz = myPos.Z - enemyPos.Z
-                local horizontalDist = math.sqrt(dx*dx + dz*dz)
-                if horizontalDist <= MAX_DISTANCE then
+                local ePos = obj.HumanoidRootPart.Position
+                local dx = math.abs(ePos.X - center.X)
+                local dz = math.abs(ePos.Z - center.Z)
+                
+                -- Nếu quái nằm trong phạm vi của Plot (+ 15 studs buffer)
+                if dx <= (size.X / 2) + 15 and dz <= (size.Z / 2) + 15 then
                     table.insert(list, obj)
                 end
             end
             if obj:IsA("Folder") or obj:IsA("Model") then
-                scanFolder(obj)
+                -- Không quét vào người chơi để tránh lag
+                if not Players:GetPlayerFromCharacter(obj) then
+                    scanFolder(obj)
+                end
             end
         end
     end
@@ -103,9 +195,7 @@ local function getClosestEnemy()
     local myPos = char.HumanoidRootPart.Position
     for _, enemy in pairs(list) do
         local enemyPos = enemy.HumanoidRootPart.Position
-        local dx = myPos.X - enemyPos.X
-        local dz = myPos.Z - enemyPos.Z
-        local dist = math.sqrt(dx*dx + dz*dz)
+        local dist = (myPos - enemyPos).Magnitude
         if dist < minDist then
             minDist = dist
             closest = enemy
@@ -126,15 +216,10 @@ local function fireButtonSignal(button)
     if not button then return end
     pcall(function()
         if getconnections then
-            for _, connection in ipairs(getconnections(button.Activated)) do
-                connection:Fire()
-            end
-            for _, connection in ipairs(getconnections(button.MouseButton1Click)) do
-                connection:Fire()
-            end
+            for _, connection in ipairs(getconnections(button.Activated)) do connection:Fire() end
+            for _, connection in ipairs(getconnections(button.MouseButton1Click)) do connection:Fire() end
         elseif firesignal then
-            firesignal(button.MouseButton1Click)
-            firesignal(button.Activated)
+            firesignal(button.MouseButton1Click); firesignal(button.Activated)
         end
     end)
 end
@@ -159,21 +244,13 @@ local function resetCharacterState()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("Humanoid") then return end
     local hum = char.Humanoid
-
-    hum.PlatformStand = false
-    hum.AutoRotate = true
-    hum.WalkSpeed = 16
-    hum.JumpPower = 50
+    hum.PlatformStand = false; hum.AutoRotate = true; hum.WalkSpeed = 16; hum.JumpPower = 50
     hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-
     task.wait(0.1)
-
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if hrp then
         for _, obj in pairs(hrp:GetChildren()) do
-            if obj:IsA("BodyPosition") or obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
-                obj:Destroy()
-            end
+            if obj:IsA("BodyPosition") or obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then obj:Destroy() end
         end
     end
 end
@@ -181,71 +258,61 @@ end
 -- ==================== AUTO USE ITEM ====================
 local function activateTool(tool)
     if not tool then return end
-
     pcall(function()
         if getconnections then
-            for _, conn in ipairs(getconnections(tool.Activated)) do
-                conn:Fire()
-            end
+            for _, conn in ipairs(getconnections(tool.Activated)) do conn:Fire() end
         end
     end)
-
-    pcall(function()
-        tool:Activate()
-    end)
+    pcall(function() tool:Activate() end)
 end
 
 local function autoUseItemLoop()
     while task.wait(0.1) do
         if not autoUseItemEnabled or selectedItemName == "" then continue end
-
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("Humanoid") then continue end
-
         local hum = char.Humanoid
         local equippedTool = char:FindFirstChildOfClass("Tool")
-
         if not equippedTool or equippedTool.Name ~= selectedItemName then
             local backpack = LocalPlayer:FindFirstChild("Backpack")
             if backpack then
                 local targetTool = backpack:FindFirstChild(selectedItemName)
                 if targetTool then
-                    pcall(function()
-                        hum:EquipTool(targetTool)
-                    end)
+                    pcall(function() hum:EquipTool(targetTool) end)
                     task.wait(0.05)
-                    if targetTool.Parent ~= char then
-                        pcall(function()
-                            targetTool.Parent = char
-                        end)
-                    end
+                    if targetTool.Parent ~= char then pcall(function() targetTool.Parent = char end) end
                 end
             end
         end
-
         task.wait(0.05)
         local currentTool = char:FindFirstChildOfClass("Tool")
-        if currentTool and currentTool.Name == selectedItemName then
-            activateTool(currentTool)
-        end
+        if currentTool and currentTool.Name == selectedItemName then activateTool(currentTool) end
     end
 end
 
 -- ==================== LOGIC AUTO FARM ====================
 local function autoFarmLoop()
     while task.wait() do
-        -- KIỂM TRA ĐIỀU KIỆN: Nếu Auto Farm bật nhưng Auto Use Item tắt hoặc chưa chọn item → tự tắt
+        if not myPlot then
+            myPlot = checkMyPlot()
+            if myPlot and plotLabel then
+                pcall(function() plotLabel:SetDesc("Plot: " .. myPlot.Name) end)
+            end
+        end
+
         if autoFarmEnabled then
             if not autoUseItemEnabled or selectedItemName == "" then
                 autoFarmEnabled = false
-                if farmToggle then
-                    pcall(function() farmToggle:Set(false) end)
-                end
-                targetEnemy = nil
-                lastValidPos = nil
-                resetCharacterState()
-                Camera.CameraType = Enum.CameraType.Custom
+                if farmToggle then pcall(function() farmToggle:Set(false) end) end
+                targetEnemy = nil; lastValidPos = nil; resetCharacterState(); Camera.CameraType = Enum.CameraType.Custom
                 WindUI:Notify({ Title = "Auto Farm", Content = "Đã tắt vì thiếu điều kiện!", Duration = 3 })
+                continue
+            end
+            if not myPlot then
+                autoFarmEnabled = false
+                if farmToggle then pcall(function() farmToggle:Set(false) end) end
+                targetEnemy = nil; lastValidPos = nil; resetCharacterState(); Camera.CameraType = Enum.CameraType.Custom
+                WindUI:Notify({ Title = "Auto Farm", Content = "Chưa có Plot! Bấm Check Plot.", Duration = 3 })
                 continue
             end
         end
@@ -258,12 +325,16 @@ local function autoFarmLoop()
         local root = char.HumanoidRootPart
         char.Humanoid.AutoRotate = false
 
+        -- Cập nhật label hiển thị số quái trong Plot
+        local enemies = getAllEnemies()
+        if plotLabel then
+            pcall(function() 
+                plotLabel:SetDesc("Plot: " .. myPlot.Name .. " | Quái trong Plot: " .. #enemies) 
+            end)
+        end
+
         if targetEnemy then
-            local enemyPos = targetEnemy.HumanoidRootPart.Position
-            local dx = root.Position.X - enemyPos.X
-            local dz = root.Position.Z - enemyPos.Z
-            local horizontalDist = math.sqrt(dx*dx + dz*dz)
-            if not targetEnemy.Parent or targetEnemy.Humanoid.Health <= 0 or horizontalDist > MAX_DISTANCE then
+            if not targetEnemy.Parent or targetEnemy.Humanoid.Health <= 0 then
                 targetEnemy = nil
             end
         end
@@ -274,7 +345,6 @@ local function autoFarmLoop()
 
         if targetEnemy then
             local enemyRoot = targetEnemy.HumanoidRootPart
-
             local targetPos = enemyRoot.Position + Vector3.new(0, FLY_HEIGHT, 0)
             local lookDir = (enemyRoot.Position - targetPos).Unit
             root.CFrame = CFrame.lookAt(targetPos, targetPos + lookDir)
@@ -302,9 +372,7 @@ task.spawn(function()
     while task.wait(0.5) do
         if autoStartEnabled then
             local ok = triggerStartButton()
-            if ok then
-                task.wait(1.5)
-            end
+            if ok then task.wait(1.5) end
         end
     end
 end)
@@ -320,51 +388,54 @@ local function getBackpackItems()
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if backpack then
         for _, child in pairs(backpack:GetChildren()) do
-            if child:IsA("Tool") then
-                if not EXCLUDED_ITEMS[child.Name] then
-                    table.insert(items, child.Name)
-                end
+            if child:IsA("Tool") and not EXCLUDED_ITEMS[child.Name] then
+                table.insert(items, child.Name)
             end
         end
     end
-    if #items == 0 then
-        table.insert(items, "Không có item")
-    end
+    if #items == 0 then table.insert(items, "Không có item") end
     return items
 end
 
 local function isDifferent(list1, list2)
     if #list1 ~= #list2 then return true end
-    for i = 1, #list1 do
-        if list1[i] ~= list2[i] then return true end
-    end
+    for i = 1, #list1 do if list1[i] ~= list2[i] then return true end end
     return false
 end
 
--- 1. Auto Use Item
+MainTab:Button({
+    Title = "Check Plot Của Tôi",
+    Callback = function()
+        local found = checkMyPlot()
+        if found then
+            myPlot = found
+            WindUI:Notify({ Title = "Check Plot", Content = "Đã tìm thấy: " .. myPlot.Name, Duration = 3 })
+            if plotLabel then pcall(function() plotLabel:SetDesc("Plot: " .. myPlot.Name) end) end
+        else
+            myPlot = nil
+            WindUI:Notify({ Title = "Check Plot", Content = "Không tìm thấy! Đứng trong Base và thử lại.", Duration = 3 })
+            if plotLabel then pcall(function() plotLabel:SetDesc("Chưa tìm thấy Plot") end) end
+        end
+    end
+})
+
+plotLabel = MainTab:Paragraph({ Title = "Trạng thái Plot", Desc = "Đang tự động check..." })
+
 itemToggle = MainTab:Toggle({
     Title = "Auto Use Item",
     Default = false,
     Callback = function(state)
         autoUseItemEnabled = state
         WindUI:Notify({ Title = "Auto Use Item", Content = state and "BẬT" or "TẮT", Duration = 2 })
-
-        -- Nếu tắt Auto Use Item mà Auto Farm đang bật → tự tắt Auto Farm
         if not state and autoFarmEnabled then
             autoFarmEnabled = false
-            if farmToggle then
-                pcall(function() farmToggle:Set(false) end)
-            end
-            targetEnemy = nil
-            lastValidPos = nil
-            resetCharacterState()
-            Camera.CameraType = Enum.CameraType.Custom
+            if farmToggle then pcall(function() farmToggle:Set(false) end) end
+            targetEnemy = nil; lastValidPos = nil; resetCharacterState(); Camera.CameraType = Enum.CameraType.Custom
             WindUI:Notify({ Title = "Auto Farm", Content = "Đã tắt vì Auto Use Item bị tắt", Duration = 3 })
         end
     end
 })
 
--- 2. Ô chọn Item
 itemDropdown = MainTab:Dropdown({
     Title = "Chọn Item để dùng",
     Values = getBackpackItems(),
@@ -374,27 +445,29 @@ itemDropdown = MainTab:Dropdown({
     end
 })
 
--- 3. Auto Farm (yêu cầu Auto Use Item phải bật + đã chọn item)
 farmToggle = MainTab:Toggle({
     Title = "Auto Farm",
     Default = false,
     Callback = function(state)
-        -- Kiểm tra điều kiện khi bật
         if state then
             if not autoUseItemEnabled then
                 WindUI:Notify({ Title = "Auto Farm", Content = "Phải BẬT Auto Use Item trước!", Duration = 3 })
-                if farmToggle then
-                    pcall(function() farmToggle:Set(false) end)
-                end
+                if farmToggle then pcall(function() farmToggle:Set(false) end) end
                 return
             end
-
             if selectedItemName == "" then
                 WindUI:Notify({ Title = "Auto Farm", Content = "Phải CHỌN Item trước!", Duration = 3 })
-                if farmToggle then
-                    pcall(function() farmToggle:Set(false) end)
-                end
+                if farmToggle then pcall(function() farmToggle:Set(false) end) end
                 return
+            end
+            if not myPlot then
+                myPlot = checkMyPlot()
+                if plotLabel then pcall(function() plotLabel:SetDesc(myPlot and ("Plot: "..myPlot.Name) or "Không tìm thấy") end) end
+                if not myPlot then
+                    WindUI:Notify({ Title = "Auto Farm", Content = "Không có Plot! Bấm Check Plot.", Duration = 3 })
+                    if farmToggle then pcall(function() farmToggle:Set(false) end) end
+                    return
+                end
             end
         end
 
@@ -403,53 +476,30 @@ farmToggle = MainTab:Toggle({
 
         if state then
             resetCharacterState()
-            targetEnemy = nil
-            lastValidPos = nil
-
+            targetEnemy = nil; lastValidPos = nil
             if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-                char.Humanoid.PlatformStand = true
-                char.Humanoid.AutoRotate = false
+                char.Humanoid.PlatformStand = true; char.Humanoid.AutoRotate = false
                 char.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                 lastValidPos = char.HumanoidRootPart.CFrame + Vector3.new(0, FLY_HEIGHT, 0)
             end
             WindUI:Notify({ Title = "Auto Farm", Content = "Đã BẬT", Duration = 2 })
         else
-            targetEnemy = nil
-            lastValidPos = nil
-            resetCharacterState()
-            Camera.CameraType = Enum.CameraType.Custom
+            targetEnemy = nil; lastValidPos = nil; resetCharacterState(); Camera.CameraType = Enum.CameraType.Custom
             WindUI:Notify({ Title = "Auto Farm", Content = "Đã TẮT", Duration = 2 })
         end
     end
 })
 
--- 4. Độ cao bay
 MainTab:Input({
     Title = "Độ cao bay",
     Value = "36",
     Placeholder = "36",
     Callback = function(text)
         local num = tonumber(text)
-        if num and num >= 1 and num <= 500 then
-            FLY_HEIGHT = num
-        end
+        if num and num >= 1 and num <= 500 then FLY_HEIGHT = num end
     end
 })
 
--- 5. Bán kính quét
-MainTab:Input({
-    Title = "Bán kính quét",
-    Value = "50",
-    Placeholder = "50",
-    Callback = function(text)
-        local num = tonumber(text)
-        if num and num >= 1 and num <= 1000 then
-            MAX_DISTANCE = num
-        end
-    end
-})
-
--- 6. Auto Fire
 MainTab:Toggle({
     Title = "Auto Fire",
     Default = false,
@@ -459,7 +509,6 @@ MainTab:Toggle({
     end
 })
 
--- 7. Auto Start
 MainTab:Toggle({
     Title = "Auto Start",
     Default = false,
@@ -469,22 +518,28 @@ MainTab:Toggle({
     end
 })
 
--- ==================== THREAD TỰ ĐỘNG CẬP NHẬT DROPDOWN ====================
 task.spawn(function()
     local lastItems = getBackpackItems()
     while task.wait(1) do
         local newItems = getBackpackItems()
         if isDifferent(lastItems, newItems) then
             lastItems = newItems
-            if itemDropdown then
-                pcall(function()
-                    itemDropdown:SetValues(newItems)
-                end)
-            end
+            if itemDropdown then pcall(function() itemDropdown:SetValues(newItems) end) end
         end
     end
 end)
 
--- ==================== KHỞI CHẠY ====================
+task.spawn(function()
+    task.wait(3)
+    if not myPlot then
+        myPlot = checkMyPlot()
+        if myPlot and plotLabel then
+            pcall(function() plotLabel:SetDesc("Plot: " .. myPlot.Name) end)
+        elseif plotLabel then
+            pcall(function() plotLabel:SetDesc("Chưa tìm thấy - Đứng trong Base và bấm Check") end)
+        end
+    end
+end)
+
 task.spawn(autoFarmLoop)
 task.spawn(autoUseItemLoop)
