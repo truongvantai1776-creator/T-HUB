@@ -1,5 +1,5 @@
 -- ============================================
--- T HUB v10.3 | Bỏ Auto Spin
+-- T HUB v11.2 | Fix Auto Submit (TP 8s + Spam Click)
 -- ============================================
 
 local success, WindUI = pcall(function()
@@ -60,6 +60,9 @@ local autoRollState = false
 local autoSellState = false
 local autoEquipState = false
 local autoClaimClockCoinState = false
+local autoKnockDoorState = false
+local autoOpenPumpkinState = false
+local autoSubmitWispsState = false
 local autoBuyAllAntState = false
 local autoBuyAntState = false
 local ignoreCashCheck = false
@@ -96,7 +99,8 @@ local dungeonCheckKey = nil
 local failCounts = {}
 local MAX_FAIL_ATTEMPTS = 2
 
-local strawberryDelay = 0.4
+-- Đã chỉnh sửa thành 0.2s
+local strawberryDelay = 0.2
 
 local function getPromptPos(prompt)
     if not prompt or not prompt.Parent then return nil end
@@ -172,15 +176,12 @@ task.spawn(function()
                 if activePositions[key] then
                     if positionMissingTime[key] then
                         positionMissingTime[key] = nil
-                        print("[T HUB] Cổng còn tại " .. key .. " → reset timer")
                     end
                 else
                     if not positionMissingTime[key] then
                         positionMissingTime[key] = os.clock()
-                        print("[T HUB] Cổng mất tại " .. key .. " → bắt đầu đếm 60s")
                     elseif (os.clock() - positionMissingTime[key]) >= POSITION_MISSING_THRESHOLD then
                         table.insert(toRemove, key)
-                        print("[T HUB] Cổng mất > 1p tại " .. key .. " → xóa khỏi visited")
                     end
                 end
             end
@@ -439,6 +440,66 @@ local function findClaimClockCoinObject()
     return r
 end
 
+local function findKnockDoorObject()
+    local r = nil
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                local pn = string.lower(obj.Parent.Name or "")
+                if at:find("knock door") or at:find("knock")
+                   or ot:find("knock door") or pn:find("door") then
+                    r = obj; break
+                end
+            end
+        end
+    end)
+    return r
+end
+
+local function findPumpkinChestObject()
+    local r = nil
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                local pn = string.lower(obj.Parent.Name or "")
+                if (ot:find("chest") or pn:find("chest") or ot:find("pumpkin")) 
+                   and not (at:find("skip") or ot:find("dungeon") or pn:find("dungeon") or ot:find("skip")) then
+                    if at:find("open") or at == "" then
+                        r = obj
+                        break
+                    end
+                end
+            end
+        end
+    end)
+    return r
+end
+
+local function findSubmitWispsObject()
+    local r = nil
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local at = string.lower(obj.ActionText or "")
+                local ot = string.lower(obj.ObjectText or "")
+                local pn = string.lower(obj.Parent.Name or "")
+                if at:find("submit") or ot:find("submit")
+                   or at:find("will-o") or ot:find("will-o")
+                   or at:find("wisp") or ot:find("wisp")
+                   or pn:find("wisp") then
+                    r = obj
+                    break
+                end
+            end
+        end
+    end)
+    return r
+end
+
 local function findBuyAllAntObjects()
     local t = {}
     pcall(function()
@@ -471,9 +532,6 @@ local function findBuyAntObjectsMin()
     return t
 end
 
--- ============================================
--- STRAWBERRY COIN FINDER
--- ============================================
 local function findAllStrawberryPrompts()
     local t = {}
     pcall(function()
@@ -481,7 +539,6 @@ local function findAllStrawberryPrompts()
             if obj:IsA("ProximityPrompt") and obj.Enabled then
                 local at = string.lower(obj.ActionText or "")
                 local ot = string.lower(obj.ObjectText or "")
-                
                 if ot:find("strawberry") and at:find("pick") then
                     table.insert(t, obj)
                 end
@@ -491,9 +548,6 @@ local function findAllStrawberryPrompts()
     return t
 end
 
--- ============================================
--- FIND ENTER DUNGEON PROMPT
--- ============================================
 local function findEnterDungeonPrompt()
     local best = nil
     local bestScore = 0
@@ -513,7 +567,6 @@ local function findEnterDungeonPrompt()
                 
                 if pos then
                     local key = getPositionKey(pos)
-                    
                     if not visitedPositions[key] then
                         local at = string.lower(obj.ActionText or "")
                         local ot = string.lower(obj.ObjectText or "")
@@ -758,6 +811,88 @@ task.spawn(function()
     end
 end)
 
+-- ⚡ Vòng lặp Auto Knock Door (10s/lần + TP)
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoKnockDoorState then
+                local t = findKnockDoorObject()
+                if t then
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local targetPos = getPromptPos(t)
+                        if targetPos then
+                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                            task.wait(0.2)
+                            activateObject(t)
+                        end
+                    end
+                end
+            end
+        end)
+        task.wait(10)
+    end
+end)
+
+-- ⚡ Vòng lặp Auto Open Pumpkin Chest (1s/lần + TP)
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoOpenPumpkinState then
+                local t = findPumpkinChestObject()
+                if t then
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local targetPos = getPromptPos(t)
+                        if targetPos then
+                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                            task.wait(0.2)
+                            activateObject(t)
+                        end
+                    end
+                end
+            end
+        end)
+        task.wait(1)
+    end
+end)
+
+-- ⚡ VÒNG LẶP AUTO SUBMIT MỚI (TP 8s + CLICK LIÊN TỤC)
+task.spawn(function()
+    while true do
+        pcall(function()
+            if autoSubmitWispsState then
+                local submitPrompt = findSubmitWispsObject()
+                if submitPrompt then
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local targetPos = getPromptPos(submitPrompt)
+                        if targetPos then
+                            -- Teleport đến nút Submit
+                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                            task.wait(0.2) -- Chờ dịch chuyển xong
+                            
+                            -- Trong quá trình 8 giây, spam click liên tục
+                            for i = 1, 80 do
+                                if not autoSubmitWispsState then break end
+                                activateObject(submitPrompt)
+                                task.wait(0.1) -- Delay click (0.1s) để không bị lag game
+                            end
+                        end
+                    end
+                else
+                    task.wait(1)
+                end
+            else
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
 task.spawn(function()
     while true do
         pcall(function()
@@ -830,11 +965,9 @@ task.spawn(function()
                             visitedPositions[key] = true
                             positionMissingTime[key] = nil
                             failCounts[key] = nil
-                            print("[T HUB] Đánh dấu đã đi: " .. key .. " (dist " .. math.floor(dist) .. ")")
                         end
                         visitedCount = visitedCount + 1
                         
-                        print("[T HUB] ✓ Dungeon visited: " .. dungeonCheckPromptName .. " (#" .. visitedCount .. ")")
                         WindUI:Notify({
                             Title = "🏰 Đã vào dungeon",
                             Content = dungeonCheckPromptName .. " (#" .. visitedCount .. ")",
@@ -862,7 +995,6 @@ task.spawn(function()
             
             if inDungeon and not wasInDungeon then
                 wasInDungeon = true
-                print("[T HUB] Đang trong dungeon...")
             elseif not inDungeon and wasInDungeon then
                 wasInDungeon = false
                 enterTeleported = false
@@ -870,7 +1002,6 @@ task.spawn(function()
                 local key = tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
                 completedDungeons[key] = { time = os.time() }
                 lastDungeonExitTime = os.clock()
-                print("[T HUB] ✓ Đã rời dungeon! Cổng cũ vẫn SKIP (reset nếu mất > 1p)")
                 WindUI:Notify({
                     Title = "✅ Đã rời xong dungeon!",
                     Content = "Hoàn thành #" .. getCompletedCount(),
@@ -892,7 +1023,6 @@ task.spawn(function()
                 local now = os.clock()
                 
                 if wasInDungeon and not isInDungeon() then
-                    print("[T HUB] Force reset wasInDungeon")
                     wasInDungeon = false
                 end
                 
@@ -932,8 +1062,6 @@ task.spawn(function()
                                     dungeonCheckPending = true
                                     lastDungeonExitTime = 0
 
-                                    print("[T HUB] Đã tele: " .. promptName .. " (" .. tostring(promptKey) .. ")")
-
                                     local entered = false
                                     for i = 1, 6 do
                                         if fireproximityprompt then
@@ -951,12 +1079,10 @@ task.spawn(function()
     
                                         if promptKey then
                                             failCounts[promptKey] = (failCounts[promptKey] or 0) + 1
-                                            print("[T HUB] ✗ Không vào được " .. promptKey .. " (lần " .. failCounts[promptKey] .. ")")
                                             if failCounts[promptKey] >= MAX_FAIL_ATTEMPTS then
                                                 visitedPositions[promptKey] = true
                                                 positionMissingTime[promptKey] = nil
                                                 failCounts[promptKey] = nil
-                                                print("[T HUB] → Tính là đã đi, chuyển cổng khác: " .. promptKey)
                                                 WindUI:Notify({
                                                     Title = "⏭️ Bỏ qua cổng",
                                                     Content = "Không vào được " .. promptName .. " → qua cổng khác",
@@ -1204,6 +1330,59 @@ StrawberryTab:Input({
 })
 
 -- ============================================
+-- TAB 4.5: HALLOWEEN EVENT
+-- ============================================
+local HalloweenTab = Window:Tab({ Title = "Halloween Event", Icon = "ghost" })
+
+HalloweenTab:Toggle({
+    Title = "Auto Knock Door (10s)",
+    Icon = "door-closed",
+    Default = false,
+    Callback = function(s)
+        autoKnockDoorState = s
+        WindUI:Notify({
+            Title = "🎃 Halloween Event",
+            Content = s and "ON - TP và Knock Door mỗi 10s..." or "OFF",
+            Duration = 3
+        })
+    end
+})
+
+HalloweenTab:Toggle({
+    Title = "Auto Open Pumpkin Chest (1s)",
+    Icon = "box",
+    Default = false,
+    Callback = function(s)
+        autoOpenPumpkinState = s
+        WindUI:Notify({
+            Title = "🎃 Halloween Event",
+            Content = s and "ON - TP và mở rương mỗi 1s..." or "OFF",
+            Duration = 3
+        })
+    end
+})
+
+HalloweenTab:Toggle({
+    Title = "Auto Submit Will-o'-Wisps",
+    Desc = "Cần cầm vật phẩm sự kiện",
+    Icon = "upload",
+    Default = false,
+    Callback = function(s)
+        autoSubmitWispsState = s
+        WindUI:Notify({
+            Title = "🎃 Halloween Event",
+            Content = s and "ON - Tự động TP (8s) đến nút & click liên tục..." or "OFF",
+            Duration = 3
+        })
+    end
+})
+
+HalloweenTab:Paragraph({
+    Title = "⚠️ Lưu ý",
+    Desc = "• Nếu muốn auto vô đánh boss halloween thì vô phần Dungeon.",
+})
+
+-- ============================================
 -- TAB 5: DUNGEON
 -- ============================================
 local DungeonTab = Window:Tab({ Title = "Dungeon", Icon = "map" })
@@ -1226,7 +1405,6 @@ DungeonTab:Toggle({
             visitedPositions = {}
             positionMissingTime = {}
             visitedCount = 0
-            print("[T HUB] Reset dungeon state")
             WindUI:Notify({
                 Title = "Auto Enter Dungeon",
                 Content = "ON - Đã reset, bắt đầu tìm dungeon...",
@@ -1560,7 +1738,7 @@ ServerTab:Button({
 })
 
 WindUI:Notify({
-    Title = "T HUB v10.3",
-    Content = "Loaded! Đã bỏ Auto Spin.",
+    Title = "T HUB v11.2",
+    Content = "Loaded! Đã cập nhật Strawberry Delay = 0.2s.",
     Duration = 5
 })
