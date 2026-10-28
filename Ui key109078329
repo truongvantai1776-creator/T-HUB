@@ -32,7 +32,7 @@ local SAVED_DATA_FILENAME = "THUB_AutoLoginData.json"
 local VIP_USERS = {
     -- 👇 THÊM TÊN NGƯỜI MUA KEY VÀO ĐÂY 👇
     "-",
-    "-",
+    "QN92_38",
     "wid6ri",
     "TaoLa_Kid2k20",
     -- 👆 THÊM TÊN NGƯỜI MUA KEY VÀO ĐÂY 👆
