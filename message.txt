@@ -1,0 +1,3340 @@
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local CONFIG_FILE = "RJR_NEW_C.json"
+_G.G_FastAttack       = _G.G_FastAttack ~= true
+_G.G_FastAttackMode   = _G.G_FastAttackMode or "æ¨¡å¼2(éƒ¨åˆ†è´¦å·å¤±æ•ˆç”¨)"
+_G.G_AttackMobs       = _G.G_AttackMobs ~= true
+_G.G_AttackPlayers    = _G.G_AttackPlayers ~= true
+_G.G_DragonGunM1      = _G.G_DragonGunM1 or false
+_G.G_FruitM1          = _G.G_FruitM1 or false
+_G.G_AutoHaki         = _G.G_AutoHaki or false
+_G.G_AutoV3           = _G.G_AutoV3 or false
+_G.G_AutoV4           = _G.G_AutoV4 or false
+_G.G_AutoFlee         = _G.G_AutoFlee or false
+_G.G_AutoFleeHP       = _G.G_AutoFleeHP or 30
+_G.G_translateSpeed   = _G.G_translateSpeed or 50
+_G.G_translateAccel   = _G.G_translateAccel or false
+_G.G_jumpHeight       = _G.G_jumpHeight or 50
+_G.G_jumpEnabled      = _G.G_jumpEnabled or false
+_G.G_Fly              = _G.G_Fly or false
+_G.G_ESPEnabled       = _G.G_ESPEnabled ~= false
+_G.G_ESP_Name         = _G.G_ESP_Name ~= false
+_G.G_ESP_Level        = _G.G_ESP_Level ~= false
+_G.G_ESP_Bounty       = _G.G_ESP_Bounty ~= false
+_G.G_ESP_Fruit        = _G.G_ESP_Fruit ~= false
+_G.G_ESP_Distance     = _G.G_ESP_Distance ~= false
+_G.G_ESP_HP           = _G.G_ESP_HP ~= false
+_G.G_ESP_TextSize     = _G.G_ESP_TextSize or 14
+_G.G_ESP_Highlight    = _G.G_ESP_Highlight or false
+_G.G_ESP_HighlightColor = _G.G_ESP_HighlightColor or "FF0000"
+
+-- Misc
+_G.G_currentZoom      = _G.G_currentZoom or 0
+_G.G_DodgeNoCooldown  = _G.G_DodgeNoCooldown or false
+_G.G_DashLengthEnabled= _G.G_DashLengthEnabled or false
+_G.G_DashLength       = _G.G_DashLength or 5
+_G.G_RemoveLava       = _G.G_RemoveLava or false
+_G.G_RemoveFog        = _G.G_RemoveFog or false
+_G.G_RemoveAnim       = _G.G_RemoveAnim or false
+_G.G_RemoveGhostShip  = _G.G_RemoveGhostShip or false
+_G.G_WalkOnWater      = _G.G_WalkOnWater or false
+_G.G_spinEnabled      = _G.G_spinEnabled or false
+_G.G_spinSpeed        = _G.G_spinSpeed or 10
+_G.G_AutoFpsLock      = _G.G_AutoFpsLock or false
+_G.G_NoMove           = _G.G_NoMove or false
+
+_G.G_TeleportOffsetX  = _G.G_TeleportOffsetX or 0
+_G.G_TeleportOffsetY  = _G.G_TeleportOffsetY or 0
+_G.G_TeleportOffsetZ  = _G.G_TeleportOffsetZ or 0
+_G.G_SelectPly        = _G.G_SelectPly or ""
+_G.G_TeleportPly      = _G.G_TeleportPly or false
+_G.G_Teleport         = _G.G_Teleport or false
+_G.G_Lock2            = _G.G_Lock2 or false
+_G.G_TeleportPredict  = _G.G_TeleportPredict or false
+_G.G_SpectatePlys     = _G.G_SpectatePlys or false
+
+_G.G_ServerRegion       = _G.G_ServerRegion or "Singapore"
+
+_G.G_SilentAimM1R   = _G.G_SilentAimM1R or false
+_G.G_SilentAimSkill = _G.G_SilentAimSkill or false
+_G.G_SilentAimShowFOV = _G.G_SilentAimShowFOV or false
+_G.G_SilentAimFOV     = _G.G_SilentAimFOV or 100
+_G.G_SilentAimPart    = _G.G_SilentAimPart or "Head"
+_G.G_SilentAimFOVThickness = _G.G_SilentAimFOVThickness or 2
+_G.G_SilentAimFOVTransparency = _G.G_SilentAimFOVTransparency or 1
+_G.G_SilentAimTargetPlayers = _G.G_SilentAimTargetPlayers or false
+_G.G_SilentAimTargetMobs    = _G.G_SilentAimTargetMobs or false
+_G.G_SilentAimShowLine      = _G.G_SilentAimShowLine or false
+_G.G_SilentAimFOVMode       = _G.G_SilentAimFOVMode or "è·Ÿéšé¼ æ ‡"
+_G.G_SilentAimTeamCheck     = _G.G_SilentAimTeamCheck or false
+_G.G_SilentAimMethod        = _G.G_SilentAimMethod or "é¼ æ ‡æœ€è¿‘çš„çŽ©å®¶"
+_G.G_LockHotkey              = _G.G_LockHotkey or false
+_G.G_LockHotkeyMode          = _G.G_LockHotkeyMode or "é”äºº1"
+
+_G.G_AutoLoadConfig   = _G.G_AutoLoadConfig or false
+_G.G_AutoSaveConfig   = _G.G_AutoSaveConfig or false
+_G.G_Theme            = _G.G_Theme or "Light"
+_G.G_Language         = _G.G_Language or "ä¸­æ–‡"
+
+local Translations = {
+    ["ä¸­æ–‡"] = {},
+    ["English"] = {
+        -- çª—å£
+        ["äººæŒ¤äººä¸­å¿ƒ"] = "RJR",
+        ["ä¸»è¦åŠŸèƒ½"] = "Main",
+        ["æ€æˆ®å…‰çŽ¯"] = "Aura",
+        ["ESP"] = "ESP",
+        ["ç»˜åˆ¶"] = "Aimbot",
+        ["ä¼ é€"] = "Teleport",
+        ["æ‚é¡¹"] = "Misc",
+        ["æœåŠ¡å™¨"] = "Server",
+        ["è®¾ç½®"] = "Settings",
+        ["FOV"] = "FOV",
+        -- æ€æˆ®å…‰çŽ¯
+        ["å¼€å¯å¿«é€Ÿæ”»å‡»"] = "Enable Fast Attack",
+        ["å¿«é€Ÿæ”»å‡»æ¨¡å¼"] = "Fast Attack Mode",
+        ["æ”»å‡»æ€ªç‰©(æ­¤é¡µé¢æ‰€æœ‰åŠŸèƒ½)"] = "Attack Mobs (All features)",
+        ["æ”»å‡»çŽ©å®¶(æ­¤é¡µé¢æ‰€æœ‰åŠŸèƒ½)"] = "Attack Players (All features)",
+        ["æžªæ¢° m1"] = "Dragon Gun M1",
+        ["æžœå®žm1"] = "Fruit M1",
+        -- ä¸»è¦åŠŸèƒ½
+        ["ç§»åŠ¨é€Ÿåº¦"] = "Move Speed",
+        ["åŠ é€Ÿå¼€å…³"] = "Speed Boost",
+        ["è·³è·ƒé«˜åº¦"] = "Jump Height",
+        ["é«˜è·³å¼€å¯"] = "High Jump",
+        ["é£žè¡Œ"] = "Fly",
+        ["è‡ªåŠ¨æ­¦è£…è‰²"] = "Auto Haki",
+        ["è‡ªåŠ¨ V3"] = "Auto V3",
+        ["è‡ªåŠ¨ V4"] = "Auto V4",
+        ["è‡ªåŠ¨é€ƒè·‘"] = "Auto Flee",
+        ["é€ƒè·‘è¡€é‡é˜ˆå€¼(%)"] = "Flee HP Threshold (%)",
+        -- ESP
+        ["ESP å¼€å…³"] = "ESP Toggle",
+        ["æ˜¾ç¤ºçŽ©å®¶åå­—"] = "Show Player Name",
+        ["æ˜¾ç¤ºçŽ©å®¶ç­‰çº§"] = "Show Player Level",
+        ["æ˜¾ç¤ºçŽ©å®¶èµé‡‘"] = "Show Bounty",
+        ["æ˜¾ç¤ºæ¶é­”æžœå®ž"] = "Show Devil Fruit",
+        ["æ˜¾ç¤ºè·ç¦»"] = "Show Distance",
+        ["æ˜¾ç¤ºè¡€é‡"] = "Show HP",
+        ["é«˜äº®æ˜¾ç¤ºçŽ©å®¶"] = "Highlight Players",
+        ["é«˜äº®é¢œè‰²"] = "Highlight Color",
+        ["ESP å­—ä½“å¤§å°"] = "ESP Text Size",
+        -- æ‚é¡¹
+        ["è§†è§’ç¼©æ”¾è·ç¦»"] = "Camera Zoom",
+        ["å†²åˆºæ— å†·å´"] = "Dodge No Cooldown",
+        ["å†²åˆºè·ç¦»ä¿®æ”¹å¼€å…³"] = "Dash Length Toggle",
+        ["å†²åˆºè·ç¦»"] = "Dash Length",
+        ["å‡ç”»è´¨"] = "Reduce Graphics",
+        ["ç§»é™¤å²©æµ† (éœ€é‡è¿›æ¢å¤)"] = "Remove Lava (Rejoin to restore)",
+        ["ç§»é™¤é›¾ (éœ€é‡è¿›æ¢å¤)"] = "Remove Fog (Rejoin to restore)",
+        ["ç§»é™¤çŽ©å®¶åŠ¨ä½œ (åƒµç›´)"] = "Remove Player Anim (Stun)",
+        ["ç§»é™¤é¬¼èˆ¹ (ä¿ç•™ä¼ é€ç‚¹)"] = "Remove Ghost Ship (Keep TP)",
+        ["æ°´ä¸Šè¡Œèµ°"] = "Walk on Water",
+        ["è§£å¸§æ•°é™åˆ¶ (ä»…ç”µè„‘)"] = "Unlock FPS (PC only)",
+        ["è‡ªåŠ¨è¡€æ‹³å¡å¸§"] = "Auto Blood FPS Lock",
+        ["æ—‹è½¬"] = "Spin",
+        ["æ—‹è½¬é€Ÿåº¦"] = "Spin Speed",
+        ["åç§»åŠ¨(é‡Šæ”¾æŠ€èƒ½ä¸ç§»åŠ¨)"] = "Anti-Move (Skill no move)",
+        -- æœåŠ¡å™¨
+        ["é‡è¿›æœåŠ¡å™¨"] = "Rejoin Server",
+        ["é€‰æ‹©æœåŠ¡å™¨åŒºåŸŸ"] = "Select Server Region",
+        ["è·³æœ"] = "Server Hop",
+        ["æœåŠ¡å™¨id"] = "Server ID",
+        ["è¾“å…¥æœåŠ¡å™¨id"] = "Enter Server ID",
+        ["åŠ å…¥æœåŠ¡å™¨ id"] = "Join Server ID",
+        -- è®¾ç½®
+        ["é€‰æ‹©ä¸»é¢˜"] = "Select Theme",
+        ["è‡ªåŠ¨ä¿å­˜é…ç½®"] = "Auto Save Config",
+        ["è¿›æ¸¸æˆè‡ªåŠ¨åŠ è½½é…ç½®"] = "Auto Load Config",
+        ["ä¿å­˜é…ç½®"] = "Save Config",
+        ["åŠ è½½é…ç½®"] = "Load Config",
+        ["çª—å£åˆ‡æ¢é”®"] = "Toggle Window Key",
+        -- ä¼ é€
+        ["é€‰æ‹©ç›®æ ‡çŽ©å®¶"] = "Select Target Player",
+        ["åˆ·æ–°çŽ©å®¶åˆ—è¡¨"] = "Refresh Player List",
+        ["è§‚æˆ˜çŽ©å®¶"] = "Spectate Player",
+        ["å¹³æ»‘ä¼ é€è‡³çŽ©å®¶"] = "Smooth TP to Player",
+        ["ç›´æŽ¥ä¼ é€è‡³çŽ©å®¶"] = "Direct TP to Player",
+        ["é”äºº2"] = "Lock 2",
+        ["é”äººé¢„åˆ¤ (å¯¹æŠ—é£žè¡Œ)"] = "Lock Predict (Anti-Fly)",
+        ["Xè½´åç§»"] = "X Offset",
+        ["Yè½´åç§»"] = "Y Offset",
+        ["Zè½´åç§»"] = "Z Offset",
+        -- ç»˜åˆ¶/FOV
+        ["è‡ªçž„èŒƒå›´è®¾ç½®"] = "Aimbot Range Settings",
+        ["æ˜¾ç¤º FOV èŒƒå›´"] = "Show FOV Range",
+        ["FOV ä½ç½®"] = "FOV Position",
+        ["FOV åŠå¾„å¤§å°"] = "FOV Radius",
+        ["FOV èŒƒå›´é¢œè‰²"] = "FOV Range Color",
+        ["è‡ªçž„è®¾ç½®"] = "Aimbot Settings",
+        ["M1 è‡ªçž„"] = "M1 Aimbot",
+        ["æŠ€èƒ½è‡ªçž„"] = "Skill Aimbot",
+        ["çž„å‡†çŽ©å®¶"] = "Target Players",
+        ["çž„å‡† NPC"] = "Target NPCs",
+        ["å›¢é˜Ÿæ£€æµ‹"] = "Team Check",
+        ["æ˜¾ç¤ºé”å®šçº¢çº¿"] = "Show Lock Line",
+        ["çž„å‡†éƒ¨ä½"] = "Target Part",
+        ["é™é»˜çž„å‡†æ–¹æ³•"] = "Silent Aim Method",
+        ["é¼ æ ‡æœ€è¿‘çš„çŽ©å®¶"] = "Closest to Mouse",
+        ["æœ€è¿‘çš„çŽ©å®¶"] = "Closest Player",
+        ["é€‰æ‹©çŽ©å®¶"] = "Selected Player",
+        ["å¿«æ·é”®é”äºº(æŒ‰é”®h)"] = "Hotkey Lock (Press H)",
+        ["é”äººæ¨¡å¼"] = "Lock Mode",
+        -- æè¿°
+        ["è·³æœæ—¶æœç´¢çš„æœåŠ¡å™¨åŒºåŸŸ"] = "Server region for server hop",
+        ["åˆ‡æ¢çª—å£æ˜¾ç¤ºçŠ¶æ€"] = "Toggle window visibility",
+        -- é€šçŸ¥
+        ["åŒºåŸŸè®¾ç½®"] = "Region Settings",
+        ["å·²åˆ‡æ¢ä¸º: "] = "Switched to: ",
+        ["å‡†å¤‡è·³æœ..."] = "Preparing server hop...",
+        ["è®¾ç½®åŒºåŸŸä¸º: "] = "Region set to: ",
+        ["è‡ªåŠ¨è·³æœ"] = "Auto Server Hop",
+        ["è·³æœå¤±è´¥"] = "Server hop failed",
+        ["è¯·é‡æ–°åŠ å…¥æ¸¸æˆ"] = "Please rejoin the game",
+        ["å¤åˆ¶æˆåŠŸ"] = "Copied",
+        ["å·²å¤åˆ¶å½“å‰æœåŠ¡å™¨ID"] = "Current server ID copied",
+        ["æ“ä½œå¤±è´¥"] = "Operation Failed",
+        ["è¯·å…ˆè¾“å…¥æœåŠ¡å™¨ID"] = "Please enter server ID first",
+        ["å·²è®¾ç½®ä¸º"] = "Set to ",
+        ["åˆ·æ–°çŽ©å®¶åˆ—è¡¨"] = "Refresh Player List",
+        ["åŠ è½½å®Œæˆ"] = "Loaded",
+        ["ä¿å­˜é…ç½®"] = "Config Saved",
+        ["åŠ è½½é…ç½®"] = "Config Loaded",
+        ["è§‚æˆ˜ä¸­æ–­"] = "Spectate Interrupted",
+        ["ç›®æ ‡çŽ©å®¶ä¸å­˜åœ¨/è§’è‰²æ¶ˆå¤±"] = "Target player not found",
+        ["ä¼ é€å¼€å¯"] = "Teleport Started",
+        ["ä¼ é€å…³é—­"] = "Teleport Stopped",
+        ["å·²åœæ­¢ä¼ é€ç›®æ ‡çŽ©å®¶"] = "Stopped teleporting to target",
+        ["Bypasså…³é—­"] = "Bypass Off",
+        ["å·²æ¢å¤ç›®æ ‡çŽ©å®¶çŠ¶æ€"] = "Target player state restored",
+        ["ä¼ é€ä¸­æ–­"] = "Teleport Interrupted",
+        ["ç›®æ ‡/æœ¬åœ°çŽ©å®¶è§’è‰²å¼‚å¸¸"] = "Target/local character error",
+        ["é”äºº2å¼€å¯"] = "Lock 2 Started",
+        ["è‡ªåŠ¨é€‰æœ€è¿‘ä¼ é€ç‚¹æŽ¥è¿‘ï¼Œ300ç±³å†…ç›´æŽ¥é”å®š"] = "Auto nearest TP approach, direct lock within 300m",
+        ["é”äºº2å…³é—­"] = "Lock 2 Stopped",
+        ["å·²åœæ­¢é”å®šç›®æ ‡"] = "Stopped locking target",
+        ["å¿«æ·ä¼ é€ç‚¹"] = "Quick TP Point",
+        -- è¯­è¨€åˆ‡æ¢
+        ["è¯­è¨€"] = "Language",
+        ["ä¸­æ–‡"] = "Chinese",
+        ["è¯­è¨€å·²åˆ‡æ¢ä¸º: ä¸­æ–‡"] = "Language switched to: Chinese",
+        ["è¯­è¨€å·²åˆ‡æ¢ä¸º: English"] = "Language switched to: English",
+        -- å…¶ä»–
+        ["æ­£åœ¨é”äºº: "] = "Locking: ",
+        ["æ­£åœ¨é”äºº..."] = "Locking...",
+    }
+}
+
+local function L(text)
+    if _G.G_Language == "English" and Translations["English"][text] then
+        return Translations["English"][text]
+    end
+    return text
+end
+
+local function CollectConfig()
+    return {
+        Attack = {
+            FastAttack     = _G.G_FastAttack,
+            FastAttackMode = _G.G_FastAttackMode,
+            AttackMobs     = _G.G_AttackMobs,
+            AttackPlayers  = _G.G_AttackPlayers,
+            DragonGunM1    = _G.G_DragonGunM1,
+            FruitM1        = _G.G_FruitM1,
+        },
+        Auto = {
+            AutoHaki = _G.G_AutoHaki,
+            AutoV3   = _G.G_AutoV3,
+            AutoV4   = _G.G_AutoV4,
+            AutoFlee = _G.G_AutoFlee,
+            AutoFleeHP = _G.G_AutoFleeHP,
+        },
+        Main = {
+            translateSpeed   = _G.G_translateSpeed,
+            translateAccel   = _G.G_translateAccel,
+            jumpHeight       = _G.G_jumpHeight,
+            jumpEnabled      = _G.G_jumpEnabled,
+            Fly              = _G.G_Fly,
+        },
+        ESP = {
+            ESPEnabled   = _G.G_ESPEnabled,
+            ESP_Name     = _G.G_ESP_Name,
+            ESP_Level    = _G.G_ESP_Level,
+            ESP_Bounty   = _G.G_ESP_Bounty,
+            ESP_Fruit    = _G.G_ESP_Fruit,
+            ESP_Distance = _G.G_ESP_Distance,
+            ESP_HP       = _G.G_ESP_HP,
+            ESP_TextSize = _G.G_ESP_TextSize,
+            ESP_Highlight = _G.G_ESP_Highlight,
+            ESP_HighlightColor = _G.G_ESP_HighlightColor,
+        },
+        Misc = {
+            currentZoom         = _G.G_currentZoom,
+            DodgeNoCooldown     = _G.G_DodgeNoCooldown,
+            DashLengthEnabled   = _G.G_DashLengthEnabled,
+            DashLength          = _G.G_DashLength,
+            RemoveLava      = _G.G_RemoveLava,
+            RemoveFog       = _G.G_RemoveFog,
+            RemoveAnim      = _G.G_RemoveAnim,
+            RemoveGhostShip = _G.G_RemoveGhostShip,
+            WalkOnWater     = _G.G_WalkOnWater,
+            spinEnabled     = _G.G_spinEnabled,
+            spinSpeed       = _G.G_spinSpeed,
+            AutoFpsLock     = _G.G_AutoFpsLock,
+            NoMove          = _G.G_NoMove,
+            TeleportOffsetX = _G.G_TeleportOffsetX,
+            TeleportOffsetY = _G.G_TeleportOffsetY,
+            TeleportOffsetZ = _G.G_TeleportOffsetZ,
+            TeleportPredict = _G.G_TeleportPredict,
+        },
+        Server = {
+            ServerRegion = _G.G_ServerRegion,
+        },
+        Drawing = {
+            SilentAimM1R   = _G.G_SilentAimM1R,
+            SilentAimSkill = _G.G_SilentAimSkill,
+            SilentAimShowFOV = _G.G_SilentAimShowFOV,
+            SilentAimFOV     = _G.G_SilentAimFOV,
+            SilentAimPart    = _G.G_SilentAimPart,
+            SilentAimFOVThickness = _G.G_SilentAimFOVThickness,
+            SilentAimFOVTransparency = _G.G_SilentAimFOVTransparency,
+            SilentAimTargetPlayers = _G.G_SilentAimTargetPlayers,
+            SilentAimTargetMobs    = _G.G_SilentAimTargetMobs,
+            SilentAimShowLine      = _G.G_SilentAimShowLine,
+            SilentAimFOVMode       = _G.G_SilentAimFOVMode,
+            SilentAimTeamCheck     = _G.G_SilentAimTeamCheck,
+            SilentAimMethod        = _G.G_SilentAimMethod,
+            LockHotkey             = _G.G_LockHotkey,
+            LockHotkeyMode         = _G.G_LockHotkeyMode,
+        },
+        Setting = {
+            AutoLoadConfig = _G.G_AutoLoadConfig,
+            AutoSaveConfig = _G.G_AutoSaveConfig,
+        },
+        UI = {
+            Theme = _G.G_Theme,
+            Language = _G.G_Language
+        }
+    }
+end
+function SaveConfiguration()
+    local data = CollectConfig()
+    writefile(CONFIG_FILE, HttpService:JSONEncode(data))
+end
+function LoadConfiguration()
+    if not isfile(CONFIG_FILE) then return end
+    local data = HttpService:JSONDecode(readfile(CONFIG_FILE))
+    for section, values in pairs(data) do
+        for k, v in pairs(values) do
+            _G["G_" .. k] = v
+        end
+    end
+end
+pcall(LoadConfiguration)
+_G.FOVMode = _G.G_SilentAimFOVMode or "è·Ÿéšé¼ æ ‡"
+local WindUI = loadstring(request({
+    Url = "https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"
+}).Body)()
+WindUI:SetTheme(_G.G_Theme)
+local Window = WindUI:CreateWindow({
+    Title = L("äººæŒ¤äººä¸­å¿ƒ"),
+    Icon = "",
+    Author = "by kismile",
+    Folder = "WindUI",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = _G.G_Theme,
+    Acrylic = false,
+    HideSearchBar = false,
+    SideBarWidth = 200,
+    OpenButton = {
+        Title = "RJR",
+        CornerRadius = UDim.new(1, 0),
+        StrokeThickness = 3,
+        Enabled = true,
+        OnlyMobile = false,
+        Draggable = true,
+        OnlyIcon = false,
+        Color = ColorSequence.new(
+            Color3.fromHex("#FF4444"),
+            Color3.fromHex("#FF8800")
+        ),
+    },
+    ToggleKey = Enum.KeyCode.G,
+})
+local Tabs = {
+    [L("ä¸»è¦åŠŸèƒ½")] = Window:Section({ Title = L("ä¸»è¦åŠŸèƒ½"), Opened = true }),
+    [L("è®¾ç½®")] = Window:Section({ Title = L("è®¾ç½®"), Opened = true }),
+}
+local RJR = {
+    [L("ä¸»è¦åŠŸèƒ½")] = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = L("ä¸»è¦åŠŸèƒ½"), Icon = "zap" }),
+    [L("æ€æˆ®å…‰çŽ¯")] = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = L("æ€æˆ®å…‰çŽ¯"), Icon = "sword" }),
+    ["ESP"]     = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = "ESP", Icon = "eye" }),
+    [L("ç»˜åˆ¶")]     = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = L("FOV"), Icon = "pen-tool" }),
+    [L("ä¼ é€")]     = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = L("ä¼ é€"), Icon = "users" }),
+    [L("æ‚é¡¹")]     = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = L("æ‚é¡¹"), Icon = "list" }),
+    [L("å•†åº—")]     = Tabs[L("ä¸»è¦åŠŸèƒ½")]:Tab({ Title = L("å•†åº—"), Icon = "shopping-cart" }),
+    [L("æœåŠ¡å™¨")]   = Tabs[L("è®¾ç½®")]:Tab({ Title = L("æœåŠ¡å™¨"), Icon = "server" }),
+    [L("è®¾ç½®")]     = Tabs[L("è®¾ç½®")]:Tab({ Title = L("è®¾ç½®"), Icon = "settings" }),
+}
+local function IsAlive(character)
+    if not character then return false end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.Health and humanoid.Health > 0
+end
+local function GetRandomValidPart(target)
+    if not target then return nil end
+    local hrp = target:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local parts = { target:FindFirstChild("Head"), target:FindFirstChild("UpperTorso"), target:FindFirstChild("LowerTorso"), target:FindFirstChild("Torso"), hrp }
+    local validParts = {}
+    for _, p in ipairs(parts) do
+        if p and p:IsA("BasePart") then table.insert(validParts, p) end
+    end
+    if #validParts > 0 then return validParts[math.random(1, #validParts)] end
+    return hrp
+end
+local M1_State = { consecutiveFailures = 0, maxConsecutiveFailures = 5, Remotes = nil, Net = nil, RegisterAttack = nil, RegisterHit = nil, Enemies = nil }
+local function M1_CheckAndGetCoreComponents()
+    if M1_State.Remotes and M1_State.Net and M1_State.RegisterAttack and M1_State.RegisterHit and M1_State.Enemies then
+        return M1_State.Remotes, M1_State.Net, M1_State.RegisterAttack, M1_State.RegisterHit, M1_State.Enemies
+    end
+    local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local Modules = ReplicatedStorage:FindFirstChild("Modules")
+    local Net = Modules and Modules:FindFirstChild("Net")
+    local RegisterAttack = Net and (Net:FindFirstChild("RE/RegisterAttack") or Net:FindFirstChild("RegisterAttack"))
+    local RegisterHit = Net and (Net:FindFirstChild("RE/RegisterHit") or Net:FindFirstChild("RegisterHit"))
+    local Enemies = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("NPCs")
+    if Remotes and Modules and Net and RegisterAttack and RegisterHit and Enemies then
+        M1_State.Remotes = Remotes; M1_State.Net = Net; M1_State.RegisterAttack = RegisterAttack; M1_State.RegisterHit = RegisterHit; M1_State.Enemies = Enemies
+        return Remotes, Net, RegisterAttack, RegisterHit, Enemies
+    end
+    return nil, nil, nil, nil, nil
+end
+local function M1_ProcessEnemies(OthersEnemies, Folder)
+    if not Folder or not _G.G_AttackMobs then return nil end
+    local BasePart = nil
+    local myPos = LocalPlayer.Character and LocalPlayer.Character.PrimaryPart and LocalPlayer.Character.PrimaryPart.Position
+    if not myPos then return nil end
+    for _, Enemy in ipairs(Folder:GetChildren()) do
+        if Enemy == LocalPlayer.Character or not IsAlive(Enemy) then continue end
+        local enemyRoot = Enemy:FindFirstChild("HumanoidRootPart")
+        if not enemyRoot then continue end
+        if (enemyRoot.Position - myPos).Magnitude < 500 then
+             local foundPart = GetRandomValidPart(Enemy)
+             if foundPart then
+                table.insert(OthersEnemies, {Enemy, foundPart})
+                BasePart = foundPart
+             end
+        end
+    end
+    return BasePart
+end
+local function M1_ProcessRealPlayers(OthersEnemies)
+    if not _G.G_AttackPlayers then return nil end
+    local BasePart = nil
+    local myPos = LocalPlayer.Character and LocalPlayer.Character.PrimaryPart and LocalPlayer.Character.PrimaryPart.Position
+    if not myPos then return nil end
+    for _, OtherPlayer in ipairs(Players:GetPlayers()) do
+        if OtherPlayer == LocalPlayer then continue end
+        local OtherChar = OtherPlayer.Character
+        if not IsAlive(OtherChar) then continue end
+        local foundPart = GetRandomValidPart(OtherChar)
+        if foundPart and LocalPlayer:DistanceFromCharacter(foundPart.Position) < 500 then
+            table.insert(OthersEnemies, {OtherChar, foundPart})
+            BasePart = foundPart
+        end
+    end
+    return BasePart
+end
+local function M1_Attack(BasePart, OthersEnemies)
+    local _, Net, temp_RegisterAttack, temp_RegisterHit, _ = M1_CheckAndGetCoreComponents()
+    if not (BasePart and OthersEnemies and #OthersEnemies > 0 and temp_RegisterAttack and temp_RegisterHit) then
+        M1_State.consecutiveFailures = M1_State.consecutiveFailures + 1
+        if M1_State.consecutiveFailures >= M1_State.maxConsecutiveFailures then
+            M1_State.Remotes = nil; M1_State.Net = nil; M1_State.RegisterAttack = nil; M1_State.RegisterHit = nil; M1_State.Enemies = nil; M1_State.consecutiveFailures = 0
+        end
+        return
+    end
+    M1_State.consecutiveFailures = 0
+    local success, _ = pcall(function()
+        temp_RegisterAttack:FireServer(0.3)
+        temp_RegisterHit:FireServer(BasePart, OthersEnemies)
+    end)
+    if not success then M1_State.RegisterAttack = nil; M1_State.RegisterHit = nil end
+end
+local function PerformAttackMode1()
+    local _, _, _, _, Enemies = M1_CheckAndGetCoreComponents()
+    if not Enemies then M1_State.Enemies = nil; return end
+    local OthersEnemies = {}
+    local Part1 = M1_ProcessEnemies(OthersEnemies, Enemies)
+    local Part2 = M1_ProcessRealPlayers(OthersEnemies)
+    if #OthersEnemies > 0 then M1_Attack(Part1 or Part2, OthersEnemies) end
+end
+local Settings = { Range = 5000, AttackSpeed = 0.05, AutoScanRemotes = true }
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+local RemoteSeed = Net:FindFirstChild("seed")
+local State = { FoundRemote = nil, FoundRemoteId = nil, LastAttack = 0 }
+if Settings.AutoScanRemotes then
+    task.spawn(function()
+        local folders = { ReplicatedStorage:FindFirstChild("Util"), ReplicatedStorage:FindFirstChild("Common"), ReplicatedStorage:FindFirstChild("Remotes"), ReplicatedStorage:FindFirstChild("Assets"), ReplicatedStorage:FindFirstChild("FX") }
+        local function checkChild(child)
+            if child:IsA("RemoteEvent") and child:GetAttribute("Id") then
+                State.FoundRemoteId = child:GetAttribute("Id")
+                State.FoundRemote = child
+            end
+        end
+        for _, folder in ipairs(folders) do
+            if folder then
+                for _, child in ipairs(folder:GetChildren()) do checkChild(child) end
+                folder.ChildAdded:Connect(checkChild)
+            end
+        end
+    end)
+end
+local function GetTargets()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return {} end
+    local targets = {}
+    local myPos = root.Position
+    local folders = {workspace:FindFirstChild("Enemies"), workspace:FindFirstChild("Characters")}
+    for _, folder in ipairs(folders) do
+        if not folder then continue end
+        for _, model in ipairs(folder:GetChildren()) do
+            if model == char then continue end
+            local tRoot = model:FindFirstChild("HumanoidRootPart")
+            local tHum = model:FindFirstChild("Humanoid")
+            if tRoot and tHum and tHum.Health > 0 then
+                local dist = (tRoot.Position - myPos).Magnitude
+                if dist <= Settings.Range then
+                    table.insert(targets, { Model = model, Root = tRoot, Head = model:FindFirstChild("Head") or tRoot })
+                end
+            end
+        end
+    end
+    return targets
+end
+local function PerformAttackMode2()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hasTool = char:FindFirstChildOfClass("Tool") or char:FindFirstChild("EquippedWeapon")
+    if not hasTool then return end
+    local targets = GetTargets()
+    if #targets == 0 then return end
+    local mainTarget = targets[1]
+    local hitList = {}
+    for i, target in ipairs(targets) do table.insert(hitList, {target.Model, target.Root}) end
+    RegisterAttack:FireServer()
+    local fakeHash = tostring(LocalPlayer.UserId):sub(2,4) .. tostring(math.random(10000, 99999))
+    pcall(function()
+        RegisterHit:FireServer(mainTarget.Head, hitList, {}, fakeHash)
+    end)
+    if State.FoundRemote and State.FoundRemoteId then
+        pcall(function()
+            local seedValue = RemoteSeed and RemoteSeed:InvokeServer() or 1
+            local encryptedId = bit32.bxor(State.FoundRemoteId + 909090, seedValue * 2)
+            local rawName = "RE/RegisterHit"
+            local timestamp = math.floor(workspace:GetServerTimeNow() / 10 % 10) + 1
+            local encryptedName = string.gsub(rawName, ".", function(c) return string.char(bit32.bxor(string.byte(c), timestamp)) end)
+            State.FoundRemote:FireServer(encryptedName, encryptedId, mainTarget.Head, hitList)
+        end)
+    end
+end
+local function PerformAttack()
+    if not _G.G_FastAttack then return end
+    if _G.G_FastAttackMode == "æ¨¡å¼1" then
+        local Character = LocalPlayer.Character
+        local Equipped = Character and IsAlive(Character) and Character:FindFirstChildOfClass("Tool")
+        if not Equipped or Equipped.ToolTip == "Gun" then return end
+        PerformAttackMode1()
+    else
+        PerformAttackMode2()
+    end
+end
+task.spawn(function()
+    while true do
+        local startTime = tick()
+        pcall(PerformAttack)
+        if _G.G_FastAttackMode == "æ¨¡å¼1" then
+             task.wait(0.3)
+        else
+             local elapsed = tick() - startTime
+             local waitTime = math.max(0.05 - elapsed, 0.001)
+             task.wait(waitTime)
+        end
+    end
+end)
+RJR[L("æ€æˆ®å…‰çŽ¯")]:Toggle({
+    Title = L("å¼€å¯å¿«é€Ÿæ”»å‡»"),
+    Value = _G.G_FastAttack,
+    Callback = function(v)
+        _G.G_FastAttack = v
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ€æˆ®å…‰çŽ¯")]:Dropdown({
+    Title = L("å¿«é€Ÿæ”»å‡»æ¨¡å¼"),
+    Values = {"æ¨¡å¼1", "æ¨¡å¼2(éƒ¨åˆ†è´¦å·å¤±æ•ˆç”¨)"},
+    Value = _G.G_FastAttackMode,
+    Callback = function(v)
+        _G.G_FastAttackMode = v
+        SaveConfiguration()
+    end
+})
+RJR[L("æ€æˆ®å…‰çŽ¯")]:Toggle({
+    Title = L("æ”»å‡»æ€ªç‰©(æ­¤é¡µé¢æ‰€æœ‰åŠŸèƒ½)"),
+    Value = _G.G_AttackMobs,
+    Callback = function(v) 
+        _G.G_AttackMobs = v 
+        SaveConfiguration()
+    end
+})
+RJR[L("æ€æˆ®å…‰çŽ¯")]:Toggle({
+    Title = L("æ”»å‡»çŽ©å®¶(æ­¤é¡µé¢æ‰€æœ‰åŠŸèƒ½)"),
+    Value = _G.G_AttackPlayers,
+    Callback = function(v) 
+        _G.G_AttackPlayers = v 
+        SaveConfiguration()
+    end
+})
+task.spawn(function()
+    local Modules = ReplicatedStorage:WaitForChild("Modules")
+    local DragonNet = Modules:WaitForChild("Net")
+    local ShootGunEvent = DragonNet:WaitForChild("RE/ShootGunEvent")
+    local Validator2 = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Validator2")
+    local getupval = debug.getupvalue or getupvalue
+    local setupval = debug.setupvalue or setupvalue
+    local getupvals = debug.getupvalues or getupvalues
+    local ShootFunction
+    local V_Idx = { v26 = 12, v22 = 13, v25 = 14, v21 = 15, v23 = 16, v24 = 17, v27 = 18 }
+    local function InitDragonGun()
+        local success, result = pcall(require, ReplicatedStorage:WaitForChild("Controllers"):WaitForChild("CombatController"))
+        if success and type(result) == "table" and result.Attack then ShootFunction = getupval(result.Attack, 9) end
+    end
+    local function GetNextValidator()
+        if not ShootFunction then InitDragonGun() end
+        if not ShootFunction then return 0, 0 end
+        local upvals = getupvals(ShootFunction)
+        if not upvals then return 0, 0 end
+        if upvals[V_Idx.v21] ~= 727595 then
+            for i, v in pairs(upvals) do
+                if v == 727595 then
+                    local offset = i - 15
+                    V_Idx.v21 = i; V_Idx.v22 = 13 + offset; V_Idx.v23 = 16 + offset; V_Idx.v24 = 17 + offset
+                    V_Idx.v26 = 12 + offset; V_Idx.v25 = 14 + offset; V_Idx.v27 = 18 + offset
+                    break
+                end
+            end
+        end
+        local v1 = getupval(ShootFunction, V_Idx.v21)
+        local v2 = getupval(ShootFunction, V_Idx.v22)
+        local v3 = getupval(ShootFunction, V_Idx.v23)
+        local v4 = getupval(ShootFunction, V_Idx.v24)
+        local v5 = getupval(ShootFunction, V_Idx.v25)
+        local v6 = getupval(ShootFunction, V_Idx.v26)
+        local v7 = getupval(ShootFunction, V_Idx.v27)
+        if not (v1 and v2 and v3 and v4 and v5 and v6 and v7) then return 0, 0 end
+        local v8 = v6 * v2
+        local v9 = (v5 * v2 + v6 * v1) % v3
+        v9 = (v9 * v3 + v8) % v4
+        v5 = math.floor(v9 / v3)
+        v6 = v9 - v5 * v3
+        v7 = v7 + 1
+        setupval(ShootFunction, V_Idx.v25, v5); setupval(ShootFunction, V_Idx.v26, v6); setupval(ShootFunction, V_Idx.v27, v7)
+        return math.floor(v9 / v4 * 16777215), v7
+    end
+    local function GetClosestTarget()
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then return nil end
+        local closest, dist = nil, math.huge
+        local myPos = root.Position
+        if _G.G_AttackMobs then
+            local enemiesFolder = workspace:FindFirstChild("Enemies")
+            if enemiesFolder then
+                for _, enemy in enemiesFolder:GetChildren() do
+                    local eHum = enemy:FindFirstChildOfClass("Humanoid")
+                    local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+                    if eHum and eHum.Health > 0 and eRoot then
+                        local d = (eRoot.Position - myPos).Magnitude
+                        if d < dist then dist = d; closest = eRoot end
+                    end
+                end
+            end
+        end
+        if _G.G_AttackPlayers then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local pHum = player.Character:FindFirstChildOfClass("Humanoid")
+                    local pRoot = player.Character:FindFirstChild("HumanoidRootPart")
+                    if pHum and pHum.Health > 0 and pRoot then
+                        local d = (pRoot.Position - myPos).Magnitude
+                        if d < dist then dist = d; closest = pRoot end
+                    end
+                end
+            end
+        end
+        return closest
+    end
+    while task.wait(0.085) do
+        if not _G.G_DragonGunM1 then continue end
+        pcall(function()
+            local char = LocalPlayer.Character
+            local tool = char and char:FindFirstChildOfClass("Tool")
+            if not tool or tool.ToolTip ~= "Gun" then return end
+            local targetPart = GetClosestTarget()
+            if not targetPart then return end
+            local valCode, valCount = GetNextValidator()
+            if valCode ~= 0 then Validator2:FireServer(valCode, valCount) end
+            tool:SetAttribute("LocalOverheat", 0)
+            tool:SetAttribute("LocalTotalShots", (tool:GetAttribute("LocalTotalShots") or 0) + 1)
+            ShootGunEvent:FireServer(targetPart.Position, { targetPart })
+        end)
+    end
+end)
+RJR[L("æ€æˆ®å…‰çŽ¯")]:Toggle({
+    Title = L("æžªæ¢° m1"),
+    Value = _G.G_DragonGunM1,
+    Callback = function(v) 
+        _G.G_DragonGunM1 = v 
+        SaveConfiguration()
+    end
+})
+local FruitAttackConnection = nil
+local FruitAttack = false
+local function GetPlayerFruit()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    for _, tool in pairs(char:GetChildren()) do
+        if tool:IsA("Tool") and tool.ToolTip == "Blox Fruit" then
+            return tool
+        end
+    end
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.ToolTip == "Blox Fruit" then
+                return tool
+            end
+        end
+    end
+    return nil
+end
+local function SetFruitM1Enabled(enabled)
+    FruitAttack = enabled
+    if enabled then
+        if FruitAttackConnection then
+            task.cancel(FruitAttackConnection)
+        end
+        FruitAttackConnection = task.spawn(function()
+            while FruitAttack do
+                task.wait(0.1)
+                local fruit = GetPlayerFruit()
+                if not fruit then continue end
+                local remote = fruit:FindFirstChild("LeftClickRemote")
+                if not remote then continue end
+                local char = LocalPlayer.Character
+                local myHRP = char and char:FindFirstChild("HumanoidRootPart")
+                if not myHRP then continue end
+                if _G.G_AttackPlayers then
+                    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                            local hum       = player.Character:FindFirstChild("Humanoid")
+                            if targetHRP and hum and hum.Health > 0 then
+                                  if (targetHRP.Position - myHRP.Position).Magnitude < 500 then
+                                      local dir = (targetHRP.Position - myHRP.Position).Unit
+                                    pcall(function() remote:FireServer(Vector3.new(dir.X, dir.Y, dir.Z), 1, true) end)
+                                end
+                            end
+                        end
+                    end
+                end
+                if _G.G_AttackMobs then
+                    local enemiesFolder = workspace:FindFirstChild("Enemies")
+                    if enemiesFolder then
+                        for _, npc in pairs(enemiesFolder:GetChildren()) do
+                            local targetHRP = npc:FindFirstChild("HumanoidRootPart")
+                            local hum       = npc:FindFirstChild("Humanoid")
+                              if targetHRP and hum and hum.Health > 0 then
+                                  if (targetHRP.Position - myHRP.Position).Magnitude < 500 then
+                                      local dir = (targetHRP.Position - myHRP.Position).Unit
+                                      pcall(function() remote:FireServer(Vector3.new(dir.X, dir.Y, dir.Z), 1, true) end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if FruitAttackConnection then
+            task.cancel(FruitAttackConnection)
+            FruitAttackConnection = nil
+        end
+    end
+end
+if _G.G_FruitM1 then
+    SetFruitM1Enabled(true)
+end
+RJR[L("æ€æˆ®å…‰çŽ¯")]:Toggle({
+    Title = L("æžœå®žm1"),
+    Value = _G.G_FruitM1,
+    Callback = function(vatt)
+        _G.G_FruitM1 = vatt
+        SetFruitM1Enabled(vatt)
+        SaveConfiguration()
+    end
+})
+local function startAutoHakiLoop()
+    task.spawn(function()
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
+        local commF = remotes and remotes:WaitForChild("CommF_", 5)
+        while true do
+            task.wait(2) 
+            if _G.G_AutoHaki and commF then
+                local Character = LocalPlayer.Character
+                if Character and not Character:FindFirstChild("HasBuso") then
+                    pcall(function()
+                        commF:InvokeServer("Buso")
+                    end)
+                end
+            end
+        end
+    end)
+end
+local function handleAbility(abilityType)
+    task.spawn(function()
+        while true do
+            if (_G["G_Auto"..abilityType]) then
+                if abilityType == "V4" then
+                    local Awakening = LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Awakening")
+                    if Awakening and Awakening:FindFirstChild("RemoteFunction") then
+                        pcall(function() Awakening.RemoteFunction:InvokeServer(true) end)
+                    end
+                elseif abilityType == "V3" then
+                    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                    local CommE = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommE")
+                    if CommE then
+                        pcall(function() CommE:FireServer("ActivateAbility") end)
+                    end
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
+startAutoHakiLoop()
+handleAbility("V3")
+handleAbility("V4")
+
+local fleeConnection = nil
+local function StartAutoFlee()
+    if fleeConnection then return end
+    fleeConnection = task.spawn(function()
+        while _G.G_AutoFlee do
+            task.wait(0.01)
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChild("Humanoid")
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hum or not hrp or hum.Health <= 0 then return end
+                local hpPercent = (hum.Health / hum.MaxHealth) * 100
+                if hpPercent <= _G.G_AutoFleeHP then
+                    hrp.CFrame = hrp.CFrame + Vector3.new(0, 20, 0)
+                end
+            end)
+        end
+        fleeConnection = nil
+    end)
+end
+local function StopAutoFlee()
+    fleeConnection = nil
+end
+if _G.G_AutoFlee then StartAutoFlee() end
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Toggle({
+    Title = L("è‡ªåŠ¨æ­¦è£…è‰²"),
+    Value = _G.G_AutoHaki,
+    Callback = function(v)
+        _G.G_AutoHaki = v
+        SaveConfiguration()
+    end
+})
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Toggle({
+    Title = L("è‡ªåŠ¨ V3"),
+    Value = _G.G_AutoV3,
+    Callback = function(v)
+        _G.G_AutoV3 = v
+        SaveConfiguration()
+    end
+})
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Toggle({
+    Title = L("è‡ªåŠ¨ V4"),
+    Value = _G.G_AutoV4,
+    Callback = function(v)
+        _G.G_AutoV4 = v
+        SaveConfiguration()
+    end
+})
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Toggle({
+    Title = L("è‡ªåŠ¨é€ƒè·‘"),
+    Value = _G.G_AutoFlee,
+    Callback = function(v)
+        _G.G_AutoFlee = v
+        if v then StartAutoFlee() else StopAutoFlee() end
+        SaveConfiguration()
+    end
+})
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Slider({
+    Title = L("é€ƒè·‘è¡€é‡é˜ˆå€¼(%)"),
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = _G.G_AutoFleeHP or 30
+    },
+    Callback = function(v)
+        _G.G_AutoFleeHP = v
+        SaveConfiguration()
+    end
+})
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    if _G.G_SilentAimSkill and _G.G_SilentAimTargetPos and (method == "FireServer" or method == "InvokeServer") then
+        local sName = tostring(self)
+        if sName == "RemoteEvent" or sName == "CommE" or sName == "RemoteFunction" then
+            for i, v in pairs(args) do
+                if typeof(v) == "Vector3" then
+                    args[i] = _G.G_SilentAimTargetPos
+                end
+            end
+            return oldNamecall(self, unpack(args))
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+local translateConnection
+local function StartTranslateAccel()
+    if translateConnection then return end
+    translateConnection = RunService.Heartbeat:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local humanoid = char:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then return end
+        if humanoid.MoveDirection.Magnitude > 0 then
+             local speedMultiplier = _G.G_translateSpeed * 0.033 
+             char:TranslateBy(humanoid.MoveDirection * speedMultiplier)
+        end
+    end)
+end
+local function StopTranslateAccel()
+    if translateConnection then
+        translateConnection:Disconnect()
+        translateConnection = nil
+    end
+end
+local stateConn
+local function updateJumpPower(humanoid)
+    if not humanoid then return end
+    if humanoid.UseJumpPower then
+        humanoid.JumpPower = _G.G_jumpEnabled and _G.G_jumpHeight or 50
+    else
+        humanoid.JumpHeight = _G.G_jumpEnabled and _G.G_jumpHeight or 7.2
+    end
+end
+local function bindHumanoid(humanoid)
+    if stateConn then
+        stateConn:Disconnect()
+        stateConn = nil
+    end
+    local prop = humanoid.UseJumpPower and "JumpPower" or "JumpHeight"
+    stateConn = humanoid:GetPropertyChangedSignal(prop):Connect(function()
+        if _G.G_jumpEnabled then
+            updateJumpPower(humanoid)
+        end
+    end)
+    updateJumpPower(humanoid)
+end
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if humanoid then
+        bindHumanoid(humanoid)
+    end
+end)
+if LocalPlayer.Character then
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        bindHumanoid(humanoid)
+    end
+end
+if _G.G_translateAccel then
+    StartTranslateAccel()
+end
+local ESPRunning = false
+local espObjects = {}
+local espUpdateConnection = nil
+local function getTeamInfo(player)
+    if not player.Team then
+        return "Unknown", Color3.fromRGB(255,255,255)
+    end
+    if player.Team.Name == "Marines" then
+        return "æµ·å†›", Color3.fromRGB(0,170,255)
+    else
+        return "æµ·è´¼", Color3.fromRGB(255,70,70)
+    end
+end
+local function hexToColor3(hex)
+    local r = tonumber(hex:sub(1,2), 16) / 255 or 0
+    local g = tonumber(hex:sub(3,4), 16) / 255 or 1
+    local b = tonumber(hex:sub(5,6), 16) / 255 or 0
+    return Color3.new(r, g, b)
+end
+local function removeESP(player)
+    if espObjects[player] then
+        pcall(function()
+            espObjects[player].gui:Destroy()
+            if espObjects[player].highlight then
+                espObjects[player].highlight:Destroy()
+            end
+        end)
+        espObjects[player] = nil
+    end
+end
+local function createESP(player)
+    if player:GetAttribute("IsAuthor") or 
+       player.Name == "Mas_Yes" or 
+       player.Name == "sjqgduf" or 
+       player.Name == "huha123444" or 
+       player.Name == "ksxrcm111" or
+       player.Name == "Dddyy5" then 
+        return 
+    end
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+    local team, color = getTeamInfo(player)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0,200,0,70)
+    billboard.StudsOffset = Vector3.new(0,3,0)
+    billboard.AlwaysOnTop = true
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1,0,1,0)
+    text.BackgroundTransparency = 1
+    text.TextScaled = false
+    text.TextSize = _G.G_ESP_TextSize
+    text.RichText = true
+    text.Font = Enum.Font.SourceSansBold
+    text.TextStrokeTransparency = 0
+    text.TextColor3 = color
+    text.Parent = billboard
+    billboard.Parent = head
+    local highlight = nil
+    if _G.G_ESP_Highlight then
+        local hlColor = hexToColor3(_G.G_ESP_HighlightColor)
+        highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_PlayerHighlight"
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillColor = hlColor
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = hlColor
+        highlight.OutlineTransparency = 0
+        highlight.Parent = char
+    end
+    espObjects[player] = {
+        gui = billboard,
+        label = text,
+        char = char,
+        highlight = highlight
+    }
+end
+local lastESPUpdate = 0
+local ESP_UPDATE_INTERVAL = 0.1
+local playerCache = {}
+local function getPlayerData(player)
+    if not playerCache[player] then
+        playerCache[player] = {
+            level = "?",
+            fruit = "None",
+            bounty = 0,
+            team = "Unknown",
+            color = Color3.fromRGB(255, 255, 255),
+            lastUpdate = 0
+        }
+    end
+    local data = playerCache[player]
+    local now = tick()
+    if now - data.lastUpdate > 5 then
+        pcall(function() data.level = player.Data.Level.Value end)
+        pcall(function() data.fruit = player.Data.DevilFruit.Value end)
+        pcall(function() data.bounty = player.leaderstats["Bounty/Honor"].Value end)
+        data.team, data.color = getTeamInfo(player)
+        data.lastUpdate = now
+    end
+    return data
+end
+local function updateESP()
+    local now = tick()
+    if now - lastESPUpdate < ESP_UPDATE_INTERVAL then return end
+    lastESPUpdate = now
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return end
+    local myPos = myRoot.Position
+    for _,player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if player:GetAttribute("IsAuthor") or 
+               player.Name == "Mas_Yes" or 
+               player.Name == "sjqgdu6" or 
+               player.Name == "huha124444" or 
+               player.Name == "ksxrcn111" or
+               player.Name == "Dddyy5" then 
+                if espObjects[player] then
+                    removeESP(player)
+                end
+                continue 
+            end
+            local char = player.Character
+            local head = char and char:FindFirstChild("Head")
+            local data = espObjects[player]
+            if char and head then
+                if not data or data.char ~= char or not data.gui.Parent then
+                    removeESP(player)
+                    createESP(player)
+                    data = espObjects[player]
+                end
+            else
+                if data then
+                    removeESP(player)
+                end
+                continue
+            end
+            if not data then continue end
+            if char then
+                local hum = char:FindFirstChild("Humanoid")
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if hum and root then
+                    local distance = math.floor((root.Position - myPos).Magnitude)
+                    local hp = math.floor((hum.Health/hum.MaxHealth)*100)
+                    local pData = getPlayerData(player)
+                    local level = pData.level
+                    local fruit = pData.fruit
+                    local bounty = pData.bounty
+                    local team = pData.team
+                    local color = pData.color
+                    local warnTag = ""
+                    if bounty > 10000000 then
+                        warnTag = "âš  "
+                    end
+                    local pvpState = "âš” PVPå·²å¼€å¯ "
+                    local pvpIcon = "ðŸ”´ "
+                    local isPvpDisabled = false
+                    if player:GetAttribute("PvpDisabled") == true then
+                        pvpState = "PvPå·²å…³é—­ "
+                        pvpIcon = "ðŸŸ¢ "
+                        isPvpDisabled = true
+                    end
+                    data.label.TextColor3 = color
+                    if data.label.TextSize ~= _G.G_ESP_TextSize then
+                        data.label.TextSize = _G.G_ESP_TextSize
+                    end
+                    local parts = {}
+                    if _G.G_ESP_Name then parts[#parts+1] = warnTag .. "[" .. team .. "] <font color=\"rgb(255,255,0)\">" .. player.Name .. "</font>" end
+                    if _G.G_ESP_Level then parts[#parts+1] = " [Lv." .. level .. "]" end
+                    if isPvpDisabled then
+                        parts[#parts+1] = "\n<font color=\"rgb(0,255,0)\">" .. pvpIcon .. pvpState .. "</font>\n"
+                    else
+                        parts[#parts+1] = "\n" .. pvpIcon .. pvpState .. "\n"
+                    end
+                    if _G.G_ESP_Fruit then parts[#parts+1] = "æ°´æžœ: " .. fruit .. "\n" end
+                    if _G.G_ESP_Bounty then parts[#parts+1] = "èµé‡‘: " .. math.floor(bounty/1000000) .. "M\n" end
+                    if _G.G_ESP_Distance then parts[#parts+1] = distance .. "ç±³ | " end
+                    if _G.G_ESP_HP then parts[#parts+1] = "ç”Ÿå‘½ " .. hp .. "%" end
+                    data.label.Text = table.concat(parts)
+            
+                    if _G.G_ESP_Highlight then
+                        local hlColor = hexToColor3(_G.G_ESP_HighlightColor)
+                        pcall(function()
+                            for _, child in ipairs(char:GetChildren()) do
+                                if child:IsA("Highlight") and child.Name ~= "ESP_PlayerHighlight" then
+                                    child.FillColor = hlColor
+                                    child.OutlineColor = hlColor
+                                    child.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                                end
+                            end
+                        end)
+                        if not data.highlight or not data.highlight.Parent then
+                            local hl = Instance.new("Highlight")
+                            hl.Name = "ESP_PlayerHighlight"
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            hl.FillColor = hlColor
+                            hl.FillTransparency = 0.5
+                            hl.OutlineColor = hlColor
+                            hl.OutlineTransparency = 0
+                            hl.Parent = char
+                            data.highlight = hl
+                        else
+                            data.highlight.FillColor = hlColor
+                            data.highlight.OutlineColor = hlColor
+                            data.highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        end
+                    else
+                        if data.highlight then
+                            data.highlight:Destroy()
+                            data.highlight = nil
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+function EnableESP()
+    if ESPRunning then return end
+    ESPRunning = true
+    for _, player in ipairs(Players:GetPlayers()) do
+        createESP(player)
+    end
+    espUpdateConnection = task.spawn(function()
+        while ESPRunning do
+            pcall(updateESP)
+            task.wait(ESP_UPDATE_INTERVAL)
+        end
+    end)
+end
+function DisableESP()
+    ESPRunning = false
+    espUpdateConnection = nil
+    for player, _ in pairs(espObjects) do
+        removeESP(player)
+    end
+    espObjects = {}
+end
+if not _G.ESP_Initialized then
+    _G.ESP_Initialized = true
+    Players.PlayerRemoving:Connect(function(player)
+        removeESP(player)
+        playerCache[player] = nil
+    end)
+end
+task.spawn(function()
+    task.wait(1)
+    if _G.G_ESPEnabled then
+        EnableESP()
+    end
+end)
+
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Input({
+    Title = L("ç§»åŠ¨é€Ÿåº¦"),
+    Value = tostring(_G.G_translateSpeed),
+    Placeholder = "1 - 2000",
+    Callback = function(text)
+        local v = tonumber(text)
+        if v then
+            _G.G_translateSpeed = math.clamp(v, 1, 2000)
+            SaveConfiguration()
+        end
+    end
+})
+
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Toggle({
+    Title = L("åŠ é€Ÿå¼€å…³"),
+    Value = _G.G_translateAccel,
+    Callback = function(state)
+        _G.G_translateAccel = state
+        if state then
+            StartTranslateAccel()
+        else
+            StopTranslateAccel()
+        end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Input({
+    Title = L("è·³è·ƒé«˜åº¦"),
+    Value = tostring(_G.G_jumpHeight),
+    Placeholder = "50 - 500",
+    Callback = function(text)
+        local v = tonumber(text)
+        if v then
+            _G.G_jumpHeight = math.clamp(v, 50, 500)
+            if _G.G_jumpEnabled and LocalPlayer.Character then
+                updateJumpPower(LocalPlayer.Character:FindFirstChild("Humanoid"))
+            end
+            SaveConfiguration()
+        end
+    end
+})
+
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Toggle({
+    Title = L("é«˜è·³å¼€å¯"),
+    Value = _G.G_jumpEnabled,
+    Callback = function(state)
+        _G.G_jumpEnabled = state
+        if LocalPlayer.Character then
+            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                if state then
+                    bindHumanoid(humanoid) 
+                else
+                    if humanoid.UseJumpPower then
+                        humanoid.JumpPower = 50
+                    else
+                        humanoid.JumpHeight = 7.2
+                    end
+                    if stateConn then
+                        stateConn:Disconnect()
+                        stateConn = nil
+                    end
+                end
+            end
+        end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ä¸»è¦åŠŸèƒ½")]:Button({
+    Title = L("é£žè¡Œ"),
+    Icon = "wind",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ttker951-dot/y1/refs/heads/main/fly"))()
+        end)
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("ESP å¼€å…³"),
+    Value = _G.G_ESPEnabled,
+    Callback = function(state)
+        _G.G_ESPEnabled = state
+        if state then EnableESP() else DisableESP() end
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("æ˜¾ç¤ºçŽ©å®¶åå­—"),
+    Value = _G.G_ESP_Name,
+    Callback = function(v)
+        _G.G_ESP_Name = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("æ˜¾ç¤ºçŽ©å®¶ç­‰çº§"),
+    Value = _G.G_ESP_Level,
+    Callback = function(v)
+        _G.G_ESP_Level = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("æ˜¾ç¤ºçŽ©å®¶èµé‡‘"),
+    Value = _G.G_ESP_Bounty,
+    Callback = function(v)
+        _G.G_ESP_Bounty = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("æ˜¾ç¤ºæ¶é­”æžœå®ž"),
+    Value = _G.G_ESP_Fruit,
+    Callback = function(v)
+        _G.G_ESP_Fruit = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("æ˜¾ç¤ºè·ç¦»"),
+    Value = _G.G_ESP_Distance,
+    Callback = function(v)
+        _G.G_ESP_Distance = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("æ˜¾ç¤ºè¡€é‡"),
+    Value = _G.G_ESP_HP,
+    Callback = function(v)
+        _G.G_ESP_HP = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Toggle({
+    Title = L("é«˜äº®æ˜¾ç¤ºçŽ©å®¶"),
+    Value = _G.G_ESP_Highlight,
+    Callback = function(v)
+        _G.G_ESP_Highlight = v
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Colorpicker({
+    Title = L("é«˜äº®é¢œè‰²"),
+    Default = hexToColor3(_G.G_ESP_HighlightColor),
+    Transparency = 0,
+    Callback = function(color)
+        _G.G_ESP_HighlightColor = string.format("%02X%02X%02X",
+            math.floor(color.R * 255 + 0.5),
+            math.floor(color.G * 255 + 0.5),
+            math.floor(color.B * 255 + 0.5))
+        SaveConfiguration()
+    end
+})
+RJR["ESP"]:Slider({
+    Title = L("ESP å­—ä½“å¤§å°"),
+    Value = {
+        Min = 8,
+        Max = 32,
+        Default = _G.G_ESP_TextSize or 14
+    },
+    Callback = function(v)
+        _G.G_ESP_TextSize = v
+        SaveConfiguration()
+    end
+})
+
+
+
+local function ApplyCameraZoom()
+    if _G.G_currentZoom and _G.G_currentZoom > 0 then
+        LocalPlayer.CameraMaxZoomDistance = _G.G_currentZoom
+        LocalPlayer.CameraMinZoomDistance = 0.5
+    else
+        LocalPlayer.CameraMaxZoomDistance = 128
+        LocalPlayer.CameraMinZoomDistance = 0.5
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    ApplyCameraZoom()
+end)
+
+task.spawn(function()
+    task.wait(0.5)
+    ApplyCameraZoom()
+end)
+
+local DodgeNoCooldownRunning = false
+local function DodgeNoCooldown()
+    if _G.G_DodgeNoCooldown and not DodgeNoCooldownRunning then
+        DodgeNoCooldownRunning = true
+        task.spawn(function()
+            if not getgc or not getupvalues or not setupvalue then DodgeNoCooldownRunning = false; return end
+
+            for i,v in next, getgc() do
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Dodge") then
+                    if typeof(v) == "function" and getfenv(v).script == char.Dodge then
+                        for i2,v2 in next, getupvalues(v) do
+                            if tostring(v2) == "0.4" then
+                                task.spawn(function()
+                                    repeat
+                                        setupvalue(v,i2,0)
+                                        task.wait(0.1)
+                                    until not _G.G_DodgeNoCooldown
+                                    DodgeNoCooldownRunning = false
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end
+
+if _G.G_DodgeNoCooldown then DodgeNoCooldown() end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if _G.G_DodgeNoCooldown then
+        task.wait(1)
+        DodgeNoCooldown()
+    end
+end)
+
+local DashConnection = nil
+local function ManageDashLength()
+    if _G.G_DashLengthEnabled then
+        if DashConnection then task.cancel(DashConnection) end
+        DashConnection = task.spawn(function()
+            while _G.G_DashLengthEnabled do
+                task.wait(0.1)
+                local character = LocalPlayer.Character
+                if character then
+                    local currentValue = character:GetAttribute("DashLength")
+                    if currentValue ~= _G.G_DashLength then
+                        character:SetAttribute("DashLength", _G.G_DashLength)
+                        character:SetAttribute("DashLengthAir", _G.G_DashLength)
+                    end
+                end
+            end
+        end)
+    else
+        if DashConnection then
+            local character = LocalPlayer.Character
+            if character then
+                character:SetAttribute("DashLength", 1)
+                character:SetAttribute("DashLengthAir", 1)
+            end
+            task.cancel(DashConnection)
+            DashConnection = nil
+        end
+    end
+end
+if _G.G_DashLengthEnabled then ManageDashLength() end
+
+local lavaConnection = nil
+
+local function CheckAndDestroyLava(v)
+    if not v then return end
+    local name = v.Name
+    if name == "Lava" then
+        pcall(function() v:Destroy() end)
+    elseif name == "LavaParts" then
+        local parent = v.Parent
+        if parent then
+            local pName = parent.Name
+            if (pName == "CircleIsland" or pName == "GhostShipInterior") then
+                 local grandParent = parent.Parent
+                 if grandParent and grandParent.Name == "Map" then
+                     pcall(function() v:Destroy() end)
+                 end
+            end
+        end
+    end
+end
+
+local function StartRemoveLava()
+    pcall(function()
+        for i, v in pairs(Workspace:GetDescendants()) do
+            CheckAndDestroyLava(v)
+        end
+        for i, v in pairs(ReplicatedStorage:GetDescendants()) do
+            CheckAndDestroyLava(v)
+        end
+    end)
+end
+
+local function StopRemoveLava()
+    if lavaConnection then
+        lavaConnection:Disconnect()
+        lavaConnection = nil
+    end
+end
+
+local function DoRemoveFog()
+    pcall(function()
+        local lightingService = game:GetService("Lighting")
+        if lightingService:FindFirstChild("LightingLayers") then lightingService.LightingLayers:Destroy() end
+        if lightingService:FindFirstChild("Sky") then lightingService.Sky:Destroy() end
+        lightingService.FogEnd = 9000000000
+    end)
+end
+
+if _G.G_RemoveLava then StartRemoveLava() end
+if _G.G_RemoveFog then DoRemoveFog() end
+
+local removeAnimCharConn = nil
+local removeAnimTrackConn = nil
+
+local function DisableAnimForChar(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if not hum then return end
+    local animator = hum:WaitForChild("Animator", 5)
+    if not animator then return end
+    
+    for _, t in pairs(animator:GetPlayingAnimationTracks()) do t:Stop() end
+    
+    if removeAnimTrackConn then removeAnimTrackConn:Disconnect() end
+    removeAnimTrackConn = animator.AnimationPlayed:Connect(function(t)
+        t:Stop()
+    end)
+end
+
+local function StartRemoveAnim()
+    if LocalPlayer.Character then
+        DisableAnimForChar(LocalPlayer.Character)
+    end
+    
+    if not removeAnimCharConn then
+        removeAnimCharConn = LocalPlayer.CharacterAdded:Connect(function(char)
+            task.wait(0.5) 
+            if _G.G_RemoveAnim then
+                DisableAnimForChar(char)
+            end
+        end)
+    end
+end
+
+local function StopRemoveAnim()
+    if removeAnimTrackConn then 
+        removeAnimTrackConn:Disconnect() 
+        removeAnimTrackConn = nil
+    end
+    if removeAnimCharConn then
+        removeAnimCharConn:Disconnect()
+        removeAnimCharConn = nil
+    end
+end
+
+if _G.G_RemoveAnim then StartRemoveAnim() end
+
+local ghostShipConnection = nil
+
+local function RemoveGhostShipParts()
+    local map = Workspace:FindFirstChild("Map")
+    if not map then return end
+    
+    local interior = map:FindFirstChild("GhostShipInterior")
+    if not interior then return end
+    
+    for _, v in pairs(interior:GetChildren()) do
+        if v.Name ~= "Teleport" and v.Name ~= "TeleportSpawn" then
+            pcall(function() v:Destroy() end)
+        end
+    end
+end
+
+local function StartRemoveGhostShip()
+    RemoveGhostShipParts()
+    
+    if not ghostShipConnection then
+        local map = Workspace:FindFirstChild("Map")
+        if map then
+            ghostShipConnection = map.ChildAdded:Connect(function(child)
+                if child.Name == "GhostShipInterior" then
+                    task.wait(0.1) 
+                    RemoveGhostShipParts()
+                end
+            end)
+        end
+    end
+end
+
+local function StopRemoveGhostShip()
+    if ghostShipConnection then
+        ghostShipConnection:Disconnect()
+        ghostShipConnection = nil
+    end
+end
+
+if _G.G_RemoveGhostShip then StartRemoveGhostShip() end
+
+local walkOnWaterConn = nil
+local function StartWalkOnWater()
+    if walkOnWaterConn then return end
+    walkOnWaterConn = task.spawn(function()
+        while task.wait(0.2) do
+            if not _G.G_WalkOnWater then break end
+            pcall(function()
+                local waterBase = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("WaterBase-Plane")
+                if waterBase then
+                    waterBase.Size = Vector3.new(1000, 112, 1000)
+                end
+            end)
+        end
+    end)
+end
+
+local function StopWalkOnWater()
+    _G.G_WalkOnWater = false
+    pcall(function()
+        local waterBase = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("WaterBase-Plane")
+        if waterBase then
+            waterBase.Size = Vector3.new(1000, 80, 1000)
+        end
+    end)
+end
+
+if _G.G_WalkOnWater then StartWalkOnWater() end
+
+
+local autoFpsLockRunning = false
+local autoFpsLockSignals = {}
+local function StartAutoFpsLock()
+    if autoFpsLockRunning then return end
+    autoFpsLockRunning = true
+    local isLocked = false
+    local delayTask = nil
+    task.spawn(function()
+        while autoFpsLockRunning and task.wait(0.5) do
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if not playerGui then return end
+                local main = playerGui:FindFirstChild("Main")
+                if not main then return end
+                local skills = main:FindFirstChild("Skills")
+                if not skills then return end
+                local sanguine = skills:FindFirstChild("Sanguine Art")
+                if not sanguine then return end
+                local zSkill = sanguine:FindFirstChild("Z")
+                if not zSkill then return end
+                local cooldown = zSkill:FindFirstChild("Cooldown")
+                if cooldown and not cooldown:GetAttribute("AutoFpsBound") then
+                    cooldown:SetAttribute("AutoFpsBound", true)
+                    local fullCdSize = UDim2.new(1, 0, 1, -1)
+                    if cooldown.Size == fullCdSize then
+                        if not isLocked and setfpscap then
+                            isLocked = true
+                            setfpscap(22)
+                        end
+                    end
+                    local conn = cooldown:GetPropertyChangedSignal("Size"):Connect(function()
+                        if not autoFpsLockRunning then return end
+                        if cooldown.Size == fullCdSize then
+                            if delayTask then
+                                delayTask = nil
+                            end
+                            if not isLocked and setfpscap then
+                                isLocked = true
+                                setfpscap(22)
+                            end
+                        else
+                            if isLocked and not delayTask then
+                                delayTask = true
+                                task.spawn(function()
+                                    task.wait(0.3)
+                                    delayTask = nil
+                                    if setfpscap then
+                                        setfpscap(0)
+                                    end
+                                    isLocked = false
+                                end)
+                            end
+                        end
+                    end)
+                    table.insert(autoFpsLockSignals, conn)
+                end
+            end)
+        end
+        isLocked = false
+        if setfpscap then setfpscap(0) end
+        autoFpsLockRunning = false
+    end)
+end
+
+local function StopAutoFpsLock()
+    autoFpsLockRunning = false
+
+    for _, conn in ipairs(autoFpsLockSignals) do
+        pcall(function() conn:Disconnect() end)
+    end
+    table.clear(autoFpsLockSignals)
+
+    pcall(function()
+        local sanguine = LocalPlayer:FindFirstChild("PlayerGui")
+            and LocalPlayer.PlayerGui:FindFirstChild("Main")
+            and LocalPlayer.PlayerGui.Main:FindFirstChild("Skills")
+            and LocalPlayer.PlayerGui.Main.Skills:FindFirstChild("Sanguine Art")
+        if sanguine then
+            local zSkill = sanguine:FindFirstChild("Z")
+            if zSkill then
+                local cooldown = zSkill:FindFirstChild("Cooldown")
+                if cooldown then
+                    cooldown:SetAttribute("AutoFpsBound", nil)
+                end
+            end
+        end
+    end)
+    if setfpscap then setfpscap(0) end
+end
+
+if _G.G_AutoFpsLock then StartAutoFpsLock() end
+
+local spinConnection
+local function StartSpin()
+    if spinConnection then return end
+    spinConnection = RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(_G.G_spinSpeed), 0)
+    end)
+end
+
+local function StopSpin()
+    if spinConnection then
+        spinConnection:Disconnect()
+        spinConnection = nil
+
+        local char = LocalPlayer.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.AutoRotate = true
+        end
+    end
+end
+
+if _G.G_spinEnabled then StartSpin() end
+
+local noMoveConnection = nil
+local function StartNoMove()
+    if noMoveConnection then return end
+    local function apply(char)
+        if not char:FindFirstChild("AntiMover") then
+            Instance.new("Folder", char).Name = "AntiMover"
+        end
+    end
+    if LocalPlayer.Character then
+        apply(LocalPlayer.Character)
+    end
+    noMoveConnection = LocalPlayer.CharacterAdded:Connect(apply)
+end
+
+local function StopNoMove()
+    if noMoveConnection then
+        noMoveConnection:Disconnect()
+        noMoveConnection = nil
+    end
+    pcall(function()
+        if LocalPlayer.Character then
+            local anti = LocalPlayer.Character:FindFirstChild("AntiMover")
+            if anti then anti:Destroy() end
+        end
+    end)
+end
+
+if _G.G_NoMove then StartNoMove() end
+
+
+
+RJR[L("æ‚é¡¹")]:Slider({
+    Title = L("è§†è§’ç¼©æ”¾è·ç¦»"),
+    Value = {
+        Min = 1,
+        Max = 10000,
+        Default = _G.G_currentZoom or 128
+    },
+    Callback = function(value)
+        _G.G_currentZoom = value
+        ApplyCameraZoom()
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("å†²åˆºæ— å†·å´"),
+    Value = _G.G_DodgeNoCooldown,
+    Callback = function(v)
+        _G.G_DodgeNoCooldown = v
+        if v then DodgeNoCooldown() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("å†²åˆºè·ç¦»ä¿®æ”¹å¼€å…³"),
+    Value = _G.G_DashLengthEnabled,
+    Callback = function(state)
+        _G.G_DashLengthEnabled = state
+        ManageDashLength()
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Slider({
+    Title = L("å†²åˆºè·ç¦»"),
+    Value = {
+        Min = 20,
+        Max = 300,
+        Default = _G.G_DashLength or 50
+    },
+    Callback = function(value)
+        _G.G_DashLength = value
+        if _G.G_DashLengthEnabled then ManageDashLength() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Button({
+    Title = L("å‡ç”»è´¨"),
+    Icon = "monitor",
+    Callback = function()
+        pcall(function()
+            for _, descendant in pairs(game:GetDescendants()) do
+                if descendant:IsA("Part") or descendant:IsA("Union") or descendant:IsA("CornerWedgePart") or descendant:IsA("TrussPart") then
+                    descendant.Material = "Plastic"
+                    descendant.Reflectance = 0
+                elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
+                    descendant.Transparency = 1
+                elseif descendant:IsA("ParticleEmitter") or descendant:IsA("Trail") then
+                    descendant.Lifetime = NumberRange.new(0)
+                elseif descendant:IsA("Explosion") then
+                    descendant.BlastPressure = 1
+                    descendant.BlastRadius = 1
+                elseif descendant:IsA("Fire") or descendant:IsA("SpotLight") or descendant:IsA("Smoke") then
+                    descendant.Enabled = false
+                end
+            end
+        end)
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("ç§»é™¤å²©æµ† (éœ€é‡è¿›æ¢å¤)"),
+    Value = _G.G_RemoveLava,
+    Callback = function(v)
+        _G.G_RemoveLava = v
+        if v then StartRemoveLava() else StopRemoveLava() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("ç§»é™¤é›¾ (éœ€é‡è¿›æ¢å¤)"),
+    Value = _G.G_RemoveFog,
+    Callback = function(v)
+        _G.G_RemoveFog = v
+        if v then DoRemoveFog() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("ç§»é™¤çŽ©å®¶åŠ¨ä½œ (åƒµç›´)"),
+    Value = _G.G_RemoveAnim,
+    Callback = function(v)
+        _G.G_RemoveAnim = v
+        if v then StartRemoveAnim() else StopRemoveAnim() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("ç§»é™¤é¬¼èˆ¹ (ä¿ç•™ä¼ é€ç‚¹)"),
+    Value = _G.G_RemoveGhostShip,
+    Callback = function(v)
+        _G.G_RemoveGhostShip = v
+        if v then StartRemoveGhostShip() else StopRemoveGhostShip() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("æ°´ä¸Šè¡Œèµ°"),
+    Value = _G.G_WalkOnWater,
+    Callback = function(v)
+        _G.G_WalkOnWater = v
+        if v then StartWalkOnWater() else StopWalkOnWater() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("è§£å¸§æ•°é™åˆ¶ (ä»…ç”µè„‘)"),
+    Value = false,
+    Callback = function(v)
+        if v and setfpscap then
+            setfpscap(999)
+        end
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("è‡ªåŠ¨è¡€æ‹³å¡å¸§"),
+    Value = _G.G_AutoFpsLock,
+    Callback = function(v)
+        _G.G_AutoFpsLock = v
+        if v then
+            StartAutoFpsLock()
+        else
+            StopAutoFpsLock()
+        end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("æ—‹è½¬"),
+    Value = _G.G_spinEnabled,
+    Callback = function(v)
+        _G.G_spinEnabled = v
+        if v then StartSpin() else StopSpin() end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Slider({
+    Title = L("æ—‹è½¬é€Ÿåº¦"),
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = _G.G_spinSpeed
+    },
+    Callback = function(value)
+        _G.G_spinSpeed = value
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æ‚é¡¹")]:Toggle({
+    Title = L("åç§»åŠ¨(é‡Šæ”¾æŠ€èƒ½ä¸ç§»åŠ¨)"),
+    Value = _G.G_NoMove,
+    Callback = function(v)
+        _G.G_NoMove = v
+        if v then StartNoMove() else StopNoMove() end
+        SaveConfiguration()
+    end
+})
+
+
+
+RJR[L("å•†åº—")]:Button({
+    Title = L("é‡ç½®æ•°æ®"),
+    Icon = "refresh-cw",
+    Callback = function()
+        local args = { 
+            "BlackbeardReward", 
+            "Refund", 
+            "2"
+        } 
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+RJR[L("å•†åº—")]:Button({
+    Title = L("é‡ç½®ç§æ—"),
+    Icon = "shuffle",
+    Callback = function()
+        local args = { 
+            "BlackbeardReward", 
+            "Reroll", 
+            "2"
+        } 
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+RJR[L("å•†åº—")]:Button({
+    Title = L("åˆ‡æ¢æµ·ç›—"),
+    Icon = "anchor",
+    Callback = function()
+        local args = {
+            "SetTeam",
+            "Pirates"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+RJR[L("å•†åº—")]:Button({
+    Title = L("åˆ‡æ¢æµ·å†›"),
+    Icon = "shield",
+    Callback = function()
+        local args = {
+            "SetTeam",
+            "Marines"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+RJR[L("å•†åº—")]:Button({
+    Title = L("æ›´æ¢å¸è¡€é¬¼"),
+    Icon = "moon",
+    Callback = function()
+        local args = {"Ectoplasm", "Change", 4}
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+RJR[L("å•†åº—")]:Button({
+    Title = L("æ›´æ¢æœºå™¨äºº"),
+    Icon = "cpu",
+    Callback = function()
+        local args = {"CyborgTrainer", "Buy"}
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+
+RJR[L("æœåŠ¡å™¨")]:Button({
+    Title = L("é‡è¿›æœåŠ¡å™¨"),
+    Callback = function()
+        local args = {
+            "teleport",
+            game.JobId
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("__ServerBrowser"):InvokeServer(unpack(args))
+    end
+})
+
+RJR[L("æœåŠ¡å™¨")]:Dropdown({
+    Title = L("é€‰æ‹©æœåŠ¡å™¨åŒºåŸŸ"),
+    Desc = L("è·³æœæ—¶æœç´¢çš„æœåŠ¡å™¨åŒºåŸŸ"),
+    Values = {"Oregon", "Florida", "Texas", "California", "Hong Kong", "Germany", "Brazil", "Singapore"},
+    Value = _G.G_ServerRegion,
+    Callback = function(v)
+        _G.G_ServerRegion = v
+        SaveConfiguration()
+        WindUI:Notify({ Title = L("åŒºåŸŸè®¾ç½®"), Content = L("å·²åˆ‡æ¢ä¸º: ") .. v, Duration = 2 })
+    end
+})
+
+RJR[L("æœåŠ¡å™¨")]:Button({
+    Title = L("è·³æœ"),
+    Icon = "wind",
+    Callback = function()
+        if getgenv().IsServerHopping == true then return end 
+
+        getgenv().IsServerHopping = true 
+        getgenv().ShuttingDown = true 
+
+        WindUI:Notify({ 
+            Title = L("è‡ªåŠ¨è·³æœ"), 
+            Content = L("å‡†å¤‡è·³æœ...") .. "\n\n" .. L("è®¾ç½®åŒºåŸŸä¸º: ") .. _G.G_ServerRegion, 
+            Icon = "wind", 
+            Duration = 10
+        }) 
+
+        local PlayerGui = LocalPlayer.PlayerGui 
+
+        if not PlayerGui:FindFirstChild("ServerBrowser") then 
+            getgenv().IsServerHopping = false 
+            return 
+        end 
+
+        PlayerGui.ServerBrowser.Enabled = true 
+        task.wait(0.1) 
+
+        local Filters = PlayerGui.ServerBrowser.Frame:FindFirstChild("Filters") 
+        local SearchRegion = Filters and Filters:FindFirstChild("SearchRegion") 
+        local TextBox = SearchRegion and SearchRegion:FindFirstChild("TextBox") 
+
+        if not TextBox then 
+            getgenv().IsServerHopping = false 
+            return 
+        end 
+
+        TextBox.Text = _G.G_ServerRegion 
+
+        local ScrollingFrame = PlayerGui.ServerBrowser.Frame.ScrollingFrame 
+        local FakeScroll = PlayerGui.ServerBrowser.Frame.FakeScroll 
+        local Inside = FakeScroll.Inside 
+
+        task.spawn(function() 
+            while task.wait(0.3) do 
+                ScrollingFrame.CanvasPosition = Vector2.new(0, math.random(100, 7000)) 
+            end 
+        end) 
+
+        task.wait() 
+
+        local currentJobId = game.JobId 
+        local ServerBrowserRemote = game:GetService("ReplicatedStorage"):WaitForChild("__ServerBrowser")
+
+        while task.wait(3) do 
+            for _, template in ipairs(Inside:GetChildren()) do 
+                if template.Name == "Template" then 
+                    local joinButton = template:FindFirstChild("Join") 
+                    if joinButton then 
+                        local job = joinButton:GetAttribute("Job") 
+                        if job and tostring(job):find("-", 1, true) then 
+                            job = tostring(job) 
+                            
+                            if job ~= currentJobId then 
+                                local success, err = pcall(function() 
+                                    ServerBrowserRemote:InvokeServer("teleport", job) 
+                                end) 
+                                if not success then 
+                                    local success2, err2 = pcall(function() 
+                                        ServerBrowserRemote:InvokeServer("teleport", job) 
+                                    end) 
+                                    if not success2 then 
+                                        WindUI:Notify({ 
+                                            Title = L("è‡ªåŠ¨è·³æœ"), 
+                                            Content = L("è·³æœå¤±è´¥") .. "\n\n" .. L("è¯·é‡æ–°åŠ å…¥æ¸¸æˆ"), 
+                                            Icon = "wind", 
+                                            Duration = 10
+                                        }) 
+                                    end 
+                                end 
+                                task.wait(0.3) 
+                            end 
+                        end 
+                    end 
+                end 
+            end 
+        end 
+    end
+})
+
+RJR[L("æœåŠ¡å™¨")]:Paragraph({
+    Title = L("æœåŠ¡å™¨id"),
+    Desc = game.JobId,
+    Buttons = {{
+        Title = "Copy",
+        Callback = function()
+            setclipboard(game.JobId)
+            WindUI:Notify({ Title = L("å¤åˆ¶æˆåŠŸ"), Content = L("å·²å¤åˆ¶å½“å‰æœåŠ¡å™¨ID"), Duration = 2 })
+        end
+    }}
+})
+
+RJR[L("æœåŠ¡å™¨")]:Input({
+    Title = L("è¾“å…¥æœåŠ¡å™¨id"),
+    Value = _G.G_JobId,
+    Callback = function(value)
+        _G.G_JobId = value
+        SaveConfiguration()
+    end
+})
+
+RJR[L("æœåŠ¡å™¨")]:Button({
+    Title = L("åŠ å…¥æœåŠ¡å™¨ id"),
+    Callback = function()
+        if not _G.G_JobId or _G.G_JobId == "" then
+            WindUI:Notify({ Title = L("æ“ä½œå¤±è´¥"), Content = L("è¯·å…ˆè¾“å…¥æœåŠ¡å™¨ID"), Duration = 2 })
+            return
+        end
+        local args = {
+            "teleport",
+            _G.G_JobId
+        }
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("__ServerBrowser"):InvokeServer(unpack(args))
+        end)
+    end
+})
+
+
+local currentThemeName = WindUI:GetCurrentTheme()
+local availableThemes = WindUI:GetThemes()
+local themeList = {}
+for themeName, _ in pairs(availableThemes) do
+    table.insert(themeList, themeName)
+end
+
+
+RJR[L("è®¾ç½®")]:Keybind({
+    Title = L("çª—å£åˆ‡æ¢é”®"),
+    Desc = L("åˆ‡æ¢çª—å£æ˜¾ç¤ºçŠ¶æ€"),
+    Value = "G",
+    Callback = function(v)
+        Window:SetToggleKey(Enum.KeyCode[v])
+    end
+})
+
+RJR[L("è®¾ç½®")]:Button({
+    Title = L("è¯­è¨€") .. " (" .. _G.G_Language .. ")",
+    Icon = "globe",
+    Callback = function()
+        if _G.G_Language == "ä¸­æ–‡" then
+            _G.G_Language = "English"
+        else
+            _G.G_Language = "ä¸­æ–‡"
+        end
+        SaveConfiguration()
+        WindUI:Notify({
+            Title = L("è¯­è¨€"),
+            Content = _G.G_Language == "English" and L("è¯­è¨€å·²åˆ‡æ¢ä¸º: English") or L("è¯­è¨€å·²åˆ‡æ¢ä¸º: ä¸­æ–‡"),
+            Duration = 3
+        })
+    end
+})
+
+
+
+
+local function GetPlayerList()
+    local playerList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(playerList, player.Name)
+        end
+    end
+    table.sort(playerList)
+    return playerList
+end
+
+local function SetCollide()
+    local character = LocalPlayer.Character
+    if not character then return end
+    for _, v in ipairs(character:GetChildren()) do
+        if v:IsA("BasePart") then
+            v.CanCollide = false
+            v.CanTouch   = true
+            v.CanQuery   = true
+        end
+    end
+end
+
+local function SetNoCollide()
+    local character = LocalPlayer.Character
+    if not character then return end
+    for _, v in ipairs(character:GetChildren()) do
+        if v:IsA("BasePart") then
+            v.CanCollide = false
+            v.CanTouch   = true
+            v.CanQuery   = true
+        end
+    end
+end
+
+local ActiveTween = nil
+
+local function topos(Pos)
+    if not LocalPlayer or not LocalPlayer.Character then return end
+    local HRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if not HRP or not Humanoid then return end
+
+    HRP.AssemblyLinearVelocity  = Vector3.zero
+    HRP.AssemblyAngularVelocity = Vector3.zero
+    Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+    local Distance = (Pos.Position - HRP.Position).Magnitude
+    
+    local Speed = 300
+
+    if ActiveTween then ActiveTween:Cancel() end
+
+    ActiveTween = game:GetService("TweenService"):Create(
+        HRP,
+        TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear),
+        {CFrame = Pos}
+    )
+
+    local isActive = true
+    task.spawn(function()
+        while isActive and ActiveTween and ActiveTween.PlaybackState == Enum.PlaybackState.Playing do
+            SetNoCollide()
+            task.wait(0.001)
+        end
+    end)
+
+    ActiveTween:Play()
+
+    ActiveTween.Completed:Connect(function()
+        isActive = false
+        if Humanoid then
+            SetCollide()
+            Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        end
+    end)
+    
+    task.delay(0.05, function()
+        if Humanoid then
+            Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        end
+    end)
+end
+
+local function StopTween()
+    if ActiveTween then
+        ActiveTween:Cancel()
+        ActiveTween = nil
+    end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local bodyClip = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip")
+        if bodyClip then bodyClip:Destroy() end
+    end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Highlight") then
+        LocalPlayer.Character.Highlight:Destroy()
+    end
+end
+
+local function validateOffset(val)
+    local num = tonumber(val)
+    if not num then return 0 end
+    return math.clamp(num, -3000, 3000)
+end
+
+local PlayerDropdown = RJR[L("ä¼ é€")]:Dropdown({
+    Title = L("é€‰æ‹©ç›®æ ‡çŽ©å®¶"),
+    Values = GetPlayerList(),
+    Value = _G.G_SelectPly,
+    Callback = function(selectedValue)
+        if selectedValue and selectedValue ~= "" then
+            _G.G_SelectPly = selectedValue
+            WindUI:Notify({ Title = L("é€‰æ‹©ç›®æ ‡çŽ©å®¶"), Content = L("å·²è®¾ç½®ä¸º") .. selectedValue, Duration = 2 })
+        else
+            _G.G_SelectPly = ""
+        end
+    end
+})
+
+RJR[L("ä¼ é€")]:Button({
+    Title = L("åˆ·æ–°çŽ©å®¶åˆ—è¡¨"),
+    Callback = function()
+        local newPlayerList = GetPlayerList()
+        if PlayerDropdown and PlayerDropdown.Refresh then
+            PlayerDropdown:Refresh(newPlayerList, true) 
+        end
+        if _G.G_SelectPly ~= "" and PlayerDropdown and PlayerDropdown.SetValue then
+            for _, name in ipairs(newPlayerList) do
+                if name == _G.G_SelectPly then
+                    pcall(function() PlayerDropdown:SetValue(_G.G_SelectPly) end)
+                    break
+                end
+            end
+        end
+        WindUI:Notify({ Title = L("åˆ·æ–°çŽ©å®¶åˆ—è¡¨"), Content = L("åŠ è½½å®Œæˆ"), Duration = 2 })
+    end
+})
+
+RJR[L("ä¼ é€")]:Toggle({
+    Title = L("è§‚æˆ˜çŽ©å®¶"),
+    Value = _G.G_SpectatePlys,
+    Callback = function(value)
+        _G.G_SpectatePlys = value
+        if value and _G.G_SelectPly == "" then
+            WindUI:Notify({ Title = L("æ“ä½œå¤±è´¥"), Content = L("è¯·å…ˆé€‰æ‹©ç›®æ ‡çŽ©å®¶"), Duration = 2 })
+            _G.G_SpectatePlys = false
+            return
+        end
+        task.spawn(function()
+            local Camera = workspace.CurrentCamera
+            repeat 
+                task.wait(0.1)
+                local TargetPlr = Players:FindFirstChild(_G.G_SelectPly)
+                if not TargetPlr or not TargetPlr.Character or not TargetPlr.Character:FindFirstChildOfClass("Humanoid") then
+                    WindUI:Notify({ Title = L("è§‚æˆ˜ä¸­æ–­"), Content = L("ç›®æ ‡çŽ©å®¶ä¸å­˜åœ¨/è§’è‰²æ¶ˆå¤±"), Duration = 2 })
+                    _G.G_SpectatePlys = false
+                    break
+                end
+                Camera.CameraSubject = TargetPlr.Character.Humanoid
+            until _G.G_SpectatePlys == false 
+            if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                Camera.CameraSubject = LocalPlayer.Character.Humanoid
+                WindUI:Notify({ Title = L("è§‚æˆ˜ç»“æŸ"), Content = L("å·²æ¢å¤æœ¬åœ°è§†è§’"), Duration = 2 })
+            end
+        end)
+    end
+})
+
+local TeleportPlyConnection
+
+RJR[L("ä¼ é€")]:Toggle({
+    Title = L("å¹³æ»‘ä¼ é€è‡³çŽ©å®¶"),
+    Value = _G.G_TeleportPly,
+    Callback = function(value)
+        _G.G_TeleportPly = value
+        if value and _G.G_SelectPly == "" then
+            WindUI:Notify({ Title = L("æ“ä½œå¤±è´¥"), Content = L("è¯·å…ˆé€‰æ‹©ç›®æ ‡çŽ©å®¶"), Duration = 2 })
+            _G.G_TeleportPly = false
+            return
+        end
+
+        if TeleportPlyConnection then 
+            TeleportPlyConnection:Disconnect()
+            TeleportPlyConnection = nil
+        end
+
+        if value then
+            WindUI:Notify({ 
+                Title = L("ä¼ é€å¼€å¯"), 
+                Content = L("å·²å¼€å§‹ä¼ é€çŽ©å®¶ï¼ˆåç§»X:")..(_G.G_TeleportOffsetX).." Y:"..(_G.G_TeleportOffsetY).." Z:"..(_G.G_TeleportOffsetZ).."ï¼‰", 
+                Duration = 2 
+            })
+            
+            TeleportPlyConnection = RunService.Stepped:Connect(function()
+                if not _G.G_TeleportPly then 
+                    if TeleportPlyConnection then 
+                        TeleportPlyConnection:Disconnect() 
+                        TeleportPlyConnection = nil
+                    end
+                    return 
+                end
+
+                local TargetPlr = Players:FindFirstChild(_G.G_SelectPly)
+                if not TargetPlr or not TargetPlr.Character or not TargetPlr.Character:FindFirstChild("HumanoidRootPart") then
+                    return
+                end
+
+                local targetCFrame = TargetPlr.Character.HumanoidRootPart.CFrame + Vector3.new(_G.G_TeleportOffsetX, _G.G_TeleportOffsetY, _G.G_TeleportOffsetZ)
+                topos(targetCFrame)
+            end)
+        else
+            if TeleportPlyConnection then 
+                TeleportPlyConnection:Disconnect() 
+                TeleportPlyConnection = nil
+            end
+            StopTween()
+            WindUI:Notify({ Title = L("ä¼ é€å…³é—­"), Content = L("å·²åœæ­¢ä¼ é€ç›®æ ‡çŽ©å®¶"), Duration = 2 })
+        end
+    end
+})
+
+
+local PredictLastPos = {}
+local PredictLastTick = {}
+local function GetPredictedCFrame(hrp)
+    local now = tick()
+    local playerKey = hrp
+    local baseCFrame = hrp.CFrame
+
+    if not _G.G_TeleportPredict then
+        PredictLastPos[playerKey] = hrp.Position
+        PredictLastTick[playerKey] = now
+        return baseCFrame
+    end
+
+
+    local velocity = hrp.AssemblyLinearVelocity
+    if velocity.Magnitude < 0.1 then
+        velocity = hrp.Velocity
+    end
+
+
+    local derivedVel = Vector3.zero
+    local lastPos = PredictLastPos[playerKey]
+    local lastTick = PredictLastTick[playerKey]
+    if lastPos and lastTick then
+        local dt = now - lastTick
+        if dt > 0 and dt < 1 then
+            derivedVel = (hrp.Position - lastPos) / dt
+        end
+    end
+    PredictLastPos[playerKey] = hrp.Position
+    PredictLastTick[playerKey] = now
+
+
+    local finalVel = velocity
+    if derivedVel.Magnitude > velocity.Magnitude then
+        finalVel = derivedVel
+    end
+
+    local speed = finalVel.Magnitude
+    local amount = 0.08 + speed * 0.0016
+    if amount > 0.5 then amount = 0.5 end
+
+    local predictedPos = hrp.Position + finalVel * amount
+    return CFrame.new(predictedPos) * (baseCFrame - baseCFrame.Position)
+end
+
+RJR[L("ä¼ é€")]:Toggle({
+    Title = L("ç›´æŽ¥ä¼ é€è‡³çŽ©å®¶"),
+    Value = _G.G_Teleport,
+    Callback = function(bool)
+        _G.G_Teleport = bool
+        if bool and _G.G_SelectPly == "" then
+            WindUI:Notify({ Title = L("æ“ä½œå¤±è´¥"), Content = L("è¯·å…ˆé€‰æ‹©ç›®æ ‡çŽ©å®¶"), Duration = 2 })
+            _G.G_Teleport = false
+            return
+        end
+        task.spawn(function()
+            local VirtualUser = game:GetService("VirtualUser")
+            if _G.G_Teleport == false then
+                local TargetPlr = Players:FindFirstChild(_G.G_SelectPly)
+                if TargetPlr and TargetPlr.Character and TargetPlr.Character:FindFirstChild("HumanoidRootPart") then
+                    TargetPlr.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+                end
+                WindUI:Notify({ Title = L("Bypasså…³é—­"), Content = L("å·²æ¢å¤ç›®æ ‡çŽ©å®¶çŠ¶æ€"), Duration = 2 })
+                return
+            end
+            WindUI:Notify({ 
+                Title = L("ä¼ é€å¼€å¯"), 
+                Content = L("å·²å¼€å§‹ä¼ é€ï¼ˆåç§»X:").._G.G_TeleportOffsetX.." Y:".._G.G_TeleportOffsetY.." Z:".._G.G_TeleportOffsetZ.."ï¼‰", 
+                Duration = 2 
+            })
+            while _G.G_Teleport do task.wait()
+                pcall(function()
+                    local TargetPlr = Players:FindFirstChild(_G.G_SelectPly)
+                    if not LocalPlayer.Character or not LocalPlayer.Character.HumanoidRootPart or not TargetPlr or not TargetPlr.Character or not TargetPlr.Character.HumanoidRootPart then
+                        _G.G_Teleport = false
+                        if TargetPlr and TargetPlr.Character and TargetPlr.Character.HumanoidRootPart then
+                            TargetPlr.Character.HumanoidRootPart.Size = Vector3.new(2,2,1)
+                        end
+                        WindUI:Notify({ Title = L("ä¼ é€ä¸­æ–­"), Content = L("ç›®æ ‡/æœ¬åœ°çŽ©å®¶è§’è‰²å¼‚å¸¸"), Duration = 2 })
+                        return
+                    end
+                    local targetCFrame = GetPredictedCFrame(TargetPlr.Character.HumanoidRootPart) + Vector3.new(_G.G_TeleportOffsetX, _G.G_TeleportOffsetY, _G.G_TeleportOffsetZ)
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
+                    TargetPlr.Character.HumanoidRootPart.Size = Vector3.new(60,60,60)
+                    VirtualUser:CaptureController()
+                    VirtualUser:Button1Down(Vector2.new(1280, 672))
+                end)
+            end
+        end)
+    end
+})
+
+local function requestEntrance(pos)
+    local args = {
+        [1] = "requestEntrance",
+        [2] = pos
+    }
+    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+end
+
+local World2 = game.PlaceId == 4442272183 or game.PlaceId == 79091703265657
+local World3 = game.PlaceId == 7449423635 or game.PlaceId == 100117331123089
+
+local TeleportLocations = {}
+if World2 then
+    TeleportLocations = {
+        ["è±ªå®…"] = Vector3.new(-390, 332, 673),
+        ["å¤©é¹…æˆ¿é—´"] = Vector3.new(2285, 15, 905),
+        ["é¬¼èˆ¹"] = Vector3.new(923, 126, 32852),
+        ["åƒµå°¸å²›"] = Vector3.new(-6509, 83, -133),
+    }
+elseif World3 then
+    TeleportLocations = {
+        ["æµ·æ´‹åŸŽå ¡"] = Vector3.new(-12463.6, 376.26, -7566.08),
+        ["æµ·é¾Ÿè±ªå®…"] = Vector3.new(-5060.41, 316.43, -3192.30),
+        ["å¸æ³•"] = Vector3.new(-5096.48, 316.43, -3177.91),
+        ["ä¹å¤´è›‡"] = Vector3.new(-5027.03, 316.43, -3206.07),
+        ["P2"] = Vector3.new(5650.94482, 1034.45056, -350.383636),
+    }
+end
+
+local function GetNearestEntranceToTarget(targetPos, myPos)
+    local bestName, bestPos = nil, nil
+    local bestDist = (targetPos - myPos).Magnitude  
+    for name, pos in pairs(TeleportLocations) do
+        local d = (targetPos - pos).Magnitude
+        if d < bestDist then
+            bestDist = d
+            bestName = name
+            bestPos = pos
+        end
+    end
+    return bestName, bestPos
+end
+
+local Lock2Connection
+local Lock2LastEntrance = 0
+
+RJR[L("ä¼ é€")]:Toggle({
+    Title = L("é”äºº2"),
+    Value = _G.G_Lock2,
+    Callback = function(value)
+        _G.G_Lock2 = value
+        if value and _G.G_SelectPly == "" then
+            WindUI:Notify({ Title = L("æ“ä½œå¤±è´¥"), Content = L("è¯·å…ˆé€‰æ‹©ç›®æ ‡çŽ©å®¶"), Duration = 2 })
+            _G.G_Lock2 = false
+            return
+        end
+
+        if Lock2Connection then
+            Lock2Connection:Disconnect()
+            Lock2Connection = nil
+        end
+
+        if value then
+            WindUI:Notify({ Title = L("é”äºº2å¼€å¯"), Content = L("è‡ªåŠ¨é€‰æœ€è¿‘ä¼ é€ç‚¹æŽ¥è¿‘ï¼Œ300ç±³å†…ç›´æŽ¥é”å®š"), Duration = 2 })
+            Lock2LastEntrance = 0
+
+            Lock2Connection = RunService.Stepped:Connect(function()
+                if not _G.G_Lock2 then
+                    if Lock2Connection then
+                        Lock2Connection:Disconnect()
+                        Lock2Connection = nil
+                    end
+                    return
+                end
+
+                local myChar = LocalPlayer.Character
+                local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                local TargetPlr = Players:FindFirstChild(_G.G_SelectPly)
+                if not myHRP or not TargetPlr or not TargetPlr.Character or not TargetPlr.Character:FindFirstChild("HumanoidRootPart") then
+                    return
+                end
+                local tHRP = TargetPlr.Character.HumanoidRootPart
+
+                local targetCFrame = GetPredictedCFrame(tHRP) + Vector3.new(_G.G_TeleportOffsetX, _G.G_TeleportOffsetY, _G.G_TeleportOffsetZ)
+                local targetPos = targetCFrame.Position
+                local myPos = myHRP.Position
+                local distance = (targetPos - myPos).Magnitude
+
+    
+                if math.abs(myPos.Y - targetPos.Y) > 0.5 then
+                    myHRP.CFrame = CFrame.new(myPos.X, targetPos.Y, myPos.Z)
+                end
+
+            
+                if distance > 1000 and tick() - Lock2LastEntrance > 3 then
+                    local entName, entPos = GetNearestEntranceToTarget(targetPos, myPos)
+                    if entName and entPos and entName ~= "P1" and entName ~= "P2" then
+                        requestEntrance(entPos)
+                        Lock2LastEntrance = tick()
+                        return
+                    end
+                end
+                if distance > 300 then
+                    topos(targetCFrame)
+                else             
+                    StopTween()
+                    myHRP.CFrame = targetCFrame
+                end
+            end)
+        else
+            if Lock2Connection then
+                Lock2Connection:Disconnect()
+                Lock2Connection = nil
+            end
+            StopTween()
+            WindUI:Notify({ Title = L("é”äºº2å…³é—­"), Content = L("å·²åœæ­¢é”å®šç›®æ ‡"), Duration = 2 })
+        end
+    end
+})
+
+RJR[L("ä¼ é€")]:Toggle({
+    Title = L("é”äººé¢„åˆ¤ (å¯¹æŠ—é£žè¡Œ)"),
+    Value = _G.G_TeleportPredict,
+    Callback = function(v)
+        _G.G_TeleportPredict = v
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ä¼ é€")]:Divider()
+
+for name, pos in pairs(TeleportLocations) do
+    RJR[L("ä¼ é€")]:Button({
+        Title = L(name),
+        Icon = "map",
+        Callback = function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                requestEntrance(pos)
+                WindUI:Notify({
+                    Title = L("å¿«æ·ä¼ é€ç‚¹"),
+                    Content = L("å·²è®¾ç½®ä¸º ") .. name,
+                    Duration = 2
+                })
+            end
+        end
+    })
+end
+
+RJR[L("ä¼ é€")]:Input({
+    Title = L("Xè½´åç§»"),
+    Value = tostring(_G.G_TeleportOffsetX),
+    Placeholder = "-3000 - 3000",
+    Callback = function(inputVal)
+        _G.G_TeleportOffsetX = validateOffset(inputVal)
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ä¼ é€")]:Input({
+    Title = L("Yè½´åç§»"),
+    Value = tostring(_G.G_TeleportOffsetY),
+    Placeholder = "-3000 - 3000",
+    Callback = function(inputVal)
+        _G.G_TeleportOffsetY = validateOffset(inputVal)
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ä¼ é€")]:Input({
+    Title = L("Zè½´åç§»"),
+    Value = tostring(_G.G_TeleportOffsetZ),
+    Placeholder = "-3000 - 3000",
+    Callback = function(inputVal)
+        _G.G_TeleportOffsetZ = validateOffset(inputVal)
+        SaveConfiguration()
+    end
+})
+
+
+
+RJR[L("è®¾ç½®")]:Dropdown({
+    Title = L("é€‰æ‹©ä¸»é¢˜"),
+    Values = themeList,
+    Value = _G.G_Theme,
+    Callback = function(v)
+        _G.G_Theme = v
+        WindUI:SetTheme(v)
+        if _G.G_AutoSaveConfig then SaveConfiguration() end
+    end
+})
+
+RJR[L("è®¾ç½®")]:Toggle({
+    Title = L("è‡ªåŠ¨ä¿å­˜é…ç½®"),
+    Value = _G.G_AutoSaveConfig,
+    Callback = function(v)
+        _G.G_AutoSaveConfig = v
+    end
+})
+
+RJR[L("è®¾ç½®")]:Toggle({
+    Title = L("è¿›æ¸¸æˆè‡ªåŠ¨åŠ è½½é…ç½®"),
+    Value = _G.G_AutoLoadConfig,
+    Callback = function(v)
+        _G.G_AutoLoadConfig = v
+    end
+})
+
+RJR[L("è®¾ç½®")]:Button({
+    Title = L("ä¿å­˜é…ç½®"),
+    Callback = function()
+        SaveConfiguration()
+        WindUI:Notify({ Title = L("ä¿å­˜é…ç½®"), Content = L("åŠ è½½å®Œæˆ"), Duration = 2 })
+    end
+})
+
+RJR[L("è®¾ç½®")]:Button({
+    Title = L("åŠ è½½é…ç½®"),
+    Callback = function()
+        LoadConfiguration()
+        WindUI:Notify({ Title = L("åŠ è½½é…ç½®"), Content = L("åŠ è½½å®Œæˆ"), Duration = 2 })
+    end
+})
+
+
+
+
+local function IsAlive(character)
+    if not character then return false end
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    return hum ~= nil and hum.Health > 0
+end
+
+local c = Drawing.new("Circle")
+c.Visible = false                   -- é»˜è®¤å…³é—­ï¼Œå¿…é¡»ç­‰å¼€å…³æ‰“å¼€æ‰ç»˜åˆ¶
+c.Color = Color3.fromRGB(255, 0, 0) -- é»˜è®¤çº¢è‰²
+c.Radius = 150                      -- é»˜è®¤åŠå¾„
+c.Thickness = 2
+c.Filled = false
+
+
+local Line = Drawing.new("Line")
+Line.Thickness = 2
+Line.Color = Color3.fromRGB(255, 0, 0)
+Line.Transparency = 1
+Line.Visible = false
+
+if _G.G_SilentAimShowFOV then c.Visible = true end
+if _G.G_SilentAimFOV then c.Radius = _G.G_SilentAimFOV end
+
+task.spawn(function()
+    RunService.RenderStepped:Connect(function()
+        if not c.Visible then return end
+
+        local p
+        if _G.FOVMode == "å±å¹•ä¸­å¿ƒ" then
+            local v = workspace.CurrentCamera.ViewportSize
+            p = Vector2.new(v.X / 2, v.Y / 2)
+        else
+            p = UIS:GetMouseLocation()
+            if p.X <= 0 or p.Y <= 0 then
+                local v = workspace.CurrentCamera.ViewportSize
+                p = Vector2.new(v.X / 2, v.Y / 2)
+            end
+        end
+        c.Position = p
+    end)
+end)
+
+local currentSilentAimTarget = nil
+
+local function IsSilentAimAlly(player)
+    local main = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
+    local frame = main and main:FindFirstChild("Allies")
+        and main.Allies:FindFirstChild("Container")
+        and main.Allies.Container:FindFirstChild("Allies")
+        and main.Allies.Container.Allies:FindFirstChild("ScrollingFrame")
+        and main.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame")
+    if not frame then return false end
+    return frame:FindFirstChild(player.Name) ~= nil
+end
+
+local function IsSilentAimEnemy(player)
+    if not player or player == LocalPlayer then return false end
+    if IsSilentAimAlly(player) then return false end
+    local myTeam, targetTeam = LocalPlayer.Team, player.Team
+    if myTeam and targetTeam and myTeam.Name == "Marines" and targetTeam.Name == "Marines" then
+        return false
+    end
+    return true
+end
+
+local function GetSilentAimOrigin()
+    local p = UIS:GetMouseLocation()
+    if _G.FOVMode == "å±å¹•ä¸­å¿ƒ" or p.X <= 0 or p.Y <= 0 then
+        local v = workspace.CurrentCamera.ViewportSize
+        return Vector2.new(v.X / 2, v.Y / 2)
+    end
+    return p
+end
+
+local function GetClosestTargetToMouse()
+    local method = _G.G_SilentAimMethod or "é¼ æ ‡æœ€è¿‘çš„çŽ©å®¶"
+
+    if method == "é€‰æ‹©çŽ©å®¶" then
+        if not _G.G_SilentAimTargetPlayers then return nil end
+        local name = _G.G_SilentAimSelectedPlayer
+        if not name or name == "" then return nil end
+        local player = Players:FindFirstChild(name)
+        if not player or player == LocalPlayer then return nil end
+        if _G.G_SilentAimTeamCheck and not IsSilentAimEnemy(player) then return nil end
+        local character = player.Character
+        if not IsAlive(character) then return nil end
+        return character:FindFirstChild(_G.G_SilentAimPart) or character:FindFirstChild("HumanoidRootPart")
+    end
+
+    if method == "æœ€è¿‘çš„çŽ©å®¶" then
+        local myChar = LocalPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return nil end
+        local closest, shortest = nil, math.huge
+        local myPos = myRoot.Position
+
+        local function checkNearest(character)
+            if not IsAlive(character) then return end
+            local part = character:FindFirstChild(_G.G_SilentAimPart) or character:FindFirstChild("HumanoidRootPart")
+            if not part then return end
+            local d = (part.Position - myPos).Magnitude
+            if d < shortest then closest, shortest = part, d end
+        end
+
+        if _G.G_SilentAimTargetPlayers then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    if not _G.G_SilentAimTeamCheck or IsSilentAimEnemy(player) then
+                        checkNearest(player.Character)
+                    end
+                end
+            end
+        end
+        if _G.G_SilentAimTargetMobs and workspace:FindFirstChild("Enemies") then
+            for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+                checkNearest(enemy)
+            end
+        end
+        return closest
+    end
+
+    -- é¼ æ ‡æœ€è¿‘çš„çŽ©å®¶ï¼ˆå½“å‰é»˜è®¤æ–¹æ³•ï¼ŒæŒ‰ FOV å†…å±å¹•è·ç¦»ï¼‰
+    local origin = GetSilentAimOrigin()
+    local closest, shortest = nil, c.Radius
+
+    local function check(character)
+        if not IsAlive(character) then return end
+        local part = character:FindFirstChild(_G.G_SilentAimPart) or character:FindFirstChild("HumanoidRootPart")
+        if not part then return end
+        local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+        if onScreen then
+            local dist = (Vector2.new(pos.X, pos.Y) - origin).Magnitude
+            if dist < shortest then closest, shortest = part, dist end
+        end
+    end
+
+    if _G.G_SilentAimTargetPlayers then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if not _G.G_SilentAimTeamCheck or IsSilentAimEnemy(player) then
+                    check(player.Character)
+                end
+            end
+        end
+    end
+    if _G.G_SilentAimTargetMobs and workspace:FindFirstChild("Enemies") then
+        for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+            check(enemy)
+        end
+    end
+    return closest
+end
+
+local MouseModuleInstance = ReplicatedStorage:FindFirstChild("Mouse")
+local MouseModule = nil
+if MouseModuleInstance then
+    pcall(function() MouseModule = require(MouseModuleInstance) end)
+end
+if MouseModule and typeof(MouseModule) == "table" then
+    pcall(function()
+        local realStore = { Hit = rawget(MouseModule, "Hit"), Target = rawget(MouseModule, "Target") }
+        local mmt = getrawmetatable(MouseModule)
+        if mmt then setreadonly(mmt, false) else mmt = {}; setmetatable(MouseModule, mmt) end
+        rawset(MouseModule, "Hit", nil); rawset(MouseModule, "Target", nil)
+        mmt.__index = function(self, key)
+            if key == "Hit" then
+                if _G.G_SilentAimSkill and currentSilentAimTarget then return CFrame.new(currentSilentAimTarget.Position) end
+                return realStore.Hit
+            elseif key == "Target" then
+                if _G.G_SilentAimSkill and currentSilentAimTarget then return currentSilentAimTarget end
+                return realStore.Target
+            end
+        end
+        mmt.__newindex = function(self, key, value)
+            if key == "Hit" or key == "Target" then realStore[key] = value else rawset(self, key, value) end
+        end
+        setreadonly(mmt, true)
+    end)
+end
+
+
+local mouse = LocalPlayer:GetMouse()
+local oldIndex
+pcall(function()
+    oldIndex = hookmetamethod(game, "__index", function(self, key)
+        if _G.G_SilentAimM1R and currentSilentAimTarget and not checkcaller() and self == mouse then
+            local tp = currentSilentAimTarget.Position
+            local cp = workspace.CurrentCamera.CFrame.Position
+            if key == "Hit" then return CFrame.new(tp)
+            elseif key == "Target" then return currentSilentAimTarget
+            elseif key == "UnitRay" then return Ray.new(cp, (tp - cp).Unit)
+            elseif key == "Origin" then return cp
+            elseif key == "Direction" then return (tp - cp).Unit
+            end
+        end
+        return oldIndex(self, key)
+    end)
+end)
+
+
+RunService.RenderStepped:Connect(function()
+    local p = UIS:GetMouseLocation()
+    if _G.FOVMode == "å±å¹•ä¸­å¿ƒ" or p.X <= 0 or p.Y <= 0 then
+        local v = workspace.CurrentCamera.ViewportSize
+        p = Vector2.new(v.X / 2, v.Y / 2)
+    end
+
+    if _G.G_SilentAimM1R or _G.G_SilentAimSkill then
+        currentSilentAimTarget = GetClosestTargetToMouse()
+    else
+        currentSilentAimTarget = nil
+    end
+
+    if _G.G_SilentAimShowLine and currentSilentAimTarget then
+        local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(currentSilentAimTarget.Position)
+        if onScreen then
+            Line.Visible = true
+            Line.From = p
+            Line.To = Vector2.new(pos.X, pos.Y)
+        else
+            Line.Visible = false
+        end
+    else
+        Line.Visible = false
+    end
+end)
+
+local LockHotkeyLabel
+local LockHotkeyConn
+local LockHotkeyLoopConn
+local lockHotkeyActive = false
+local lockHotkeyTarget = nil
+local Lock2EntranceTick = 0
+
+local function LockHotkeyUpdateUI()
+    if LockHotkeyLabel then
+        if lockHotkeyActive and lockHotkeyTarget then
+            LockHotkeyLabel.Text = L("æ­£åœ¨é”äºº: ") .. lockHotkeyTarget.Name
+            LockHotkeyLabel.Visible = true
+        elseif lockHotkeyActive then
+            LockHotkeyLabel.Text = L("æ­£åœ¨é”äºº...")
+            LockHotkeyLabel.Visible = true
+        else
+            LockHotkeyLabel.Visible = false
+        end
+    end
+end
+
+local function LockHotkeyStartLoop()
+   
+    lockHotkeyTarget = nil
+    local firstTarget = GetClosestTargetToMouse()
+    if firstTarget then
+        local tc = firstTarget.Parent
+        if tc and tc:IsA("Model") then
+            lockHotkeyTarget = Players:GetPlayerFromCharacter(tc)
+        end
+    end
+    if not lockHotkeyTarget then return end
+
+    if LockHotkeyLoopConn then
+        LockHotkeyLoopConn:Disconnect()
+        LockHotkeyLoopConn = nil
+    end
+
+    lockHotkeyActive = true
+    LockHotkeyUpdateUI()
+    Lock2EntranceTick = 0
+    local VirtualUser = game:GetService("VirtualUser")
+
+    LockHotkeyLoopConn = RunService.Stepped:Connect(function()
+        if not lockHotkeyActive then
+            if LockHotkeyLoopConn then
+                LockHotkeyLoopConn:Disconnect()
+                LockHotkeyLoopConn = nil
+            end
+            return
+        end
+
+        pcall(function()
+            local tPlayer = lockHotkeyTarget
+            if not tPlayer or not tPlayer.Character then
+                LockHotkeyStopLoop()
+                return
+            end
+            local tHRP = tPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not tHRP then return end
+            local myChar = LocalPlayer.Character
+            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            if not myHRP then return end
+
+            local targetCFrame = GetPredictedCFrame(tHRP) + Vector3.new(_G.G_TeleportOffsetX, _G.G_TeleportOffsetY, _G.G_TeleportOffsetZ)
+
+            if _G.G_LockHotkeyMode == "é”äºº2" then
+                local targetPos = targetCFrame.Position
+                local myPos = myHRP.Position
+                local distance = (targetPos - myPos).Magnitude
+            
+                if math.abs(myPos.Y - targetPos.Y) > 0.5 then
+                    myHRP.CFrame = CFrame.new(myPos.X, targetPos.Y, myPos.Z)
+                end
+      
+                if distance > 1000 and tick() - Lock2EntranceTick > 3 then
+                    local entName, entPos = GetNearestEntranceToTarget(targetPos, myPos)
+                    if entName and entPos then
+                        requestEntrance(entPos)
+                        Lock2EntranceTick = tick()
+                        return
+                    end
+                end
+                if distance > 300 then
+                    topos(targetCFrame)
+                else
+                    StopTween()
+                    myHRP.CFrame = targetCFrame
+                end
+            else
+                myHRP.CFrame = targetCFrame
+                VirtualUser:CaptureController()
+                VirtualUser:Button1Down(Vector2.new(1280, 672))
+            end
+        end)
+    end)
+end
+
+local function LockHotkeyStopLoop()
+    lockHotkeyActive = false
+    if LockHotkeyLoopConn then
+        LockHotkeyLoopConn:Disconnect()
+        LockHotkeyLoopConn = nil
+    end
+    StopTween()
+    lockHotkeyTarget = nil
+    LockHotkeyUpdateUI()
+end
+
+local function StartLockHotkey()
+    if LockHotkeyConn then return end
+
+    pcall(function()
+        local old = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("LockHotkeyGui")
+        if old then old:Destroy() end
+    end)
+    pcall(function()
+        local old = game:GetService("CoreGui"):FindFirstChild("LockHotkeyGui")
+        if old and old ~= LockHotkeyLabel then old:Destroy() end
+    end)
+    if not LockHotkeyLabel then
+        local sgui = Instance.new("ScreenGui")
+        sgui.Name = "LockHotkeyGui"
+        sgui.Parent = LocalPlayer:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
+        LockHotkeyLabel = Instance.new("TextLabel")
+        LockHotkeyLabel.Parent = sgui
+        LockHotkeyLabel.AnchorPoint = Vector2.new(0.5, 0)
+        LockHotkeyLabel.Position = UDim2.new(0.5, 0, 0, 5)
+        LockHotkeyLabel.Size = UDim2.new(0, 300, 0, 30)
+        LockHotkeyLabel.BackgroundTransparency = 1
+        LockHotkeyLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+        LockHotkeyLabel.TextStrokeTransparency = 0
+        LockHotkeyLabel.Font = Enum.Font.SourceSansBold
+        LockHotkeyLabel.TextSize = 20
+    end
+
+    LockHotkeyConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        if not _G.G_LockHotkey then return end
+        if gameProcessed then return end
+        if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        if input.KeyCode.Name ~= "H" then return end
+        if lockHotkeyActive then
+            LockHotkeyStopLoop()
+        else
+            LockHotkeyStartLoop()
+        end
+    end)
+end
+
+local function StopLockHotkey()
+    LockHotkeyStopLoop()
+    if LockHotkeyConn then
+        LockHotkeyConn:Disconnect()
+        LockHotkeyConn = nil
+    end
+    if LockHotkeyLabel then
+        LockHotkeyLabel.Visible = false
+    end
+end
+
+RJR[L("ç»˜åˆ¶")]:Divider()
+local FOVSection = RJR[L("ç»˜åˆ¶")]:Section({ Title = L("è‡ªçž„èŒƒå›´è®¾ç½®") })
+
+
+FOVSection:Toggle({
+    Title = L("æ˜¾ç¤º FOV èŒƒå›´"),
+    Value = _G.G_SilentAimShowFOV,
+    Callback = function(v)
+        c.Visible = v
+        _G.G_SilentAimShowFOV = v
+        SaveConfiguration()
+    end
+})
+
+FOVSection:Dropdown({
+    Title = L("FOV ä½ç½®"),
+    Values = {"è·Ÿéšé¼ æ ‡", "å±å¹•ä¸­å¿ƒ"},
+    Value = _G.FOVMode,
+    Callback = function(v)
+        _G.FOVMode = v
+        _G.G_SilentAimFOVMode = v
+        SaveConfiguration()
+    end
+})
+
+FOVSection:Slider({
+    Title = L("FOV åŠå¾„å¤§å°"),
+    Value = {
+        Min = 10,
+        Max = 1500,
+        Default = _G.G_SilentAimFOV or 150
+    },
+    Callback = function(value)
+        c.Radius = value
+        _G.G_SilentAimFOV = value
+        SaveConfiguration()
+    end
+})
+
+FOVSection:Colorpicker({
+    Title = L("FOV èŒƒå›´é¢œè‰²"),
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(v)
+        c.Color = v
+    end
+})
+
+RJR[L("ç»˜åˆ¶")]:Divider()
+
+
+local AimSection = RJR[L("ç»˜åˆ¶")]:Section({ Title = L("è‡ªçž„è®¾ç½®") })
+
+AimSection:Toggle({
+    Title = L("M1 R è‡ªçž„"),
+    Value = _G.G_SilentAimM1R,
+    Callback = function(v) _G.G_SilentAimM1R = v; SaveConfiguration() end
+})
+
+AimSection:Toggle({
+    Title = L("æŠ€èƒ½è‡ªçž„"),
+    Value = _G.G_SilentAimSkill,
+    Callback = function(v) _G.G_SilentAimSkill = v; SaveConfiguration() end
+})
+
+AimSection:Dropdown({
+    Title = L("é™é»˜çž„å‡†æ–¹æ³•"),
+    Values = {"é¼ æ ‡æœ€è¿‘çš„çŽ©å®¶", "æœ€è¿‘çš„çŽ©å®¶", "é€‰æ‹©çŽ©å®¶"},
+    Value = _G.G_SilentAimMethod or "é¼ æ ‡æœ€è¿‘çš„çŽ©å®¶",
+    Callback = function(v)
+        _G.G_SilentAimMethod = v
+        SaveConfiguration()
+    end
+})
+
+AimSection:Toggle({
+    Title = L("çž„å‡†çŽ©å®¶"),
+    Value = _G.G_SilentAimTargetPlayers,
+    Callback = function(v) _G.G_SilentAimTargetPlayers = v; SaveConfiguration() end
+})
+
+AimSection:Toggle({
+    Title = L("çž„å‡† NPC"),
+    Value = _G.G_SilentAimTargetMobs,
+    Callback = function(v) _G.G_SilentAimTargetMobs = v; SaveConfiguration() end
+})
+
+AimSection:Toggle({
+    Title = L("å›¢é˜Ÿæ£€æµ‹"),
+    Value = _G.G_SilentAimTeamCheck,
+    Callback = function(v) _G.G_SilentAimTeamCheck = v; SaveConfiguration() end
+})
+
+AimSection:Toggle({
+    Title = L("æ˜¾ç¤ºé”å®šçº¢çº¿"),
+    Value = _G.G_SilentAimShowLine,
+    Callback = function(v) _G.G_SilentAimShowLine = v; SaveConfiguration() end
+})
+
+AimSection:Dropdown({
+    Title = L("çž„å‡†éƒ¨ä½"),
+    Values = {"HumanoidRootPart", "Head", "Torso", "UpperTorso", "LowerTorso"},
+    Value = _G.G_SilentAimPart,
+    Callback = function(v) _G.G_SilentAimPart = v; SaveConfiguration() end
+})
+
+RJR[L("ç»˜åˆ¶")]:Divider()
+
+local SilentAimPlayerDropdown = RJR[L("ç»˜åˆ¶")]:Dropdown({
+    Title = L("é€‰æ‹©çž„å‡†çŽ©å®¶"),
+    Values = GetPlayerList(),
+    Value = _G.G_SilentAimSelectedPlayer,
+    Callback = function(v)
+        _G.G_SilentAimSelectedPlayer = v or ""
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ç»˜åˆ¶")]:Button({
+    Title = L("åˆ·æ–°çŽ©å®¶åˆ—è¡¨"),
+    Callback = function()
+        local newPlayerList = GetPlayerList()
+        if SilentAimPlayerDropdown and SilentAimPlayerDropdown.Refresh then
+            SilentAimPlayerDropdown:Refresh(newPlayerList, true)
+        end
+        if _G.G_SilentAimSelectedPlayer ~= "" and SilentAimPlayerDropdown and SilentAimPlayerDropdown.SetValue then
+            for _, name in ipairs(newPlayerList) do
+                if name == _G.G_SilentAimSelectedPlayer then
+                    pcall(function() SilentAimPlayerDropdown:SetValue(_G.G_SilentAimSelectedPlayer) end)
+                    break
+                end
+            end
+        end
+    end
+})
+
+RJR[L("ç»˜åˆ¶")]:Toggle({
+    Title = L("å¿«æ·é”®é”äºº(æŒ‰é”®h)"),
+    Value = _G.G_LockHotkey,
+    Callback = function(v)
+        _G.G_LockHotkey = v
+        if v then
+            StartLockHotkey()
+        else
+            StopLockHotkey()
+        end
+        SaveConfiguration()
+    end
+})
+
+RJR[L("ç»˜åˆ¶")]:Dropdown({
+    Title = L("é”äººæ¨¡å¼"),
+    Values = {"é”äºº1", "é”äºº2"},
+    Value = _G.G_LockHotkeyMode,
+    Callback = function(v)
+        _G.G_LockHotkeyMode = v
+        SaveConfiguration()
+    end
+})
+
+if _G.G_LockHotkey then StartLockHotkey() end
