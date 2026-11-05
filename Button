@@ -3,12 +3,10 @@ local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
 
--- Tạo ScreenGui chứa giao diện
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "PromptMasterGui"
 screenGui.ResetOnSpawn = false
 
--- Hỗ trợ bảo vệ GUI nếu chạy trên các Executor hỗ trợ
 if syn and syn.protect_gui then
     syn.protect_gui(screenGui)
     screenGui.Parent = CoreGui
@@ -16,7 +14,6 @@ else
     screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 end
 
--- Khung chính của UI (MainFrame)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 240, 0, 220)
@@ -34,12 +31,11 @@ mainStroke.Color = Color3.fromRGB(60, 60, 75)
 mainStroke.Thickness = 1.5
 mainStroke.Parent = mainFrame
 
--- Thanh Tiêu Đề (Dùng để kéo thả Menu chính)
 local titleBar = Instance.new("TextButton")
 titleBar.Name = "TitleBar"
 titleBar.Size = UDim2.new(1, 0, 0, 38)
 titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-titleBar.Text = "  ⚡ T HUB"
+titleBar.Text = "T HUB"
 titleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleBar.TextSize = 14
 titleBar.Font = Enum.Font.GothamBold
@@ -51,7 +47,6 @@ local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 12)
 titleCorner.Parent = titleBar
 
--- Sửa lỗi bo góc bị lẹm ở dưới của tiêu đề
 local titleCover = Instance.new("Frame")
 titleCover.Size = UDim2.new(1, 0, 0, 6)
 titleCover.Position = UDim2.new(0, 0, 1, -6)
@@ -59,7 +54,6 @@ titleCover.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 titleCover.BorderSizePixel = 0
 titleCover.Parent = titleBar
 
--- Container chứa các nút chức năng bên trong MainFrame
 local container = Instance.new("Frame")
 container.Size = UDim2.new(1, -16, 1, -48)
 container.Position = UDim2.new(0, 8, 0, 42)
@@ -71,7 +65,6 @@ uiLayout.SortOrder = Enum.SortOrder.LayoutOrder
 uiLayout.Padding = UDim.new(0, 8)
 uiLayout.Parent = container
 
--- Hàm tạo các nút chức năng phong cách hiện đại
 local function createButton(name, text, order)
     local btn = Instance.new("TextButton")
     btn.Name = name
@@ -103,7 +96,6 @@ local toggleInstantBtn = createButton("ToggleInstantBtn", "Bấm nhanh", 2)
 local toggleESPBtn = createButton("ToggleESPBtn", "ESP Nút", 3)
 local toggleAutoBtn = createButton("ToggleAutoBtn", "Tự động nhấn", 4)
 
--- Nút bật/tắt UI hình chữ T (Có thể kéo thả)
 local toggleUIButton = Instance.new("TextButton")
 toggleUIButton.Name = "ToggleUIButton"
 toggleUIButton.Size = UDim2.new(0, 48, 0, 48)
@@ -125,7 +117,6 @@ uiBtnStroke.Color = Color3.fromRGB(255, 255, 255)
 uiBtnStroke.Thickness = 2
 uiBtnStroke.Parent = toggleUIButton
 
--- === TÍNH NĂNG KÉO THẢ CHO CẢ 2 KHUNG (MENU & NÚT T) ===
 local function makeDraggable(obj, handle)
     handle = handle or obj
     local dragging, dragInput, dragStart, startPos
@@ -166,7 +157,6 @@ end
 makeDraggable(mainFrame, titleBar)
 makeDraggable(toggleUIButton)
 
--- === LOGIC PROXIMITY PROMPT, ESP & AUTO CLICK ===
 local isRangeEnabled = false
 local isInstantEnabled = false
 local isESPEnabled = false
@@ -253,7 +243,6 @@ local function refreshAllPrompts()
     end
 end
 
--- Sự kiện bật/tắt Tầm Xa
 toggleRangeBtn.MouseButton1Click:Connect(function()
     isRangeEnabled = not isRangeEnabled
     toggleRangeBtn.Text = "  Tầm xa: " .. (isRangeEnabled and "BẬT" or "TẮT")
@@ -262,7 +251,6 @@ toggleRangeBtn.MouseButton1Click:Connect(function()
     refreshAllPrompts()
 end)
 
--- Sự kiện bật/tắt Bấm Nhanh
 toggleInstantBtn.MouseButton1Click:Connect(function()
     isInstantEnabled = not isInstantEnabled
     toggleInstantBtn.Text = "  Bấm nhanh: " .. (isInstantEnabled and "BẬT" or "TẮT")
@@ -271,7 +259,6 @@ toggleInstantBtn.MouseButton1Click:Connect(function()
     refreshAllPrompts()
 end)
 
--- Sự kiện bật/tắt ESP Nút
 toggleESPBtn.MouseButton1Click:Connect(function()
     isESPEnabled = not isESPEnabled
     toggleESPBtn.Text = "  ESP Nút: " .. (isESPEnabled and "BẬT" or "TẮT")
@@ -280,7 +267,6 @@ toggleESPBtn.MouseButton1Click:Connect(function()
     refreshAllPrompts()
 end)
 
--- Sự kiện bật/tắt Tự Động Nhấn
 toggleAutoBtn.MouseButton1Click:Connect(function()
     isAutoEnabled = not isAutoEnabled
     toggleAutoBtn.Text = "  Tự động nhấn: " .. (isAutoEnabled and "BẬT" or "TẮT")
@@ -288,7 +274,6 @@ toggleAutoBtn.MouseButton1Click:Connect(function()
     toggleAutoBtn.BackgroundColor3 = isAutoEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(40, 40, 52)
 end)
 
--- Vòng lặp xử lý Auto Click liên tục
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -314,7 +299,6 @@ task.spawn(function()
     end
 end)
 
--- Lắng nghe các prompt mới sinh ra trong game
 workspace.DescendantAdded:Connect(function(obj)
     if obj:IsA("ProximityPrompt") then
         updatePrompt(obj)
@@ -331,7 +315,6 @@ workspace.DescendantRemoving:Connect(function(obj)
     end
 end)
 
--- === NÚT "T" BẬT / TẮT MENU CHÍNH ===
 toggleUIButton.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
 end)
