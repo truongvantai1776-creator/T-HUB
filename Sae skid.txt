@@ -1,0 +1,2154 @@
+-- [SPEED HUB STEAL AN EGG]
+-- https://discord.gg/speedhub
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local localPlayer = Players.LocalPlayer
+local networking = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Networking")
+
+local CFG = {
+	SpeedCap=1.15, HopRatio=1.515, HopMin=40, HopGap=0.06,
+	HopGapMin=0.06, HopGapMax=0.2, HopRetries=6, HopLift=42,
+	LandOffset=14, LandSettle=0.08, DropDelay=0.05, GrabInterval=0.03,
+	RegrabFar=40, Height=70, ClimbShare=0.5, CarryRatio=0.9, EasyRatio=1.3,
+}
+local FPS={60,30,0.15}
+
+local EggState=require(ReplicatedStorage:WaitForChild("Client"):WaitForChild("EggState"))
+
+local YState={
+	Carrying=false, Uid=nil, Delivered=0, Busy=false, Cancel=false,
+	Mult=1, PulledAt=0, HeldSeen=0, GuessedDrop=false, ReleaseCamera=nil,
+}
+
+EggState.CarryChanged:Connect(function(arg)
+	local carrying=type(arg)=="table" and arg.IsCarrying==true
+	if carrying and arg.GuardDisabled==true then carrying=false end
+	YState.GuessedDrop=false
+	if carrying then YState.HeldSeen=os.clock() end
+	if carrying and type(arg.Uid)=="string" then
+		YState.Uid=arg.Uid
+		local m=tonumber(arg.SpeedMultiplier)
+		if m and m>0 then YState.Mult=m end
+	end
+	YState.Carrying=carrying
+end)
+
+pcall(function()
+	networking:FindFirstChild("RE/EggWorld/FieldEggRedeemVerdict").OnClientEvent:Connect(function()
+		YState.Delivered=os.clock()
+	end)
+end)
+pcall(function()
+	networking:FindFirstChild("RE/RigSync/Refresh").OnClientEvent:Connect(function(arg)
+		if type(arg)=="table" and arg.Action=="Relocate" then YState.PulledAt=os.clock() end
+	end)
+end)
+
+local function Yroot()
+	local c=localPlayer.Character
+	return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function YwalkSpeed()
+	local c=localPlayer.Character
+	local h=c and c:FindFirstChildOfClass("Humanoid")
+	local s=h and h.WalkSpeed or 16
+	local ok,r=pcall(function()
+		local st=localPlayer:FindFirstChild("leaderstats")
+		st=st and st:FindFirstChild("Speed")
+		local util=require(ReplicatedStorage.Shared.Util.TreadmillUtil)
+		return st and util.SpeedPowerToWalkSpeed(st.Value) or nil
+	end)
+	if ok and type(r)=="number" and r>0 then s=math.min(s,r) end
+	return s
+end
+
+local function YtakeEgg(uid)
+	if type(uid)=="string" and type(EggState.CarryFieldEgg)=="function" then
+		pcall(EggState.CarryFieldEgg,uid)
+	end
+end
+local function YdropEgg()
+	if type(EggState.DropFieldEgg)=="function" then
+		pcall(EggState.DropFieldEgg,"PlayerRequest")
+	end
+end
+
+local function YpromptNear(pos,rad)
+	local best,bd=nil,rad
+	for _,ch in ipairs(workspace:GetChildren()) do
+		if ch.Name=="SmartPromptPart" and ch:IsA("BasePart") then
+			local p=ch:FindFirstChild("CarryAreaEgg")
+			if p and p:IsA("ProximityPrompt") then
+				local d=(ch.Position-pos).Magnitude
+				if d<bd then best,bd=p,d end
+			end
+		end
+	end
+	return best
+end
+
+local function YheldByMe(uid)
+	local c=localPlayer.Character
+	if type(uid)~="string" or not c then return false end
+	local egg=workspace:FindFirstChild(uid)
+	if not egg then return false end
+	for _,d in ipairs(egg:GetDescendants()) do
+		if d:IsA("WeldConstraint") or d:IsA("JointInstance") then
+			local ok,a,b=pcall(function() return d.Part0,d.Part1 end)
+			if ok and ((a and a:IsDescendantOf(c)) or (b and b:IsDescendantOf(c))) then return true end
+		end
+	end
+	return false
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.2)
+		if not YState.Carrying then
+			if YState.GuessedDrop and YheldByMe(YState.Uid) then
+				YState.GuessedDrop,YState.Carrying,YState.HeldSeen=false,true,os.clock()
+			end
+		elseif YheldByMe(YState.Uid) then
+			YState.HeldSeen=os.clock()
+		elseif os.clock()-YState.HeldSeen>0.8 then
+			YState.Carrying,YState.GuessedDrop=false,true
+		end
+	end
+end)
+
+local function YeggPosition(uid)
+	local ok,res=pcall(function()
+		return networking:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot"):InvokeServer()
+	end)
+	local recs=ok and res and res.Records
+	if not recs then return nil end
+	for _,rec in pairs(recs) do
+		if rec.Uid==uid and typeof(rec.BottomCFrame)=="CFrame" then
+			return rec.BottomCFrame.Position
+		end
+	end
+	return nil
+end
+
+local function YfrozenCamera()
+	local cam=workspace.CurrentCamera
+	if not cam then return function() end end
+	local ot=cam.CameraType
+	local f=cam.CFrame
+	pcall(function() cam.CameraType=Enum.CameraType.Scriptable cam.CFrame=f end)
+	return function() pcall(function() cam.CameraType=ot end) end
+end
+
+local fpsGen=0
+local function YfpsOn()
+	if typeof(setfpscap)~="function" then return end
+	fpsGen+=1
+	local mine=fpsGen
+	task.spawn(function()
+		local hi=true
+		local st=os.clock()
+		while fpsGen==mine and os.clock()-st<60 do
+			pcall(setfpscap,hi and FPS[1] or FPS[2])
+			hi=not hi
+			task.wait(FPS[3])
+		end
+	end)
+end
+local function YfpsOff()
+	fpsGen+=1
+	if typeof(setfpscap)=="function" then pcall(setfpscap,240) end
+end
+
+local Yclone=nil
+local function YdropClone()
+	local c=Yclone
+	Yclone=nil
+	if c then pcall(function() c:Destroy() end) end
+end
+local function YpostClone()
+	YdropClone()
+	local c=localPlayer.Character
+	if not c then return end
+	local w=c.Archivable
+	c.Archivable=true
+	local copy=c:Clone()
+	c.Archivable=w
+	if copy then
+		for _,d in ipairs(copy:GetDescendants()) do
+			if d:IsA("LuaSourceContainer") or d:IsA("Humanoid") then
+				pcall(function() d:Destroy() end)
+			elseif d:IsA("BasePart") then
+				d.Anchored=true
+				d.CanCollide=false
+				d.CanTouch=false
+				d.CanQuery=false
+			end
+		end
+		copy.Name="Clone"
+		copy.Parent=workspace
+		Yclone=copy
+	end
+end
+
+local function YlineInfo()
+	local w=workspace:FindFirstChild("World") or workspace:FindFirstChild("__OBJECTS")
+	w=w and w:FindFirstChild("Areas")
+	w=w and w:FindFirstChild("SeparationLine")
+	local ok=w and w:IsA("BasePart")
+	return ok and w.Position.X or 552.2, ok and w.Position.Y or 67.67
+end
+
+local function YhomePoint()
+	for _,def in ipairs({
+		{{"GearGiver_Slap","Podium"},Vector3.new(-16.415,21.072,-6.106)},
+		{{"World","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Vector3.new(-26.776,1.75,18.665)},
+		{{"__OBJECTS","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Vector3.new(-26.776,1.75,18.665)},
+	}) do
+		local n=workspace
+		for _,name in ipairs(def[1]) do n=n and n:FindFirstChild(name) or nil end
+		if n and n:IsA("BasePart") then
+			return n.CFrame:PointToWorldSpace(def[2])
+		end
+	end
+	return Vector3.new(528.7,70.57,-364.11)
+end
+
+local function Yplace(pos)
+	local r=Yroot()
+	if not r then return end
+	pcall(function()
+		r.CFrame=CFrame.new(pos)*CFrame.Angles(0,math.rad(90),0)
+		r.AssemblyLinearVelocity=Vector3.zero
+		r.AssemblyAngularVelocity=Vector3.zero
+	end)
+end
+
+local dangerCache,dangerAt={},0
+local function Ydangers()
+	if os.clock()-dangerAt<1 then return dangerCache end
+	dangerAt=os.clock()
+	local list={}
+	local function add(inst)
+		local ok,cf,size=pcall(function()
+			if inst:IsA("Model") then return inst:GetBoundingBox()
+			elseif inst:IsA("BasePart") then return inst.CFrame,inst.Size end
+		end)
+		if ok and cf and size then
+			local half=Vector3.new(math.abs(size.X),0,math.abs(size.Z))*0.5
+			local rot=(cf-cf.Position):VectorToWorldSpace(half)
+			local rx=math.max(math.abs(rot.X),half.X,half.Z)
+			local rz=math.max(math.abs(rot.Z),half.X,half.Z)
+			list[#list+1]={MinX=cf.Position.X-rx,MaxX=cf.Position.X+rx,MinZ=cf.Position.Z-rz,MaxZ=cf.Position.Z+rz}
+		end
+	end
+	local function bad(name)
+		if name=="ScrambleLocalVisuals" or name=="DrScrambleEvent" then return false end
+		name=string.lower(name)
+		return string.find(name,"portal",1,true) or string.find(name,"teleport",1,true)
+			or string.find(name,"mech",1,true) or string.find(name,"arena",1,true)
+			or string.find(name,"scramble",1,true)
+	end
+	for _,ch in ipairs(workspace:GetChildren()) do
+		if (ch:IsA("Model") or ch:IsA("BasePart") or ch:IsA("Folder")) and bad(ch.Name) then
+			if ch:IsA("Folder") then
+				for _,inner in ipairs(ch:GetChildren()) do add(inner) end
+			else add(ch) end
+		end
+	end
+	local b=workspace:FindFirstChild("World")
+	b=b and b:FindFirstChild("Build")
+	if b then
+		for _,ch in ipairs(b:GetChildren()) do
+			if bad(ch.Name) then
+				for _,inner in ipairs(ch:GetChildren()) do add(inner) end
+			end
+		end
+	end
+	dangerCache=list
+	return list
+end
+
+local function Yavoid(from,to)
+	for _,d in ipairs(Ydangers()) do
+		local x0,x1,z0,z1=d.MinX-12,d.MaxX+12,d.MinZ-12,d.MaxZ+12
+		local inside=from.X>=x0 and from.X<=x1 and from.Z>=z0 and from.Z<=z1
+		if not inside then
+			local t0,t1,hit=0,1,true
+			for _,axis in ipairs({{from.X,to.X-from.X,x0,x1},{from.Z,to.Z-from.Z,z0,z1}}) do
+				local pos,delta,lo,hi=axis[1],axis[2],axis[3],axis[4]
+				if math.abs(delta)<1e-6 then
+					if pos<lo or pos>hi then hit=false end
+				else
+					local ta,tb=(lo-pos)/delta,(hi-pos)/delta
+					if ta>tb then ta,tb=tb,ta end
+					t0,t1=math.max(t0,ta),math.min(t1,tb)
+					if t0>t1 then hit=false end
+				end
+			end
+			if hit then
+				local zl,zh=z0-2,z1+2
+				local z=math.abs(from.Z-zl)<=math.abs(from.Z-zh) and zl or zh
+				if z<-440 or z>-290 then z=z==zl and zh or zl end
+				local x=math.abs(from.X-x0)<=math.abs(from.X-x1) and x0 or x1
+				if math.abs(from.Z-z)<3 then
+					x=math.abs(to.X-x0)<=math.abs(to.X-x1) and x0 or x1
+				end
+				return Vector3.new(x,to.Y,z)
+			end
+		end
+	end
+	return to
+end
+
+local function YrunToEgg(uid,egg)
+	local lineX=YlineInfo()
+	local home=YhomePoint()
+	local ch=localPlayer.Character
+	local h=ch and ch:FindFirstChildOfClass("Humanoid")
+	if h then
+		h.PlatformStand=false
+		if ch:FindFirstChildWhichIsA("Tool") then
+			pcall(function() h:UnequipTools() end)
+		end
+	end
+	local r=Yroot()
+	if not r then return false end
+	local stage="field"
+	if r.Position.X<lineX-2 and Vector3.new(r.Position.X-home.X,0,r.Position.Z-home.Z).Magnitude>20 then
+		stage="safe"
+	end
+	local started,lastCheck,lastPos,lastTake=os.clock(),os.clock(),r.Position,0
+	while os.clock()-started<120 and not YState.Cancel do
+		r=Yroot()
+		if not r then return false end
+		local flatEgg=Vector3.new(egg.X-r.Position.X,0,egg.Z-r.Position.Z)
+		if stage=="field" and flatEgg.Magnitude<=2.5 then break end
+		local target=egg
+		if stage=="safe" then
+			if Vector3.new(home.X-r.Position.X,0,home.Z-r.Position.Z).Magnitude<=6 then stage="field"
+			else target=home end
+		end
+		local wp=Yavoid(r.Position,target)
+		local flat=Vector3.new(wp.X-r.Position.X,0,wp.Z-r.Position.Z)
+		local unit=flat.Magnitude>0.01 and flat.Unit or Vector3.zero
+		local speed=math.max(YwalkSpeed()*CFG.SpeedCap,8)
+		local v=unit*math.min(speed,flat.Magnitude/0.05)
+		pcall(function()
+			r.AssemblyLinearVelocity=Vector3.new(v.X,r.AssemblyLinearVelocity.Y,v.Z)
+			if h and unit.Magnitude>0 then h:Move(unit,false) end
+		end)
+		if os.clock()-lastCheck>=1.5 then
+			if (r.Position-lastPos).Magnitude<3 and h and flatEgg.Magnitude>15 then
+				pcall(function() h.Jump=true end)
+			end
+			lastPos,lastCheck=r.Position,os.clock()
+		end
+		if stage=="field" and flatEgg.Magnitude<=9 and os.clock()-lastTake>0.1 then
+			lastTake=os.clock()
+			YtakeEgg(uid)
+		end
+		RunService.Heartbeat:Wait()
+	end
+	r=Yroot()
+	if r then
+		pcall(function()
+			r.AssemblyLinearVelocity=Vector3.new(0,r.AssemblyLinearVelocity.Y,0)
+			if h then h:Move(Vector3.zero,false) end
+		end)
+	end
+	return YState.Carrying or (r~=nil and Vector3.new(egg.X-r.Position.X,0,egg.Z-r.Position.Z).Magnitude<=6)
+end
+
+local function YeggNow(uid,cache)
+	local node=workspace:FindFirstChild(uid)
+	local slots=workspace:FindFirstChild("AreaEggSlotsClient")
+	node=node or (slots and slots:FindFirstChild(uid))
+	if node then
+		local ok,pos=pcall(function() return node:GetPivot().Position end)
+		if ok and pos then cache.Pos,cache.At=pos,os.clock() return pos end
+	end
+	if os.clock()-cache.At>=0.5 then
+		cache.At=os.clock()
+		cache.Pos=YeggPosition(uid) or cache.Pos
+	end
+	return cache.Pos
+end
+
+local function Ygrab(uid,timeout)
+	local cache={At=0}
+	local waited,since=0,1
+	while not YState.Carrying and waited<timeout and not YState.Cancel do
+		local r=Yroot()
+		local egg=YeggNow(uid,cache)
+		local dt=math.max(RunService.Heartbeat:Wait(),1/240)
+		waited+=dt
+		since+=dt
+		if r and egg then
+			local delta=egg-r.Position
+			if delta.Magnitude>2 then
+				local pace=math.max(YwalkSpeed()*CFG.SpeedCap,16)
+				local v=delta/math.max(0.08,dt)
+				if v.Magnitude>pace then v=v.Unit*pace end
+				pcall(function()
+					r.AssemblyLinearVelocity=v+Vector3.new(0,workspace.Gravity*dt*0.5,0)
+					r.AssemblyAngularVelocity=Vector3.zero
+				end)
+			end
+			if since>=CFG.GrabInterval then
+				since=0
+				local prompt=YpromptNear(egg-Vector3.new(0,3,0),10)
+				if prompt and typeof(fireproximityprompt)=="function" then
+					pcall(function() prompt.HoldDuration=0 end)
+					pcall(fireproximityprompt,prompt)
+				end
+				task.spawn(YtakeEgg,uid)
+			end
+		elseif since>=CFG.GrabInterval then
+			since=0
+			task.spawn(YtakeEgg,uid)
+		end
+	end
+	local r=Yroot()
+	if r then pcall(function() r.AssemblyLinearVelocity=Vector3.zero end) end
+	return YState.Carrying and YState.Uid==uid
+end
+
+local function Yregrab(uid)
+	if YState.Carrying then return true end
+	local r=Yroot()
+	local egg=YeggPosition(uid)
+	if r and egg and Vector3.new(r.Position.X-egg.X,0,r.Position.Z-egg.Z).Magnitude>CFG.RegrabFar then
+		Yplace(egg+Vector3.new(0,3,0))
+	end
+	return Ygrab(uid,3)
+end
+
+local function YgroundY(pos,fallback)
+	local y=fallback
+	pcall(function()
+		local p=RaycastParams.new()
+		p.FilterType=Enum.RaycastFilterType.Exclude
+		p.FilterDescendantsInstances={localPlayer.Character}
+		p.IgnoreWater=true
+		local hit=workspace:Raycast(pos+Vector3.new(0,60,0),Vector3.new(0,-140,0),p)
+		if hit and hit.Material~=Enum.Material.Water and math.abs(hit.Position.Y-fallback)<40 then
+			y=hit.Position.Y+3.5
+		end
+	end)
+	return y
+end
+
+local function YcarrySpeed(dist)
+	local ws=YwalkSpeed()
+	local base=ws*math.min(CFG.CarryRatio,CFG.SpeedCap)*YState.Mult
+	local fast=base*1.5
+	local excess=5.5*base
+	local limit=fast
+	if dist and dist>excess then
+		limit=math.min(fast,base*dist/(dist-excess))
+	end
+	return math.min(math.max(math.min(base*CFG.EasyRatio,limit),base),math.max(ws*CFG.SpeedCap,base))
+end
+
+local function YrunHome(lineX,laneZ)
+	local started=os.clock()
+	local home=YhomePoint()
+	local checkpoint=lineX-7
+	local height=CFG.Height
+	local share=math.clamp(CFG.ClimbShare,0.1,0.9)
+	local descent=height*math.sqrt(1-share*share)/share
+	local ch=localPlayer.Character
+	local h=ch and ch:FindFirstChildOfClass("Humanoid")
+	if h then h.PlatformStand=false end
+	local r=Yroot()
+	if r and ch and height>0.5 and home.Y+height-2>r.Position.Y then
+		pcall(function()
+			ch:PivotTo(CFrame.new(Vector3.new(r.Position.X,home.Y+height,r.Position.Z))*r.CFrame.Rotation)
+			r.AssemblyLinearVelocity=Vector3.zero
+			r.AssemblyAngularVelocity=Vector3.zero
+		end)
+	end
+	local start=Yroot()
+	local speed=YcarrySpeed(start and (Vector3.new(start.Position.X-home.X,0,start.Position.Z-home.Z).Magnitude+math.max(0,height)*2) or nil)
+	local last=os.clock()
+	local timeout=0
+	while YState.Carrying and YState.Delivered<started and not YState.Cancel and timeout<25 do
+		r=Yroot()
+		if not r then return false end
+		local now=os.clock()
+		local dt=math.max(now-last,1/240)
+		last=now
+		timeout+=dt
+		local toHome=r.Position.X<=checkpoint+2
+		local target=toHome and home or Vector3.new(checkpoint,home.Y,laneZ)
+		if toHome and Vector3.new(home.X-r.Position.X,0,home.Z-r.Position.Z).Magnitude<2 then break end
+		local aim=Yavoid(r.Position,target)
+		local flat=Vector3.new(aim.X-r.Position.X,0,aim.Z-r.Position.Z)
+		local remaining=toHome and 0 or math.max(0,r.Position.X-checkpoint)
+		local wantY=home.Y+height
+		if toHome or remaining<=descent then
+			wantY=home.Y+height*math.clamp(remaining/math.max(descent,1),0,1)
+		end
+		local vy=math.clamp((wantY-r.Position.Y)/0.12,-speed*share,speed*share)
+		local horiz=math.sqrt(math.max(speed*speed-vy*vy,0))
+		local v=flat.Magnitude>0.01 and flat.Unit*math.min(horiz,flat.Magnitude/0.05) or Vector3.zero
+		pcall(function() r.AssemblyLinearVelocity=Vector3.new(v.X,vy,v.Z) end)
+		RunService.Heartbeat:Wait()
+	end
+	if h then pcall(function() h:Move(Vector3.zero,false) end) end
+	local settle=0
+	while settle<2 and YState.Delivered<started and YState.Carrying and not YState.Cancel do
+		settle+=RunService.Heartbeat:Wait()
+	end
+	if YState.Carrying and YState.Delivered<started and not YState.Cancel then
+		task.wait(0.2)
+		YdropEgg()
+		local w=0
+		while YState.Delivered<started and w<1 do
+			w+=RunService.Heartbeat:Wait()
+		end
+	end
+	return YState.Delivered>=started
+end
+
+local function YinstantTP(uid)
+	local started=os.clock()
+	local lineX,lineY=YlineInfo()
+	local r=Yroot()
+	if not r then return false end
+	local laneZ=math.clamp(r.Position.Z,-425,-300)
+	local landing=Vector3.new(lineX+CFG.LandOffset,lineY+3.35,laneZ)
+	local hopStep=math.max(YwalkSpeed()*CFG.HopRatio,CFG.HopMin)
+	local hopY=r.Position.Y+CFG.HopLift
+	local x=r.Position.X
+	local retries=0
+	local releaseCamera=YfrozenCamera()
+	YState.ReleaseCamera=releaseCamera
+	pcall(YpostClone)
+	YfpsOn()
+	while x-hopStep>landing.X and not YState.Cancel do
+		if not YState.Carrying then
+			if not Yregrab(uid) then break end
+			local cur=Yroot()
+			if cur then x=math.min(x,cur.Position.X) end
+			continue
+		end
+		local nextX=x-hopStep
+		local pulledBefore=YState.PulledAt
+		local held=0
+		while held<CFG.HopGap do
+			Yplace(Vector3.new(nextX,hopY,laneZ))
+			held+=RunService.Heartbeat:Wait()
+		end
+		local check=Yroot()
+		local pulled=YState.PulledAt>pulledBefore or (check~=nil and (check.Position.X-nextX>10 or check.AssemblyLinearVelocity.Magnitude>150))
+		if pulled and YState.Carrying and not YState.Cancel then
+			retries+=1
+			CFG.HopGap=math.min(CFG.HopGapMax,CFG.HopGap+0.02)
+			if retries>CFG.HopRetries then break end
+			local settle=0
+			while settle<0.12 and not YState.Cancel do
+				Yplace(Vector3.new(x,hopY,laneZ))
+				settle+=RunService.Heartbeat:Wait()
+			end
+		else
+			x=nextX
+			CFG.HopGap=math.max(CFG.HopGapMin,CFG.HopGap-0.01)
+		end
+	end
+	landing=Vector3.new(landing.X,YgroundY(landing,landing.Y),landing.Z)
+	local function land()
+		local cur=Yroot()
+		if cur and cur.Position.X<=landing.X+1 and cur.Position.Y>landing.Y-25 then
+			pcall(function() cur.AssemblyLinearVelocity=Vector3.zero end)
+			return
+		end
+		Yplace(landing)
+	end
+	land()
+	for attempt=1,3 do
+		local settle=0
+		while settle<CFG.LandSettle and not YState.Cancel do
+			settle+=RunService.Heartbeat:Wait()
+		end
+		local landed=Yroot()
+		if YState.Carrying and landed and (landed.Position.X-landing.X>12 or landed.Position.Y<landing.Y-25) then
+			land()
+		else break end
+	end
+	YdropClone()
+	if YState.Carrying and not YState.Cancel then
+		local delay=0
+		while delay<CFG.DropDelay do
+			delay+=RunService.Heartbeat:Wait()
+		end
+		YdropEgg()
+		local w=0
+		while YState.Carrying and w<1 and not YState.Cancel do
+			w+=RunService.Heartbeat:Wait()
+		end
+		local cur=Yroot()
+		if cur then
+			pcall(function()
+				cur.AssemblyLinearVelocity=Vector3.zero
+				cur.AssemblyAngularVelocity=Vector3.zero
+			end)
+		end
+		releaseCamera()
+		YdropClone()
+		if not Ygrab(uid,3) and not Yregrab(uid) then
+			YfpsOff()
+			return false
+		end
+		YdropClone()
+	end
+	releaseCamera()
+	local ok=false
+	if YState.Carrying then ok=YrunHome(lineX,laneZ) end
+	YfpsOff()
+	return ok or YState.Delivered>=started
+end
+
+_G.yslemSteal=function(uid,onDone)
+	if YState.Busy then return false end
+	YState.Busy=true
+	YState.Cancel=false
+	task.spawn(function()
+		local ok,err=pcall(function()
+			local egg=YeggPosition(uid)
+			if not egg then return end
+			if YState.Carrying and YState.Uid~=uid then
+				YdropEgg()
+				local w=0
+				while YState.Carrying and w<1 do w+=RunService.Heartbeat:Wait() end
+			end
+			YfpsOn()
+			if not YrunToEgg(uid,egg) then YfpsOff() return end
+			if not Ygrab(uid,4) then YfpsOff() return end
+			YinstantTP(uid)
+		end)
+		YfpsOff()
+		YdropClone()
+		if YState.ReleaseCamera then pcall(YState.ReleaseCamera) YState.ReleaseCamera=nil end
+		if not ok then warn("[yslemSteal]",err) end
+		YState.Busy=false
+		if onDone then task.defer(onDone) end
+	end)
+	return true
+end
+
+_G.yslemCancel=function() YState.Cancel=true end
+_G.yslemBusy=function() return YState.Busy end
+
+local tbl={
+	AskFieldEggSnapshot=networking:WaitForChild("RF/EggWorld/AskFieldEggSnapshot",10),
+	FieldEggCarry=networking:WaitForChild("RE/EggWorld/FieldEggCarry",10),
+}
+local tbl2
+tbl2={
+	walk=function(arg,arg2)
+		if not arg or not arg2 then return nil end
+		local ch=arg:GetChildren()
+		while #ch>0 do
+			local n=#ch
+			local v=ch[n]
+			ch[n]=nil
+			local c2=v:GetChildren()
+			for i=1,#c2 do ch[#ch+1]=c2[i] end
+			if arg2(v)~=true then continue end
+			return v
+		end
+		return nil
+	end,
+}
+tbl2.Integrity={
+	armed=false,restoring=false,connections={},records={},
+	knownRootChildren={},repairQueued=false,hardUntil=0,hardRefreshAt=0,
+	tamperCount=0,tamperWindow=0,
+	guardName="LHVisualGuard_"..tostring(math.random(100000,999999)),
+}
+tbl2.integrityDisconnect=function()
+	local ig=tbl2.Integrity
+	for i=1,#ig.connections do
+		local v=ig.connections[i]
+		if v then pcall(function() v:Disconnect() end) end
+	end
+	table.clear(ig.connections)
+	pcall(function() RunService:UnbindFromRenderStep(ig.guardName) end)
+end
+tbl2.integrityEscalate=function()
+	local ig=tbl2.Integrity
+	local now=os.clock()
+	if now-ig.tamperWindow>0.45 then
+		ig.tamperWindow=now
+		ig.tamperCount=0
+	end
+	ig.tamperCount=ig.tamperCount+1
+	if ig.tamperCount>=3 then
+		ig.hardUntil=math.max(ig.hardUntil,now+2.5)
+	end
+end
+tbl2.integrityRepairRecord=function(arg,arg2)
+	local inst=arg and arg.instance
+	if not inst then return end
+	if arg.parent and inst.Parent~=arg.parent then
+		pcall(function() inst.Parent=arg.parent end)
+	end
+	if arg2 then
+		local v=arg.properties[arg2]
+		if v~=nil then
+			local ok,r=pcall(function() return inst[arg2] end)
+			if ok and r~=v then pcall(function() inst[arg2]=v end) end
+		end
+		return
+	end
+	for k,prop in pairs(arg.properties) do
+		local ok,r=pcall(function() return inst[k] end)
+		if ok and r~=prop then pcall(function() inst[k]=prop end) end
+	end
+end
+tbl2.integrityQueueRepair=function()
+	local ig=tbl2.Integrity
+	if not ig.armed or ig.restoring or ig.repairQueued then return end
+	ig.repairQueued=true
+	task.defer(function()
+		ig.repairQueued=false
+		tbl2.integrityRepairAll()
+	end)
+end
+tbl2.integrityRepairAll=function()
+	local ig=tbl2.Integrity
+	if not ig.armed or ig.restoring then return end
+	ig.restoring=true
+	for i=1,#ig.records do tbl2.integrityRepairRecord(ig.records[i]) end
+	if ig.refresh then pcall(ig.refresh) end
+	ig.restoring=false
+end
+tbl2.integrityWatch=function(arg,arg2,parent)
+	if not arg then return end
+	local ig=tbl2.Integrity
+	local rec={instance=arg,properties=arg2,parent=parent}
+	ig.records[#ig.records+1]=rec
+	if parent then
+		ig.connections[#ig.connections+1]=arg.AncestryChanged:Connect(function()
+			if not ig.armed or ig.restoring or arg.Parent==parent then return end
+			tbl2.integrityEscalate()
+			ig.restoring=true
+			pcall(function() arg.Parent=parent end)
+			ig.restoring=false
+			if arg.Parent~=parent then tbl2.integrityQueueRepair() end
+		end)
+	end
+	ig.connections[#ig.connections+1]=arg.Changed:Connect(function(a3)
+		if not ig.armed or ig.restoring or arg2[a3]==nil then return end
+		local ok,r=pcall(function() return arg[a3] end)
+		if ok and r==arg2[a3] then return end
+		tbl2.integrityEscalate()
+		ig.restoring=true
+		tbl2.integrityRepairRecord(rec,a3)
+		ig.restoring=false
+	end)
+end
+tbl2.integrityWatchComputed=function(arg,arg2,arg3)
+	if not arg or not arg3 then return end
+	local ig=tbl2.Integrity
+	local t={}
+	for i=1,#arg2 do t[arg2[i]]=true end
+	ig.connections[#ig.connections+1]=arg.Changed:Connect(function(a4)
+		if not ig.armed or ig.restoring or not t[a4] then return end
+		tbl2.integrityEscalate()
+		ig.restoring=true
+		pcall(arg3)
+		ig.restoring=false
+	end)
+end
+tbl2.armHubIntegrity=function(arg)
+	local ig=tbl2.Integrity
+	tbl2.integrityDisconnect()
+	ig.armed=false
+	ig.restoring=false
+	ig.repairQueued=false
+	ig.records={}
+	ig.knownRootChildren={}
+	ig.hardUntil=0
+	ig.hardRefreshAt=0
+	ig.tamperCount=0
+	ig.tamperWindow=os.clock()
+	local gui=arg.gui
+	if not gui or not gui.Parent then return end
+	local dT=arg.dynamicText or {}
+	local dTC=arg.dynamicTextColor or {}
+	local dTTr=arg.dynamicTextTransparency or {}
+	local dB=arg.dynamicBackground or {}
+	local dBTr=arg.dynamicBackgroundTransparency or {}
+	local dS=arg.dynamicSize or {}
+	local dP=arg.dynamicPosition or {}
+	local dR=arg.dynamicRotation or {}
+	local dSC=arg.dynamicStrokeColor or {}
+	local dST=arg.dynamicStrokeTransparency or {}
+	local function fn(a2)
+		local t={Name=a2.Name}
+		if a2:IsA("ScreenGui") then
+			t.ResetOnSpawn=a2.ResetOnSpawn
+			t.IgnoreGuiInset=a2.IgnoreGuiInset
+			t.DisplayOrder=a2.DisplayOrder
+			t.AutoLocalize=a2.AutoLocalize
+			t.ZIndexBehavior=a2.ZIndexBehavior
+		end
+		if a2:IsA("GuiObject") then
+			t.BorderSizePixel=a2.BorderSizePixel
+			t.ZIndex=a2.ZIndex
+			t.AnchorPoint=a2.AnchorPoint
+			if not dS[a2] then t.Size=a2.Size end
+			if not dP[a2] then t.Position=a2.Position end
+			if not dR[a2] then t.Rotation=a2.Rotation end
+			if not dB[a2] then t.BackgroundColor3=a2.BackgroundColor3 end
+			if not dBTr[a2] then t.BackgroundTransparency=a2.BackgroundTransparency end
+		end
+		if a2:IsA("TextLabel") or a2:IsA("TextButton") then
+			if not dT[a2] then t.Text=a2.Text end
+			if not dTC[a2] then t.TextColor3=a2.TextColor3 end
+			if not dTTr[a2] then t.TextTransparency=a2.TextTransparency end
+			t.TextStrokeColor3=a2.TextStrokeColor3
+			t.TextStrokeTransparency=a2.TextStrokeTransparency
+			t.TextSize=a2.TextSize
+			t.Font=a2.Font
+			t.TextXAlignment=a2.TextXAlignment
+			t.TextYAlignment=a2.TextYAlignment
+			t.TextWrapped=a2.TextWrapped
+			t.TextScaled=a2.TextScaled
+			t.TextTruncate=a2.TextTruncate
+			if a2:IsA("TextButton") then t.AutoButtonColor=a2.AutoButtonColor end
+		end
+		if a2:IsA("ImageLabel") or a2:IsA("ImageButton") then
+			t.Image=a2.Image
+			t.ImageColor3=a2.ImageColor3
+			t.ImageTransparency=a2.ImageTransparency
+			t.ScaleType=a2.ScaleType
+			if a2:IsA("ImageButton") then t.AutoButtonColor=a2.AutoButtonColor end
+		end
+		if a2:IsA("UIStroke") then
+			if not dSC[a2] then t.Color=a2.Color end
+			if not dST[a2] then t.Transparency=a2.Transparency end
+			t.Thickness=a2.Thickness
+			t.LineJoinMode=a2.LineJoinMode
+		end
+		if a2:IsA("UICorner") then t.CornerRadius=a2.CornerRadius end
+		if a2:IsA("UIScale") then t.Scale=a2.Scale end
+		if a2:IsA("UIGradient") then
+			t.Color=a2.Color
+			t.Transparency=a2.Transparency
+			t.Rotation=a2.Rotation
+		end
+		return t
+	end
+	local p=gui.Parent
+	tbl2.integrityWatch(gui,fn(gui),p)
+	local ch=gui:GetChildren()
+	for i=1,#ch do ig.knownRootChildren[ch[i]]=true end
+	tbl2.walk(gui,function(a2)
+		local p2=a2.Parent
+		tbl2.integrityWatch(a2,fn(a2),p2)
+	end)
+	ig.connections[#ig.connections+1]=gui.ChildAdded:Connect(function(child)
+		if not ig.armed or ig.restoring then return end
+		if not ig.knownRootChildren[child] then
+			tbl2.integrityEscalate()
+			pcall(function() child:Destroy() end)
+		end
+	end)
+	ig.connections[#ig.connections+1]=gui.ChildRemoved:Connect(function(child)
+		if not ig.armed or ig.restoring or not ig.knownRootChildren[child] then return end
+		tbl2.integrityEscalate()
+		tbl2.integrityQueueRepair()
+	end)
+	local comp=arg.computed or {}
+	for i=1,#comp do
+		local v=comp[i]
+		tbl2.integrityWatchComputed(v.instance,v.properties,v.repair)
+	end
+	ig.refresh=arg.refresh
+	ig.armed=true
+	tbl2.integrityRepairAll()
+	pcall(function() RunService:UnbindFromRenderStep(ig.guardName) end)
+	RunService:BindToRenderStep(ig.guardName,Enum.RenderPriority.Last.Value+1000,function()
+		local now=os.clock()
+		if not ig.armed or ig.restoring or now>ig.hardUntil then return end
+		ig.restoring=true
+		for i=1,#ig.records do tbl2.integrityRepairRecord(ig.records[i]) end
+		if ig.refresh and now>=ig.hardRefreshAt then
+			ig.hardRefreshAt=now+0.05
+			pcall(ig.refresh)
+		end
+		ig.restoring=false
+	end)
+end
+tbl2.findModule=function(arg)
+	local v=nil
+	tbl2.walk(ReplicatedStorage,function(a2)
+		if a2:IsA("ModuleScript") and a2.Name:lower()==arg:lower() then
+			v=a2
+			return true
+		end
+	end)
+	if v then
+		local ok,r=pcall(require,v)
+		if ok then return r end
+	end
+	return nil
+end
+
+local Assets=nil
+local data=ReplicatedStorage:FindFirstChild("Data")
+local assets=data and data:FindFirstChild("Assets") or ReplicatedStorage:FindFirstChild("Assets")
+if assets and assets:IsA("ModuleScript") then
+	local ok,r=pcall(require,assets)
+	if ok then Assets=r end
+end
+Assets=Assets or tbl2.findModule("Assets")
+require(ReplicatedStorage:WaitForChild("Client"):WaitForChild("EggState"))
+require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
+require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("RagdollJoints"))
+require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("AreaEggSlotIdentity"))
+local AreaEggCycle=require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("AreaEggCycle"))
+require(ReplicatedStorage:WaitForChild("Data"):WaitForChild("AreaEggResetCycle"))
+local Rarity=require(ReplicatedStorage:WaitForChild("Data"):WaitForChild("Rarity"))
+
+tbl2.isDaytime=function()
+	local ok,r=pcall(function()
+		return AreaEggCycle.IsNightPhase(workspace:GetServerTimeNow())
+	end)
+	return ok and r~=true
+end
+tbl2.isStartWallOpen=function()
+	local obj=workspace:FindFirstChild("World")
+	obj=obj and obj:FindFirstChild("Areas")
+	if not obj then return true end
+	local w1=obj:FindFirstChild("WallStartVisual")
+	if w1 and w1:IsA("BasePart") and w1.Size.Y>0.25 then return false end
+	local w2=obj:FindFirstChild("WallStartCollision")
+	if w2 and w2:IsA("BasePart") and w2.CanCollide then return false end
+	return true
+end
+tbl2.canLeaveForSteal=function() return tbl2.isDaytime() and tbl2.isStartWallOpen() end
+tbl2.rarityConfigCache={}
+tbl2.rarityColorCache={}
+tbl2.getOfficialRarityConfig=function(arg)
+	local str=string.lower(tostring(arg or "")):gsub("%s+","")
+	local v=tbl2.rarityConfigCache[str]
+	if v~=nil then return v~=false and v or nil end
+	local rar=Rarity.Rarities or {}
+	for k,r in pairs(rar) do
+		local s2=string.lower(tostring(k)):gsub("%s+","")
+		local s3=string.lower(tostring(type(r)=="table" and r.DisplayName or "")):gsub("%s+","")
+		if s2==str or s3==str then
+			tbl2.rarityConfigCache[str]=r
+			return r
+		end
+	end
+	tbl2.rarityConfigCache[str]=false
+	return nil
+end
+tbl2.getOfficialRarityColor=function(arg)
+	local str=string.lower(tostring(arg or "")):gsub("%s+","")
+	local v=tbl2.rarityColorCache[str]
+	if v then return v end
+	local color=tbl2.getOfficialRarityConfig(arg)
+	color=color and color.Color
+	local value
+	if typeof(color)=="ColorSequence" then value=color.Keypoints[1].Value
+	else value=color end
+	if typeof(value)~="Color3" then value=Color3.fromRGB(170,190,178) end
+	tbl2.rarityColorCache[str]=value
+	return value
+end
+
+local Mutations=require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("Mutations"))
+local AssetViewport=require(ReplicatedStorage:WaitForChild("Client"):WaitForChild("AssetViewport"))
+
+local tbl3={
+	REFRESH_INTERVAL=0.5,SPAWN_OFFSET=3,BEAM_WIDTH=0.12,
+	DROPDOWN_ROWS=4,ROW_H=28,ROW_GAP=3,
+}
+local tbl4={
+	enabled=false,mode="TELEGUIADO",running=true,
+	bestEgg=nil,selectedEgg=nil,selectedUid=nil,dropdownOpen=false,
+	targetEgg=nil,eggs={},filteredEggs={},rarityFilter={},
+	waitingForDay=false,loopEnabled=false,runLoop=false,
+	lastRefresh=0,isMoving=false,carrying=false,carryLocked=false,heldEggUid=nil,
+}
+local tbl5={}
+local tbl6={Key="cosmic",Label="Cosmic",Color=tbl2.getOfficialRarityColor("Cosmic")}
+local tbl7={Key="secret",Label="Secret",Color=tbl2.getOfficialRarityColor("Secret")}
+local tbl8={Key="eternal",Label="Eternal",Color=tbl2.getOfficialRarityColor("Eternal")}
+local tbl9={Key="divine",Label="Divine",Color=tbl2.getOfficialRarityColor("Divine")}
+tbl5[1]=tbl6 tbl5[2]=tbl7 tbl5[3]=tbl8 tbl5[4]=tbl9
+tbl2.normalizeRarityKey=function(arg)
+	return string.lower(tostring(arg or "")):gsub("%s+","")
+end
+tbl2.isRarityFilterActive=function()
+	for _,v in ipairs(tbl5) do
+		if tbl4.rarityFilter[v.Key] then return true end
+	end
+	return false
+end
+tbl2.eggMatchesRarityFilter=function(arg)
+	if not tbl2.isRarityFilterActive() then return true end
+	return tbl4.rarityFilter[tbl2.normalizeRarityKey(arg.RarityName)]==true
+end
+
+local v=nil
+local humanoid=nil
+local humanoidRootPart=nil
+workspace:WaitForChild("World"):WaitForChild("Areas"):WaitForChild("StartArea")
+
+local str="SPEED_HUB_"
+local function fn(arg)
+	if not arg then return end
+	local ch=arg:GetChildren()
+	for i=1,#ch do
+		local v14=ch[i]
+		if v14:IsA("ScreenGui") and (v14.Name=="SpeedHubStealAnEgg" or v14.Name:sub(1,#str)==str) then
+			pcall(function() v14:Destroy() end)
+		end
+	end
+end
+pcall(function() fn(game:GetService("CoreGui")) end)
+pcall(function() fn(localPlayer.PlayerGui) end)
+
+local vps=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920,1080)
+local flag=vps.X<680 or vps.Y<500
+local n2=262
+local n3=185
+local scale=flag and 0.88 or 0.94
+local n4=flag and 40 or 42
+local n5=flag and 10 or 14
+local udim2=flag and UDim2.new(1,-math.floor(n2*scale)-8,0,8) or UDim2.new(0.5,140,0.5,-math.floor(n3*scale/2)-22)
+local n6=tbl3.DROPDOWN_ROWS*tbl3.ROW_H+(tbl3.DROPDOWN_ROWS-1)*tbl3.ROW_GAP+8
+local n7=n6+20
+local n8=2
+local v14=math.ceil(#tbl5/n8)
+local n9=flag and 21 or 22
+local n10=3
+local n11=v14*n9+(v14-1)*n10
+local n12=120+n7+n11+10
+
+local screenGui=Instance.new("ScreenGui")
+screenGui.Name=str..tostring(math.random(1000000,9999999))
+screenGui.ResetOnSpawn=false
+screenGui.IgnoreGuiInset=false
+screenGui.DisplayOrder=100
+screenGui.AutoLocalize=false
+screenGui.Parent=localPlayer:WaitForChild("PlayerGui")
+
+local imageButton=Instance.new("TextButton")
+imageButton.Name="SpeedHubIcon"
+imageButton.Size=UDim2.fromOffset(n4,n4)
+imageButton.Position=UDim2.new(0,n5,0.5,-math.floor(n4/2))
+imageButton.BackgroundColor3=Color3.fromRGB(8,12,10)
+imageButton.BackgroundTransparency=0.08
+imageButton.Text="S"
+imageButton.TextColor3=Color3.fromRGB(50,255,110)
+imageButton.TextSize=20
+imageButton.Font=Enum.Font.GothamBold
+imageButton.AutoButtonColor=false
+imageButton.ZIndex=20
+imageButton.Parent=screenGui
+Instance.new("UICorner",imageButton).CornerRadius=UDim.new(1,0)
+local uiStroke=Instance.new("UIStroke",imageButton)
+uiStroke.Color=Color3.fromRGB(50,255,110)
+uiStroke.Thickness=1.5
+uiStroke.Transparency=0.15
+
+local frame=Instance.new("Frame")
+frame.Name="SpeedHubPanel"
+frame.Size=UDim2.fromOffset(262,185)
+frame.Position=udim2
+frame.BackgroundColor3=Color3.fromRGB(7,10,8)
+frame.BackgroundTransparency=0.12
+frame.Visible=true
+frame.ZIndex=10
+frame.Parent=screenGui
+local uiScale=Instance.new("UIScale")
+uiScale.Name="CompactScale"
+uiScale.Scale=scale
+uiScale.Parent=frame
+Instance.new("UICorner",frame).CornerRadius=UDim.new(0,12)
+local uiStroke2=Instance.new("UIStroke",frame)
+uiStroke2.Color=Color3.fromRGB(35,145,70)
+uiStroke2.Thickness=1
+uiStroke2.Transparency=0.2
+
+local frame2=Instance.new("Frame")
+frame2.Size=UDim2.new(1,-20,0,42)
+frame2.Position=UDim2.fromOffset(10,10)
+frame2.BackgroundTransparency=1
+frame2.ZIndex=11
+frame2.Parent=frame
+
+local imageLabel=Instance.new("TextButton")
+imageLabel.Size=UDim2.fromOffset(26,26)
+imageLabel.Position=UDim2.new(0,0,0.5,-13)
+imageLabel.BackgroundColor3=Color3.fromRGB(8,12,10)
+imageLabel.BackgroundTransparency=0.08
+imageLabel.Text="S"
+imageLabel.TextColor3=Color3.fromRGB(50,255,110)
+imageLabel.TextSize=14
+imageLabel.Font=Enum.Font.GothamBold
+imageLabel.ZIndex=12
+imageLabel.Parent=frame2
+Instance.new("UICorner",imageLabel).CornerRadius=UDim.new(1,0)
+
+local textLabel=Instance.new("TextLabel")
+textLabel.Size=UDim2.new(1,-70,0,18)
+textLabel.Position=UDim2.new(0,34,0,4)
+textLabel.BackgroundTransparency=1
+textLabel.Text="SPEED HUB"
+textLabel.TextColor3=Color3.fromRGB(235,255,240)
+textLabel.TextSize=13
+textLabel.Font=Enum.Font.GothamBold
+textLabel.TextXAlignment=Enum.TextXAlignment.Left
+textLabel.ZIndex=12
+textLabel.Parent=frame2
+
+local textLabel2=Instance.new("TextLabel")
+textLabel2.Size=UDim2.new(1,-70,0,13)
+textLabel2.Position=UDim2.new(0,34,0,22)
+textLabel2.BackgroundTransparency=1
+textLabel2.Text="STEAL AN EGG"
+textLabel2.TextColor3=Color3.fromRGB(90,130,100)
+textLabel2.TextSize=7
+textLabel2.Font=Enum.Font.GothamMedium
+textLabel2.TextXAlignment=Enum.TextXAlignment.Left
+textLabel2.ZIndex=12
+textLabel2.Parent=frame2
+
+local frame3=Instance.new("Frame")
+frame3.Name="SpeedHubToast"
+frame3.Size=UDim2.fromOffset(190,28)
+frame3.Position=UDim2.new(0.5,-95,0,-35)
+frame3.BackgroundColor3=Color3.fromRGB(12,22,16)
+frame3.BackgroundTransparency=1
+frame3.ZIndex=50
+frame3.Visible=false
+frame3.ClipsDescendants=true
+frame3.Parent=frame
+Instance.new("UICorner",frame3).CornerRadius=UDim.new(0,8)
+local uiStroke3=Instance.new("UIStroke",frame3)
+uiStroke3.Color=Color3.fromRGB(50,255,110)
+uiStroke3.Thickness=1
+uiStroke3.Transparency=1
+
+local textLabel3=Instance.new("TextLabel")
+textLabel3.Size=UDim2.new(1,0,1,0)
+textLabel3.BackgroundTransparency=1
+textLabel3.Text="Toast"
+textLabel3.TextColor3=Color3.fromRGB(235,255,240)
+textLabel3.TextTransparency=1
+textLabel3.TextSize=10
+textLabel3.Font=Enum.Font.GothamBold
+textLabel3.ZIndex=51
+textLabel3.Parent=frame3
+
+tbl2.showToast=function(text)
+	textLabel3.Text=text or ""
+	frame3.Visible=true
+	frame3.Position=UDim2.new(0.5,-95,0,-35)
+	frame3.BackgroundTransparency=1
+	textLabel3.TextTransparency=1
+	uiStroke3.Transparency=1
+	TweenService:Create(frame3,TweenInfo.new(0.18,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Position=UDim2.new(0.5,-95,0,7),BackgroundTransparency=0.1}):Play()
+	TweenService:Create(textLabel3,TweenInfo.new(0.18),{TextTransparency=0}):Play()
+	TweenService:Create(uiStroke3,TweenInfo.new(0.18),{Transparency=0.25}):Play()
+	task.delay(1.8,function()
+		if not frame3.Visible then return end
+		local tw=TweenService:Create(frame3,TweenInfo.new(0.22,Enum.EasingStyle.Quart,Enum.EasingDirection.In),{Position=UDim2.new(0.5,-95,0,-35),BackgroundTransparency=1})
+		TweenService:Create(textLabel3,TweenInfo.new(0.22),{TextTransparency=1}):Play()
+		TweenService:Create(uiStroke3,TweenInfo.new(0.22),{Transparency=1}):Play()
+		tw:Play()
+		tw.Completed:Connect(function()
+			if frame3.Position.Y.Offset<=-25 then frame3.Visible=false end
+		end)
+	end)
+end
+
+local imageButton2=Instance.new("ImageButton")
+imageButton2.Size=UDim2.fromOffset(24,24)
+imageButton2.Position=UDim2.new(1,-52,0.5,-12)
+imageButton2.BackgroundColor3=Color3.fromRGB(25,32,27)
+imageButton2.BackgroundTransparency=0.25
+imageButton2.Image="rbxassetid://121807029290075"
+imageButton2.ScaleType=Enum.ScaleType.Fit
+imageButton2.AutoButtonColor=false
+imageButton2.ZIndex=12
+imageButton2.Parent=frame2
+Instance.new("UICorner",imageButton2).CornerRadius=UDim.new(1,0)
+local uiStroke4=Instance.new("UIStroke",imageButton2)
+uiStroke4.Color=Color3.fromRGB(88,101,242)
+uiStroke4.Thickness=1.2
+uiStroke4.Transparency=0.3
+
+imageButton2.MouseButton1Click:Connect(function()
+	pcall(function()
+		if setclipboard then setclipboard("https://discord.gg/speedhub") end
+	end)
+	tbl2.showToast("Discord link copied!")
+	uiStroke4.Color=Color3.fromRGB(50,255,110)
+	task.delay(0.4,function()
+		if uiStroke4 and uiStroke4.Parent then uiStroke4.Color=Color3.fromRGB(88,101,242) end
+	end)
+end)
+
+local textButton=Instance.new("TextButton")
+textButton.Size=UDim2.fromOffset(24,24)
+textButton.Position=UDim2.new(1,-24,0.5,-12)
+textButton.BackgroundColor3=Color3.fromRGB(25,32,27)
+textButton.BackgroundTransparency=0.25
+textButton.Text="X"
+textButton.TextColor3=Color3.fromRGB(160,180,165)
+textButton.TextSize=16
+textButton.Font=Enum.Font.Gotham
+textButton.AutoButtonColor=false
+textButton.ZIndex=12
+textButton.Parent=frame2
+Instance.new("UICorner",textButton).CornerRadius=UDim.new(1,0)
+
+local frame4=Instance.new("Frame")
+frame4.Size=UDim2.new(1,-20,0,1)
+frame4.Position=UDim2.fromOffset(10,52)
+frame4.BackgroundColor3=Color3.fromRGB(40,90,50)
+frame4.BackgroundTransparency=0.5
+frame4.BorderSizePixel=0
+frame4.ZIndex=11
+frame4.Parent=frame
+
+local frame5=Instance.new("Frame")
+frame5.Size=UDim2.new(1,-20,0,52)
+frame5.Position=UDim2.fromOffset(10,60)
+frame5.BackgroundColor3=Color3.fromRGB(13,19,15)
+frame5.BackgroundTransparency=0.1
+frame5.ZIndex=11
+frame5.Parent=frame
+Instance.new("UICorner",frame5).CornerRadius=UDim.new(0,9)
+local uiStroke5=Instance.new("UIStroke",frame5)
+uiStroke5.Color=Color3.fromRGB(35,70,43)
+uiStroke5.Thickness=1
+uiStroke5.Transparency=0.2
+
+local textLabel4=Instance.new("TextLabel")
+textLabel4.Size=UDim2.new(1,-58,0,14)
+textLabel4.Position=UDim2.fromOffset(52,5)
+textLabel4.BackgroundTransparency=1
+textLabel4.Text="BEST EGG"
+textLabel4.TextColor3=Color3.fromRGB(90,130,100)
+textLabel4.TextSize=7
+textLabel4.Font=Enum.Font.GothamBold
+textLabel4.TextXAlignment=Enum.TextXAlignment.Left
+textLabel4.ZIndex=12
+textLabel4.Parent=frame5
+
+local textLabel5=Instance.new("TextLabel")
+textLabel5.Size=UDim2.new(0,100,0,17)
+textLabel5.Position=UDim2.fromOffset(52,20)
+textLabel5.BackgroundTransparency=1
+textLabel5.Text="SEARCHING..."
+textLabel5.TextColor3=Color3.fromRGB(235,255,240)
+textLabel5.TextSize=10
+textLabel5.Font=Enum.Font.GothamBold
+textLabel5.TextXAlignment=Enum.TextXAlignment.Left
+textLabel5.TextTruncate=Enum.TextTruncate.AtEnd
+textLabel5.ZIndex=12
+textLabel5.Parent=frame5
+
+local textLabel6=Instance.new("TextLabel")
+textLabel6.Size=UDim2.new(0,100,0,12)
+textLabel6.Position=UDim2.fromOffset(52,35)
+textLabel6.BackgroundTransparency=1
+textLabel6.Text=""
+textLabel6.TextColor3=Color3.fromRGB(170,190,178)
+textLabel6.TextSize=8
+textLabel6.Font=Enum.Font.GothamBold
+textLabel6.TextXAlignment=Enum.TextXAlignment.Left
+textLabel6.TextTruncate=Enum.TextTruncate.AtEnd
+textLabel6.ZIndex=12
+textLabel6.Parent=frame5
+
+local textLabel7=Instance.new("TextLabel")
+textLabel7.AnchorPoint=Vector2.new(1,0)
+textLabel7.Size=UDim2.fromOffset(60,17)
+textLabel7.Position=UDim2.new(1,-24,0,20)
+textLabel7.BackgroundTransparency=1
+textLabel7.Text="--"
+textLabel7.TextColor3=Color3.fromRGB(50,255,110)
+textLabel7.TextSize=10
+textLabel7.Font=Enum.Font.GothamBold
+textLabel7.TextXAlignment=Enum.TextXAlignment.Right
+textLabel7.ZIndex=12
+textLabel7.Parent=frame5
+
+local textButton2=Instance.new("TextButton")
+textButton2.Name="DropdownToggle"
+textButton2.Size=UDim2.fromOffset(18,18)
+textButton2.Position=UDim2.new(1,-20,0,3)
+textButton2.BackgroundColor3=Color3.fromRGB(25,32,27)
+textButton2.BackgroundTransparency=0.35
+textButton2.Text=""
+textButton2.AutoButtonColor=false
+textButton2.ZIndex=13
+textButton2.Parent=frame5
+Instance.new("UICorner",textButton2).CornerRadius=UDim.new(1,0)
+
+local frame6=Instance.new("Frame")
+frame6.Name="Arrow"
+frame6.AnchorPoint=Vector2.new(0.5,0.5)
+frame6.Position=UDim2.new(0.5,0,0.5,0)
+frame6.Size=UDim2.fromOffset(10,10)
+frame6.BackgroundTransparency=1
+frame6.Rotation=0
+frame6.ZIndex=14
+frame6.Parent=textButton2
+
+local frame7=Instance.new("Frame")
+frame7.AnchorPoint=Vector2.new(0.5,0.5)
+frame7.Position=UDim2.new(0.5,-3,0.5,-1)
+frame7.Size=UDim2.fromOffset(7,2)
+frame7.Rotation=45
+frame7.BackgroundColor3=Color3.fromRGB(160,220,175)
+frame7.BorderSizePixel=0
+frame7.ZIndex=14
+frame7.Parent=frame6
+Instance.new("UICorner",frame7).CornerRadius=UDim.new(1,0)
+
+local frame8=Instance.new("Frame")
+frame8.AnchorPoint=Vector2.new(0.5,0.5)
+frame8.Position=UDim2.new(0.5,3,0.5,-1)
+frame8.Size=UDim2.fromOffset(7,2)
+frame8.Rotation=-45
+frame8.BackgroundColor3=Color3.fromRGB(160,220,175)
+frame8.BorderSizePixel=0
+frame8.ZIndex=14
+frame8.Parent=frame6
+Instance.new("UICorner",frame8).CornerRadius=UDim.new(1,0)
+
+local textButton3=Instance.new("TextButton")
+textButton3.Size=UDim2.new(1,-20,0,55)
+textButton3.Position=UDim2.fromOffset(10,120)
+textButton3.BackgroundColor3=Color3.fromRGB(13,19,15)
+textButton3.BackgroundTransparency=0.15
+textButton3.Text=""
+textButton3.AutoButtonColor=false
+textButton3.ZIndex=11
+textButton3.Parent=frame
+Instance.new("UICorner",textButton3).CornerRadius=UDim.new(0,9)
+local uiStroke6=Instance.new("UIStroke",textButton3)
+uiStroke6.Color=Color3.fromRGB(35,70,43)
+uiStroke6.Thickness=1
+uiStroke6.Transparency=0.3
+
+local textLabel8=Instance.new("TextLabel")
+textLabel8.Size=UDim2.fromOffset(88,20)
+textLabel8.Position=UDim2.fromOffset(12,8)
+textLabel8.BackgroundTransparency=1
+textLabel8.Text="INSTANT TP"
+textLabel8.TextColor3=Color3.fromRGB(230,240,233)
+textLabel8.TextSize=11
+textLabel8.Font=Enum.Font.GothamBold
+textLabel8.TextXAlignment=Enum.TextXAlignment.Left
+textLabel8.ZIndex=12
+textLabel8.Parent=textButton3
+
+local textLabel9=Instance.new("TextLabel")
+textLabel9.Size=UDim2.fromOffset(88,14)
+textLabel9.Position=UDim2.fromOffset(12,30)
+textLabel9.BackgroundTransparency=1
+textLabel9.Text="Always targets the highest value"
+textLabel9.TextColor3=Color3.fromRGB(100,125,108)
+textLabel9.TextSize=8
+textLabel9.Font=Enum.Font.Gotham
+textLabel9.TextXAlignment=Enum.TextXAlignment.Left
+textLabel9.ZIndex=12
+textLabel9.Parent=textButton3
+
+tbl2.loopButton=Instance.new("TextButton")
+tbl2.loopButton.Name="LoopCheckbox"
+tbl2.loopButton.AnchorPoint=Vector2.new(0.5,0.5)
+tbl2.loopButton.Size=UDim2.fromOffset(52,20)
+tbl2.loopButton.Position=UDim2.new(0.56,0,0.5,0)
+tbl2.loopButton.BackgroundTransparency=1
+tbl2.loopButton.Text=""
+tbl2.loopButton.AutoButtonColor=false
+tbl2.loopButton.ZIndex=13
+tbl2.loopButton.Parent=textButton3
+
+tbl2.loopBox=Instance.new("Frame")
+tbl2.loopBox.Size=UDim2.fromOffset(14,14)
+tbl2.loopBox.Position=UDim2.fromOffset(0,3)
+tbl2.loopBox.BackgroundColor3=Color3.fromRGB(25,32,27)
+tbl2.loopBox.BorderSizePixel=0
+tbl2.loopBox.ZIndex=14
+tbl2.loopBox.Parent=tbl2.loopButton
+Instance.new("UICorner",tbl2.loopBox).CornerRadius=UDim.new(0,4)
+tbl2.loopBoxStroke=Instance.new("UIStroke",tbl2.loopBox)
+tbl2.loopBoxStroke.Color=Color3.fromRGB(90,120,98)
+tbl2.loopBoxStroke.Thickness=1
+tbl2.loopBoxStroke.Transparency=0.15
+
+tbl2.loopCheck=Instance.new("TextLabel")
+tbl2.loopCheck.Size=UDim2.fromScale(1,1)
+tbl2.loopCheck.BackgroundTransparency=1
+tbl2.loopCheck.Text="X"
+tbl2.loopCheck.TextColor3=Color3.fromRGB(8,18,11)
+tbl2.loopCheck.TextSize=11
+tbl2.loopCheck.Font=Enum.Font.GothamBold
+tbl2.loopCheck.Visible=false
+tbl2.loopCheck.ZIndex=15
+tbl2.loopCheck.Parent=tbl2.loopBox
+
+tbl2.loopLabel=Instance.new("TextLabel")
+tbl2.loopLabel.Size=UDim2.new(1,-18,1,0)
+tbl2.loopLabel.Position=UDim2.fromOffset(18,0)
+tbl2.loopLabel.BackgroundTransparency=1
+tbl2.loopLabel.Text="LOOP"
+tbl2.loopLabel.TextColor3=Color3.fromRGB(255,255,255)
+tbl2.loopLabel.TextSize=11
+tbl2.loopLabel.Font=Enum.Font.GothamBold
+tbl2.loopLabel.TextXAlignment=Enum.TextXAlignment.Left
+tbl2.loopLabel.TextStrokeColor3=Color3.fromRGB(0,0,0)
+tbl2.loopLabel.TextStrokeTransparency=0
+tbl2.loopLabel.ZIndex=14
+tbl2.loopLabel.Parent=tbl2.loopButton
+
+local frame9=Instance.new("Frame")
+frame9.Size=UDim2.fromOffset(38,20)
+frame9.Position=UDim2.new(1,-48,0.5,-10)
+frame9.BackgroundColor3=Color3.fromRGB(32,42,35)
+frame9.ZIndex=12
+frame9.Parent=textButton3
+Instance.new("UICorner",frame9).CornerRadius=UDim.new(1,0)
+
+local frame10=Instance.new("Frame")
+frame10.Size=UDim2.fromOffset(14,14)
+frame10.Position=UDim2.new(0,3,0.5,-7)
+frame10.BackgroundColor3=Color3.fromRGB(145,155,148)
+frame10.ZIndex=13
+frame10.Parent=frame9
+Instance.new("UICorner",frame10).CornerRadius=UDim.new(1,0)
+
+local frame11=Instance.new("Frame")
+frame11.Name="DropdownList"
+frame11.Size=UDim2.new(1,-20,0,n7+n11)
+frame11.Position=UDim2.fromOffset(10,120)
+frame11.BackgroundTransparency=1
+frame11.Visible=false
+frame11.ZIndex=11
+frame11.Parent=frame
+
+local tbl12={}
+tbl2.createDropdownRow=function(arg)
+	local tb=Instance.new("TextButton")
+	tb.Name="Row"..arg
+	tb.Size=UDim2.new(1,0,0,tbl3.ROW_H)
+	tb.Position=UDim2.fromOffset(0,(arg-1)*(tbl3.ROW_H+tbl3.ROW_GAP))
+	tb.BackgroundColor3=Color3.fromRGB(13,19,15)
+	tb.BackgroundTransparency=0.15
+	tb.Text=""
+	tb.AutoButtonColor=false
+	tb.ZIndex=12
+	tb.Visible=false
+	tb.Parent=frame11
+	Instance.new("UICorner",tb).CornerRadius=UDim.new(0,7)
+	local st=Instance.new("UIStroke",tb)
+	st.Color=Color3.fromRGB(35,70,43)
+	st.Thickness=1
+	st.Transparency=0.35
+	local l10=Instance.new("TextLabel")
+	l10.Size=UDim2.fromOffset(16,tbl3.ROW_H)
+	l10.Position=UDim2.fromOffset(6,0)
+	l10.BackgroundTransparency=1
+	l10.Text="#"..arg
+	l10.TextColor3=Color3.fromRGB(90,130,100)
+	l10.TextSize=9
+	l10.Font=Enum.Font.GothamBold
+	l10.ZIndex=13
+	l10.Parent=tb
+	local f12=Instance.new("Frame")
+	f12.Name="Preview"
+	f12.AnchorPoint=Vector2.new(0,0.5)
+	f12.Position=UDim2.new(0,26,0.5,0)
+	f12.Size=UDim2.fromOffset(24,24)
+	f12.BackgroundColor3=Color3.fromRGB(0,0,0)
+	f12.BackgroundTransparency=0.5
+	f12.BorderSizePixel=0
+	f12.ClipsDescendants=true
+	f12.ZIndex=13
+	f12.Parent=tb
+	Instance.new("UICorner",f12).CornerRadius=UDim.new(0,6)
+	local l11=Instance.new("TextLabel")
+	l11.Size=UDim2.new(1,-130,0,14)
+	l11.Position=UDim2.fromOffset(58,4)
+	l11.BackgroundTransparency=1
+	l11.Text=""
+	l11.TextColor3=Color3.fromRGB(235,255,240)
+	l11.TextSize=9
+	l11.Font=Enum.Font.GothamBold
+	l11.TextXAlignment=Enum.TextXAlignment.Left
+	l11.TextTruncate=Enum.TextTruncate.AtEnd
+	l11.ZIndex=13
+	l11.Parent=tb
+	local l12=Instance.new("TextLabel")
+	l12.Size=UDim2.new(1,-130,0,11)
+	l12.Position=UDim2.fromOffset(58,17)
+	l12.BackgroundTransparency=1
+	l12.Text=""
+	l12.TextColor3=Color3.fromRGB(170,190,178)
+	l12.TextSize=7
+	l12.Font=Enum.Font.GothamBold
+	l12.TextXAlignment=Enum.TextXAlignment.Left
+	l12.TextTruncate=Enum.TextTruncate.AtEnd
+	l12.ZIndex=13
+	l12.Parent=tb
+	local l13=Instance.new("TextLabel")
+	l13.AnchorPoint=Vector2.new(1,0)
+	l13.Size=UDim2.fromOffset(60,20)
+	l13.Position=UDim2.new(1,-8,0,5)
+	l13.BackgroundTransparency=1
+	l13.Text=""
+	l13.TextColor3=Color3.fromRGB(50,255,110)
+	l13.TextSize=10
+	l13.Font=Enum.Font.GothamBold
+	l13.TextXAlignment=Enum.TextXAlignment.Right
+	l13.ZIndex=13
+	l13.Parent=tb
+	return {Row=tb,Preview=f12,NameLabel=l11,RarityLabel=l12,ValueLabel=l13,Egg=nil,LastUid=nil,LastCategory=nil}
+end
+
+for i=1,tbl3.DROPDOWN_ROWS do tbl12[i]=tbl2.createDropdownRow(i) end
+
+local textLabel10=Instance.new("TextLabel")
+textLabel10.Name="RarityFilterTitle"
+textLabel10.Size=UDim2.new(1,0,0,18)
+textLabel10.Position=UDim2.fromOffset(0,n6)
+textLabel10.BackgroundTransparency=1
+textLabel10.Text="RARITY FILTER"
+textLabel10.TextColor3=Color3.fromRGB(120,255,160)
+textLabel10.TextSize=8
+textLabel10.Font=Enum.Font.GothamBold
+textLabel10.TextXAlignment=Enum.TextXAlignment.Left
+textLabel10.ZIndex=12
+textLabel10.Parent=frame11
+
+local frame12=Instance.new("Frame")
+frame12.Name="RarityFilterList"
+frame12.Size=UDim2.new(1,0,0,n11)
+frame12.Position=UDim2.fromOffset(0,n7)
+frame12.BackgroundTransparency=1
+frame12.Visible=true
+frame12.ZIndex=11
+frame12.Parent=frame11
+
+local tbl13={}
+tbl2.createRarityCheckbox=function(arg,arg2)
+	local n13=(arg-1)%n8
+	local n14=math.floor((arg-1)/n8)
+	local tb=Instance.new("TextButton")
+	tb.Name="RarityCheckbox"..arg2.Key
+	tb.Size=UDim2.new(0.5,-3,0,n9)
+	tb.Position=UDim2.new(n13*0.5,n13==0 and 0 or 3,0,n14*(n9+n10))
+	tb.BackgroundColor3=Color3.fromRGB(13,19,15)
+	tb.BackgroundTransparency=0.08
+	tb.BorderSizePixel=0
+	tb.AutoButtonColor=false
+	tb.Text=""
+	tb.ZIndex=12
+	tb.Parent=frame12
+	Instance.new("UICorner",tb).CornerRadius=UDim.new(0,7)
+	local st=Instance.new("UIStroke",tb)
+	st.Color=arg2.Color
+	st.Thickness=1
+	st.Transparency=0.35
+	local l11=Instance.new("TextLabel")
+	l11.Name="Check"
+	l11.Size=UDim2.fromOffset(16,16)
+	l11.Position=UDim2.fromOffset(5,4)
+	l11.BackgroundColor3=arg2.Color
+	l11.BackgroundTransparency=0.55
+	l11.BorderSizePixel=0
+	l11.Text=""
+	l11.TextColor3=Color3.fromRGB(7,10,8)
+	l11.TextSize=12
+	l11.Font=Enum.Font.GothamBlack
+	l11.ZIndex=13
+	l11.Parent=tb
+	Instance.new("UICorner",l11).CornerRadius=UDim.new(0,4)
+	local l12=Instance.new("TextLabel")
+	l12.Name="Label"
+	l12.Size=UDim2.new(1,-28,1,0)
+	l12.Position=UDim2.fromOffset(26,0)
+	l12.BackgroundTransparency=1
+	l12.Text=arg2.Label
+	l12.TextColor3=arg2.Key=="secret" and Color3.fromRGB(255,255,255) or arg2.Color
+	l12.TextStrokeColor3=Color3.fromRGB(0,0,0)
+	l12.TextStrokeTransparency=arg2.Key=="secret" and 0 or 1
+	l12.TextSize=8
+	l12.Font=Enum.Font.GothamBold
+	l12.TextXAlignment=Enum.TextXAlignment.Left
+	l12.ZIndex=13
+	l12.Parent=tb
+	return {Row=tb,Box=l11,Stroke=st,Label=l12,Option=arg2}
+end
+
+for i,v15 in ipairs(tbl5) do tbl13[v15.Key]=tbl2.createRarityCheckbox(i,v15) end
+
+tbl2.updateRarityChecks=function()
+	for _,v15 in ipairs(tbl5) do
+		local v16=tbl13[v15.Key]
+		local f2=tbl4.rarityFilter[v15.Key]==true
+		local f3=v15.Key=="secret"
+		v16.Label.TextColor3=f3 and Color3.fromRGB(255,255,255) or v15.Color
+		v16.Label.TextStrokeColor3=Color3.fromRGB(0,0,0)
+		v16.Label.TextStrokeTransparency=f3 and 0 or 1
+		v16.Box.Text=f2 and "X" or ""
+		v16.Box.BackgroundColor3=v15.Color
+		v16.Box.BackgroundTransparency=f2 and 0 or 0.55
+		v16.Box.TextColor3=f2 and Color3.fromRGB(10,12,10) or v15.Color
+		v16.Stroke.Color=v15.Color
+		v16.Stroke.Transparency=f2 and 0 or 0.35
+		v16.Row.BackgroundColor3=f2 and Color3.fromRGB(24,48,31) or Color3.fromRGB(13,19,15)
+	end
+end
+
+tbl2.attachViewport=function(arg,arg2)
+	if not AssetViewport then return end
+	local ok,r=pcall(function() return AssetViewport.Mount(arg) end)
+	if not ok or not r then return end
+	local v15=r
+	v15.Size=UDim2.fromScale(1,1)
+	v15.Position=UDim2.fromScale(0.5,0.5)
+	v15.AnchorPoint=Vector2.new(0.5,0.5)
+	v15.BackgroundTransparency=1
+	v15.ZIndex=14
+	if not pcall(function() return AssetViewport.ShowAsset(arg2,v15,true) end) then
+		if v15 then v15:Destroy() end
+		return
+	end
+end
+
+local v15=nil
+tbl2.updatePetPreview=function(arg)
+	if not frame.Visible then
+		v15=nil
+		return
+	end
+	if v15==arg and frame5:FindFirstChild("Preview") then return end
+	v15=arg
+	local preview=frame5:FindFirstChild("Preview")
+	if preview then preview:Destroy() end
+	if not arg then return end
+	local f13=Instance.new("Frame")
+	f13.Name="Preview"
+	f13.AnchorPoint=Vector2.new(0,0.5)
+	f13.Position=UDim2.new(0,6,0.5,0)
+	f13.Size=UDim2.fromOffset(40,40)
+	f13.BackgroundColor3=Color3.fromRGB(0,0,0)
+	f13.BackgroundTransparency=0.5
+	f13.BorderSizePixel=0
+	f13.ClipsDescendants=true
+	f13.ZIndex=13
+	f13.Parent=frame5
+	local uc=Instance.new("UICorner")
+	uc.CornerRadius=UDim.new(0,7)
+	uc.Parent=f13
+	tbl2.attachViewport(f13,arg)
+end
+
+tbl2.formatNumber=function(arg)
+	local n13=tonumber(arg) or 0
+	local function fn2(a2)
+		return (string.format("%.2f",a2):gsub("(%..-)0+$","%1"):gsub("%.$",""))
+	end
+	local n14=math.abs(n13)
+	for _,v16 in ipairs({{1e12,"T"},{1e9,"B"},{1000000,"M"},{1000,"K"}}) do
+		if n14>=v16[1] then
+			local v17=v16[2]
+			return fn2(n13/v16[1])..v17
+		end
+	end
+	return tostring(math.floor(n13+0.5))
+end
+
+tbl2.getScaleMultiplier=function(arg)
+	local n13=tonumber(arg) or 1
+	if n13<=5 then return n13^1.85 end
+	return (n13/5)^1.2*19.637875755794113
+end
+
+tbl2.getEggData=function(arg)
+	local v16=Assets.Directory[arg.AssetCategory]
+	if not v16 then return nil end
+	local n13=tonumber(v16.EarningRate) or 0
+	local n14=tonumber(arg.AssetScale) or 1
+	local f2=arg.Mutations and #arg.Mutations>0
+	local n15=1
+	if f2 then
+		if Mutations and type(Mutations.EarningsFor)=="function" then
+			local ok,r=pcall(function() return Mutations.EarningsFor(arg.Mutations) end)
+			if ok then n15=tonumber(r) or 1 end
+		end
+	end
+	local n16=n13*tbl2.getScaleMultiplier(n14)*n15
+	local c=Color3.fromRGB(170,190,178)
+	local n17=0
+	local s2=""
+	if v16.Rarity then
+		n17=v16.Rarity.RarityNumber or 0
+		s2=v16.Rarity.DisplayName or v16.Rarity.Name or ""
+		c=tbl2.getOfficialRarityColor(s2)
+	end
+	return {
+		Uid=arg.Uid,Category=arg.AssetCategory,
+		Name=v16.DisplayName or arg.AssetCategory,
+		Generation=math.round(n16),
+		Position=arg.BottomCFrame.Position,
+		BottomCFrame=arg.BottomCFrame,
+		Rarity=n17,RarityName=s2,RarityColor=c,
+	}
+end
+
+tbl2.refreshDropdownRows=function()
+	for i=1,tbl3.DROPDOWN_ROWS do
+		local v16=tbl12[i]
+		local v17=tbl4.filteredEggs[i]
+		v16.Egg=v17
+		local lu=v17 and tostring(v17.Uid) or nil
+		local cat=v17 and v17.Category or nil
+		if v16.LastUid~=lu or v16.LastCategory~=cat then
+			for _,ch in ipairs(v16.Preview:GetChildren()) do ch:Destroy() end
+			v16.LastUid=lu
+			v16.LastCategory=cat
+			if v17 then tbl2.attachViewport(v16.Preview,cat) end
+		end
+		if v17 then
+			v16.Row.Visible=true
+			local t1=tostring(v17.Name or "UNKNOWN")
+			local t2=tostring(v17.RarityName or "")
+			local v18=tbl2.formatNumber(v17.Generation or 0)
+			if v16.NameLabel.Text~=t1 then v16.NameLabel.Text=t1 end
+			if v16.RarityLabel.Text~=t2 then v16.RarityLabel.Text=t2 end
+			local rc=v17.RarityColor or Color3.fromRGB(170,190,178)
+			if v16.RarityLabel.TextColor3~=rc then v16.RarityLabel.TextColor3=rc end
+			if v16.ValueLabel.Text~=v18 then v16.ValueLabel.Text=v18 end
+		else
+			v16.Row.Visible=false
+			if v16.NameLabel.Text~="" then v16.NameLabel.Text="" end
+			if v16.RarityLabel.Text~="" then v16.RarityLabel.Text="" end
+			if v16.ValueLabel.Text~="" then v16.ValueLabel.Text="" end
+		end
+	end
+end
+
+tbl2.closeDropdown=function()
+	if not tbl4.dropdownOpen then return end
+	tbl4.dropdownOpen=false
+	frame11.Visible=false
+	textButton3.Visible=true
+	TweenService:Create(frame6,TweenInfo.new(0.15),{Rotation=0}):Play()
+	TweenService:Create(frame,TweenInfo.new(0.18,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Size=UDim2.fromOffset(262,185)}):Play()
+end
+tbl2.openDropdown=function()
+	if tbl4.dropdownOpen then return end
+	tbl4.dropdownOpen=true
+	tbl2.refreshDropdownRows()
+	textButton3.Visible=false
+	frame11.Visible=true
+	TweenService:Create(frame6,TweenInfo.new(0.15),{Rotation=180}):Play()
+	TweenService:Create(frame,TweenInfo.new(0.18,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Size=UDim2.fromOffset(262,n12)}):Play()
+end
+
+textButton2.MouseButton1Click:Connect(function()
+	if tbl4.dropdownOpen then tbl2.closeDropdown() else tbl2.openDropdown() end
+end)
+
+for i=1,tbl3.DROPDOWN_ROWS do
+	local v16=tbl12[i]
+	v16.Row.MouseButton1Click:Connect(function()
+		local egg=v16.Egg
+		if egg then
+			tbl4.selectedEgg=egg
+			tbl4.selectedUid=egg.Uid
+			tbl4.targetEgg=nil
+		end
+		tbl2.closeDropdown()
+	end)
+	v16.Row.MouseEnter:Connect(function()
+		TweenService:Create(v16.Row,TweenInfo.new(0.12),{BackgroundColor3=Color3.fromRGB(19,28,21)}):Play()
+	end)
+	v16.Row.MouseLeave:Connect(function()
+		TweenService:Create(v16.Row,TweenInfo.new(0.12),{BackgroundColor3=Color3.fromRGB(13,19,15)}):Play()
+	end)
+end
+
+tbl2.refreshEggs=function(arg)
+	local now=tick()
+	if not arg and now-tbl4.lastRefresh<tbl3.REFRESH_INTERVAL then return tbl4.eggs end
+	local ok,r=pcall(function() return tbl.AskFieldEggSnapshot:InvokeServer() end)
+	if not ok then return tbl4.eggs end
+	local eggs=tbl4.eggs
+	table.clear(eggs)
+	if r and r.Records then
+		for _,rec in ipairs(r.Records) do
+			if rec.State=="Slot" or rec.State=="Dropped" then
+				local v16=tbl2.getEggData(rec)
+				if v16 then eggs[#eggs+1]=v16 end
+			end
+		end
+	end
+	table.sort(eggs,function(a2,a3) return a2.Generation>a3.Generation end)
+	local fe=tbl4.filteredEggs
+	table.clear(fe)
+	for _,egg in ipairs(eggs) do
+		if tbl2.eggMatchesRarityFilter(egg) then fe[#fe+1]=egg end
+	end
+	tbl4.bestEgg=tbl4.filteredEggs[1]
+	tbl4.lastRefresh=now
+	return tbl4.eggs
+end
+
+tbl2.getActiveTargetEgg=function()
+	if tbl4.selectedEgg then
+		for _,fe in ipairs(tbl4.filteredEggs) do
+			if fe.Uid==tbl4.selectedEgg.Uid then
+				tbl4.selectedEgg=fe
+				tbl4.selectedUid=fe.Uid
+				return fe
+			end
+		end
+		tbl4.selectedEgg=nil
+		tbl4.selectedUid=nil
+	end
+	return tbl4.bestEgg
+end
+
+for _,v16 in ipairs(tbl5) do
+	local v17=tbl13[v16.Key]
+	v17.Row.MouseButton1Click:Connect(function()
+		tbl4.rarityFilter[v16.Key]=not tbl4.rarityFilter[v16.Key]
+		tbl4.selectedEgg=nil
+		tbl4.selectedUid=nil
+		tbl4.lastRefresh=0
+		tbl2.updateRarityChecks()
+		tbl2.refreshEggs(true)
+	end)
+	v17.Row.MouseEnter:Connect(function()
+		if not tbl4.rarityFilter[v16.Key] then
+			TweenService:Create(v17.Row,TweenInfo.new(0.12),{BackgroundColor3=Color3.fromRGB(19,28,21)}):Play()
+		end
+	end)
+	v17.Row.MouseLeave:Connect(function()
+		if not tbl4.rarityFilter[v16.Key] then
+			TweenService:Create(v17.Row,TweenInfo.new(0.12),{BackgroundColor3=Color3.fromRGB(13,19,15)}):Play()
+		end
+	end)
+end
+
+tbl2.updateRarityChecks()
+
+tbl2.updateBestDisplay=function()
+	tbl2.refreshEggs()
+	local v16=tbl2.getActiveTargetEgg()
+	pcall(function()
+		if not v16 then
+			if textLabel5.Text~="NO EGG FOUND" then textLabel5.Text="NO EGG FOUND" end
+			if textLabel6.Text~="" then textLabel6.Text="" end
+			if textLabel7.Text~="--" then textLabel7.Text="--" end
+			tbl2.updatePetPreview(nil)
+		else
+			local t1=tostring(v16.Name or "UNKNOWN")
+			local t2=tostring(v16.RarityName or "")
+			local v17=tbl2.formatNumber(v16.Generation or 0)
+			if textLabel5.Text~=t1 then textLabel5.Text=t1 end
+			if textLabel6.Text~=t2 then textLabel6.Text=t2 end
+			local rc=v16.RarityColor or Color3.fromRGB(170,190,178)
+			if textLabel6.TextColor3~=rc then textLabel6.TextColor3=rc end
+			if textLabel7.Text~=v17 then textLabel7.Text=v17 end
+			tbl2.updatePetPreview(v16.Category)
+		end
+	end)
+	if tbl4.dropdownOpen then tbl2.refreshDropdownRows() end
+	return v16
+end
+
+tbl2.updateLoopUI=function()
+	if tbl4.loopEnabled then
+		tbl2.loopBox.BackgroundColor3=Color3.fromRGB(50,255,110)
+		tbl2.loopBoxStroke.Color=Color3.fromRGB(90,255,140)
+		tbl2.loopCheck.Visible=true
+		tbl2.loopLabel.TextColor3=Color3.fromRGB(180,255,198)
+	else
+		tbl2.loopBox.BackgroundColor3=Color3.fromRGB(25,32,27)
+		tbl2.loopBoxStroke.Color=Color3.fromRGB(90,120,98)
+		tbl2.loopCheck.Visible=false
+		tbl2.loopLabel.TextColor3=Color3.fromRGB(145,165,150)
+	end
+end
+
+tbl2.updateToggle=function()
+	if tbl4.enabled then
+		TweenService:Create(frame9,TweenInfo.new(0.18,Enum.EasingStyle.Quart),{BackgroundColor3=Color3.fromRGB(30,205,90)}):Play()
+		TweenService:Create(frame10,TweenInfo.new(0.18,Enum.EasingStyle.Quart),{Position=UDim2.new(1,-17,0.5,-7),BackgroundColor3=Color3.fromRGB(240,255,242)}):Play()
+		uiStroke6.Color=Color3.fromRGB(40,190,80)
+		if tbl4.waitingForDay then
+			textLabel9.Text=tbl2.isDaytime() and "WAITING FOR GATE" or "WAITING FOR DAY"
+		else
+			textLabel9.Text="INSTANT TP ACTIVE"
+		end
+	else
+		TweenService:Create(frame9,TweenInfo.new(0.18,Enum.EasingStyle.Quart),{BackgroundColor3=Color3.fromRGB(32,42,35)}):Play()
+		TweenService:Create(frame10,TweenInfo.new(0.18,Enum.EasingStyle.Quart),{Position=UDim2.new(0,3,0.5,-7),BackgroundColor3=Color3.fromRGB(145,155,148)}):Play()
+		uiStroke6.Color=Color3.fromRGB(35,70,43)
+		textLabel9.Text=tbl4.loopEnabled and "LOOP READY" or "Always targets the highest value"
+	end
+end
+
+textButton3.MouseButton1Click:Connect(function()
+	if tbl4.enabled then
+		tbl4.enabled=false
+		tbl4.waitingForDay=false
+		tbl4.runLoop=false
+		_G.yslemCancel()
+		tbl2.updateToggle()
+		return
+	end
+
+	if not tbl2.canLeaveForSteal() then
+		tbl4.enabled=true
+		tbl4.waitingForDay=true
+		tbl2.updateToggle()
+		tbl2.showToast(tbl2.isDaytime() and "Waiting for gate" or "Waiting for day")
+		return
+	end
+
+	tbl4.enabled=true
+	tbl4.waitingForDay=false
+	tbl4.runLoop=tbl4.loopEnabled
+	tbl2.updateToggle()
+
+	task.spawn(function()
+		while tbl4.enabled do
+			if not tbl2.canLeaveForSteal() then
+				tbl4.waitingForDay=true
+				tbl2.updateToggle()
+				while tbl4.enabled and not tbl2.canLeaveForSteal() do
+					task.wait(1)
+				end
+				if not tbl4.enabled then break end
+				tbl4.waitingForDay=false
+				tbl2.updateToggle()
+			end
+
+			tbl2.refreshEggs(true)
+			tbl2.updateBestDisplay()
+			local target=tbl2.getActiveTargetEgg()
+			if not target then
+				task.wait(0.5)
+				continue
+			end
+
+			tbl4.targetEgg=target
+			tbl4.heldEggUid=target.Uid
+
+			_G.yslemSteal(target.Uid,function()
+				tbl4.targetEgg=nil
+				tbl4.heldEggUid=nil
+			end)
+
+			while _G.yslemBusy() and tbl4.enabled do
+				task.wait(0.2)
+			end
+
+			tbl4.targetEgg=nil
+			tbl4.heldEggUid=nil
+
+			if not tbl4.enabled then break end
+			if not tbl4.loopEnabled then break end
+			task.wait(0.2)
+		end
+		tbl4.enabled=false
+		tbl4.waitingForDay=false
+		tbl4.runLoop=false
+		tbl2.updateToggle()
+	end)
+end)
+
+textButton3.MouseEnter:Connect(function()
+	TweenService:Create(textButton3,TweenInfo.new(0.12),{BackgroundColor3=Color3.fromRGB(19,28,21)}):Play()
+end)
+textButton3.MouseLeave:Connect(function()
+	TweenService:Create(textButton3,TweenInfo.new(0.12),{BackgroundColor3=Color3.fromRGB(13,19,15)}):Play()
+end)
+
+tbl2.loopButton.MouseButton1Click:Connect(function()
+	tbl4.loopEnabled=not tbl4.loopEnabled
+	tbl2.updateLoopUI()
+	if not tbl4.enabled then tbl2.updateToggle() end
+end)
+tbl2.loopButton.MouseEnter:Connect(function()
+	tbl2.loopLabel.TextColor3=Color3.fromRGB(210,255,220)
+end)
+tbl2.loopButton.MouseLeave:Connect(function()
+	tbl2.updateLoopUI()
+end)
+
+local flag2=true
+tbl2.openPanel=function()
+	flag2=true
+	frame.Visible=true
+	v15=nil
+	tbl2.updateBestDisplay()
+	frame.Size=UDim2.fromOffset(n2-18,n3-15)
+	TweenService:Create(frame,TweenInfo.new(0.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.fromOffset(262,185)}):Play()
+end
+tbl2.closePanel=function()
+	flag2=false
+	if tbl4.dropdownOpen then
+		tbl4.dropdownOpen=false
+		frame11.Visible=false
+		textButton3.Visible=true
+		frame6.Rotation=0
+	end
+	local tw=TweenService:Create(frame,TweenInfo.new(0.16,Enum.EasingStyle.Quart,Enum.EasingDirection.In),{Size=UDim2.fromOffset(n2-18,n3-15)})
+	tw:Play()
+	tw.Completed:Connect(function()
+		if not flag2 then frame.Visible=false end
+	end)
+end
+
+imageButton.MouseButton1Click:Connect(function()
+	if flag2 then tbl2.closePanel() else tbl2.openPanel() end
+end)
+textButton.MouseButton1Click:Connect(tbl2.closePanel)
+
+local flag3=nil
+local position=nil
+local position2=nil
+local v16=nil
+frame2.InputBegan:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+		flag3=true
+		position=input.Position
+		position2=frame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState==Enum.UserInputState.End then flag3=false end
+		end)
+	end
+end)
+frame2.InputChanged:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
+		v16=input
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if flag3 and v16 and input==v16 then
+		local n13=input.Position-position
+		frame.Position=UDim2.new(position2.X.Scale,position2.X.Offset+n13.X,position2.Y.Scale,position2.Y.Offset+n13.Y)
+	end
+end)
+
+imageButton.MouseEnter:Connect(function()
+	TweenService:Create(imageButton,TweenInfo.new(0.15,Enum.EasingStyle.Back),{Size=UDim2.fromOffset(50,50)}):Play()
+end)
+imageButton.MouseLeave:Connect(function()
+	TweenService:Create(imageButton,TweenInfo.new(0.15,Enum.EasingStyle.Back),{Size=UDim2.fromOffset(46,46)}):Play()
+end)
+
+tbl2.updateToggle()
+tbl2.updateLoopUI()
+tbl2.updateRarityChecks()
+
+tbl2.integrityDynamicText={[textLabel3]=true,[textLabel5]=true,[textLabel6]=true,[textLabel7]=true,[textLabel8]=true,[textLabel9]=true}
+tbl2.integrityDynamicTextColor={[textLabel6]=true,[tbl2.loopLabel]=true}
+tbl2.integrityDynamicTextTransparency={[textLabel3]=true}
+tbl2.integrityDynamicBackground={[textButton3]=true,[tbl2.loopBox]=true,[frame9]=true,[frame10]=true}
+tbl2.integrityDynamicBackgroundTransparency={[frame3]=true}
+tbl2.integrityDynamicSize={[frame]=true,[imageButton]=true}
+tbl2.integrityDynamicPosition={[frame]=true,[frame3]=true,[frame10]=true}
+tbl2.integrityDynamicRotation={[frame6]=true}
+tbl2.integrityDynamicStrokeColor={[uiStroke6]=true,[tbl2.loopBoxStroke]=true}
+tbl2.integrityDynamicStrokeTransparency={[uiStroke3]=true}
+
+for i=1,#tbl12 do
+	local v17=tbl12[i]
+	tbl2.integrityDynamicText[v17.NameLabel]=true
+	tbl2.integrityDynamicText[v17.RarityLabel]=true
+	tbl2.integrityDynamicText[v17.ValueLabel]=true
+	tbl2.integrityDynamicTextColor[v17.RarityLabel]=true
+	tbl2.integrityDynamicBackground[v17.Row]=true
+end
+for _,v17 in pairs(tbl13) do
+	tbl2.integrityDynamicText[v17.Box]=true
+	tbl2.integrityDynamicTextColor[v17.Box]=true
+	tbl2.integrityDynamicBackground[v17.Row]=true
+	tbl2.integrityDynamicBackground[v17.Box]=true
+	tbl2.integrityDynamicBackgroundTransparency[v17.Box]=true
+	tbl2.integrityDynamicStrokeColor[v17.Stroke]=true
+	tbl2.integrityDynamicStrokeTransparency[v17.Stroke]=true
+end
+
+tbl2.armHubIntegrity({
+	gui=screenGui,
+	dynamicText=tbl2.integrityDynamicText,
+	dynamicTextColor=tbl2.integrityDynamicTextColor,
+	dynamicTextTransparency=tbl2.integrityDynamicTextTransparency,
+	dynamicBackground=tbl2.integrityDynamicBackground,
+	dynamicBackgroundTransparency=tbl2.integrityDynamicBackgroundTransparency,
+	dynamicSize=tbl2.integrityDynamicSize,
+	dynamicPosition=tbl2.integrityDynamicPosition,
+	dynamicRotation=tbl2.integrityDynamicRotation,
+	dynamicStrokeColor=tbl2.integrityDynamicStrokeColor,
+	dynamicStrokeTransparency=tbl2.integrityDynamicStrokeTransparency,
+	computed={
+		{instance=textLabel9,properties={"Text"},repair=function()
+			tbl2.updateToggle()
+		end},
+		{instance=textLabel5,properties={"Text"},repair=tbl2.updateBestDisplay},
+		{instance=textLabel6,properties={"Text","TextColor3"},repair=tbl2.updateBestDisplay},
+		{instance=textLabel7,properties={"Text"},repair=tbl2.updateBestDisplay},
+		{instance=uiStroke6,properties={"Color"},repair=tbl2.updateToggle},
+		{instance=tbl2.loopBox,properties={"BackgroundColor3"},repair=tbl2.updateLoopUI},
+		{instance=tbl2.loopBoxStroke,properties={"Color"},repair=tbl2.updateLoopUI},
+	},
+	refresh=function()
+		tbl2.updateLoopUI()
+		tbl2.updateToggle()
+		tbl2.updateRarityChecks()
+		tbl2.updateBestDisplay()
+	end,
+})
+
+for i=1,#tbl12 do
+	local v17=tbl12[i]
+	tbl2.integrityWatchComputed(v17.NameLabel,{"Text"},tbl2.refreshDropdownRows)
+	tbl2.integrityWatchComputed(v17.RarityLabel,{"Text","TextColor3"},tbl2.refreshDropdownRows)
+	tbl2.integrityWatchComputed(v17.ValueLabel,{"Text"},tbl2.refreshDropdownRows)
+end
+for _,v17 in pairs(tbl13) do
+	tbl2.integrityWatchComputed(v17.Box,{"Text","TextColor3","BackgroundColor3","BackgroundTransparency"},tbl2.updateRarityChecks)
+	tbl2.integrityWatchComputed(v17.Stroke,{"Color","Transparency"},tbl2.updateRarityChecks)
+end
+
+task.spawn(function()
+	task.wait(1)
+	tbl2.refreshEggs(true)
+	tbl2.updateBestDisplay()
+end)
+
+task.spawn(function()
+	while tbl4.running do
+		task.wait(tbl3.REFRESH_INTERVAL)
+		if frame.Visible then tbl2.updateBestDisplay() end
+	end
+end)
