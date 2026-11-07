@@ -1,5 +1,3 @@
-
-local __KH_HUB_SRC = [===============[
 print([[
  KHFRESH HUB — STATIC UI REWRITE
  UI backend: self-written static library + full Lucide icons
