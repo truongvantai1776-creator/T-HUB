@@ -1,0 +1,8 @@
+local src = [===============[
+
+]===============]
+
+local chunk, err = loadstring(src, "@KhfreshHub")
+if not chunk then warn("compile error:", err) return end
+local ok, runErr = pcall(chunk)
+if not ok then warn("runtime error:", runErr) end
