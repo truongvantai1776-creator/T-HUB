@@ -16397,28 +16397,3 @@ do
   assert(table.find(modes,entry.id),'Invalid team mode');T.Mode=entry.id;T.Save();T.Refresh();if T.Reopen then T.Reopen()end
  end)end
 end
-
-]====================],'Aurora Fyrelith Game Controllers')
-        assert(run,message)
-        run()
-        Bridge.Ready=true
-        Bridge:Sync()
-        Hub:SetHealth('ready')
-        Hub:Notify('Game controllers connected')
-        task.spawn(function()while Bridge.Alive and Hub.Alive do
-            local synced,syncError=pcall(Bridge.Sync,Bridge)
-            if not synced then Bridge.Errors[#Bridge.Errors+1]=tostring(syncError)end
-            Hub:SetHealth(synced and 'ready'or'warning')
-            task.wait(.75)
-        end end)
-    end,debug.traceback)
-    if not ok then
-        Bridge.Error=tostring(err)
-        Hub:SetHealth('stopped')
-        warn('[Aurora game integration] '..tostring(err))
-        Hub:Notify('Game connection failed. Check Output.')
-    end
-end)
-return Hub
-
-]======================]
